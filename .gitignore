@@ -1,0 +1,16 @@
+node_modules/
+.next/
+dist/
+app-build/
+*.log
+.env
+.env.local
+db/*.db
+db/*.db-journal
+download/*.zip
+download/*.png
+upload/
+tool-results/
+skills/
+.zscripts/
+bun.lockb
