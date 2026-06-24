@@ -1,4 +1,4 @@
-// Schema para sistema interno de inmobiliaria/constructora
+// Schema para sistema interno de constructora/inmobiliaria
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
@@ -7,4 +7,162 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+// ─── PROYECTOS / OBRAS ───────────────────────────────────────
+
+model Project {
+  id          String    @id @default(cuid())
+  code        String    @unique // OB-001, OB-002, ...
+  name        String
+  description String?
+  address     String?
+  status      String    @default("planning") // planning | in_progress | paused | completed | cancelled
+  type        String    @default("obra") // obra | remodelacion | proyecto
+  budget      Float     @default(0)
+  progress    Float     @default(0) // 0-100
+  clientName  String?
+  clientPhone String?
+  clientEmail String?
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  transactions Transaction[]
+  tasks        Task[]
+}
+
+// ─── TRANSACCIONES FINANCIERAS ───────────────────────────────
+
+model Transaction {
+  id          String    @id @default(cuid())
+  type        String    // income | expense
+  category    String    // materiales | mano_de_obra | servicios | venta | anticipo | otros
+  description String
+  amount      Float
+  date        DateTime  @default(now())
+  method      String?   @default("transferencia") // efectivo | transferencia | cheque | tarjeta
+  recurring   String?   // mensual | semanal | etc.
+  projectId   String?
+  supplierId  String?
+  createdAt   DateTime  @default(now())
+
+  project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+}
+
+// ─── TAREAS ───────────────────────────────────────────────────
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("pending") // pending | in_progress | completed | cancelled
+  priority    String    @default("medium")  // low | medium | high | critical
+  assignee    String?
+  dueDate     DateTime?
+  projectId   String?
+  createdBy   String?   @default("user")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
+// ─── PROVEEDORES ─────────────────────────────────────────────
+
+model Supplier {
+  id       String  @id @default(cuid())
+  name     String
+  contact  String?
+  phone    String?
+  email    String?
+  taxId    String? // CUIT/RUT
+  category String? // materiales | servicios | transporte | etc.
+  rating   Float   @default(3) // 1-5
+  notes    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactions  Transaction[]
+  materials     Material[]
+  stockMovements StockMovement[]
+}
+
+// ─── MATERIALES / INVENTARIO ─────────────────────────────────
+
+model Material {
+  id         String  @id @default(cuid())
+  sku        String  @unique
+  name       String
+  category   String  @default("general")
+  unit       String  @default("unidad") // kg | m2 | m3 | litro | unidad | etc.
+  unitCost   Float   @default(0)
+  unitPrice  Float   @default(0)
+  stock      Float   @default(0)
+  minStock   Float   @default(0)
+  maxStock   Float?
+  location   String?
+  supplierId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  stockMovements StockMovement[]
+}
+
+// ─── MOVIMIENTOS DE STOCK ─────────────────────────────────────
+
+model StockMovement {
+  id         String   @id @default(cuid())
+  type       String   // incoming | outgoing | adjustment
+  quantity   Float
+  unitCost   Float    @default(0)
+  reason     String?  // compra | consumo | ajuste | devolucion
+  note       String?
+  date       DateTime @default(now())
+  materialId String
+  supplierId String?
+
+  material Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+}
+
+// ─── REGLAS DE AUTOMATIZACIÓN ─────────────────────────────────
+
+model AutomationRule {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  trigger     String   // stock_low | budget_exceeded | overdue_task | monthly_expense | etc.
+  condition   String?  // JSON con parámetros de la condición
+  action      String   @default("alert") // alert | notify | task
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── ACCIONES DEL AGENTE IA ───────────────────────────────────
+
+model AgentAction {
+  id          String   @id @default(cuid())
+  type        String   // alert | task | reorder | highlight
+  severity    String   @default("info") // info | warning | critical
+  title       String
+  description String
+  payload     String?  // JSON serializado
+  status      String   @default("active") // active | resolved | dismissed
+  createdAt   DateTime @default(now())
+}
+
+// ─── HISTORIAL DE CONVERSACIÓN DEL AGENTE ────────────────────
+
+model AgentMessage {
+  id        String   @id @default(cuid())
+  role      String   // user | agent
+  content   String   @db.Text
+  intent    String?
+  meta      String?  @db.Text // JSON con datos adicionales
+  createdAt DateTime @default(now())
 }
