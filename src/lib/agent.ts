@@ -62,6 +62,16 @@ export type Intent =
   | "action_close_project"
   // Configuración
   | "config_list_automations"
+  // Nuevas acciones de creación/edición
+  | "action_add_materials"
+  | "action_add_stock_movement"
+  | "action_update_project_progress"
+  | "action_update_project_status"
+  | "action_create_project_direct"
+  | "action_create_supplier"
+  | "action_add_expense_to_project"
+  | "action_list_project_tasks"
+  | "action_complete_task"
   | "unknown";
 
 export interface ParsedCommand {
@@ -189,6 +199,157 @@ const INTENT_PATTERNS: IntentPattern[] = [
       /cambiar\s+stock\s+de/i,
     ],
     priority: 10,
+  },
+  // ─── Nuevos patrones de acción ───
+  {
+    intent: "action_add_materials",
+    patterns: [
+      /(crear|agregar|cargar|añadir|alta\s+de)\s+(materiales?|items?|productos?)/i,
+      /(crea|agrega|carga|añade)\s+(materiales?|items?)/i,
+      /(en\s+(la\s+)?obra|para\s+la\s+obra|obra)\s+\w[\w\s]+,?\s*(crea|agreg|carg|añad)\s+(materiales?|items?)/i,
+      /dar\s+de\s+alta\s+(materiales?|items?)/i,
+    ],
+    entities: (text: string) => {
+      // Extraer referencia de obra
+      const proyMatch = text.match(/en\s+la\s+obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega|\s+carga|\s+añade|$)/i)
+        || text.match(/para\s+(?:la\s+)?obra\s+([\w\s]+?)(?:,|\s+crea|$)/i)
+        || text.match(/OB[-\s]?(\d+)/i);
+      return { projectRef: proyMatch ? proyMatch[1].trim() : undefined };
+    },
+    priority: 12,
+  },
+  {
+    intent: "action_add_stock_movement",
+    patterns: [
+      /(entrada|salida|consumo|ajuste)\s+de\s+stock/i,
+      /(ingres|egres|consum|us)\w+\s+(de\s+)?(material|cemento|ladrill|arena|madera|hierro|pintura|cable)/i,
+      /registrar\s+(entrada|salida)\s+de\s+(materiales?|\w+)/i,
+    ],
+    priority: 11,
+  },
+  {
+    intent: "action_update_project_progress",
+    patterns: [
+      /(actualiz|cambi|modific|ponee?|sete|asign)\w*\s+(el\s+)?(avance|progreso|porcentaje)\s+(de\s+)?(la\s+)?obra/i,
+      /obra\s+[\w\s]+\s+(va|lleva|tiene|esta)\s+al\s*\d+%/i,
+      /avance\s+de\s+OB/i,
+      /(la\s+)?obra\s+[\w\s]+\s+(al|tiene)\s*\d+\s*(%|por\s*ciento)/i,
+    ],
+    entities: (text: string) => {
+      const pct = text.match(/(\d+)\s*(%|por\s*ciento)/i);
+      const proj = text.match(/OB[-\s]?(\d+)/i) || text.match(/obra\s+([\w\s]+?)\s+(al|tiene|va|lleva|esta)/i);
+      return {
+        progress: pct ? parseFloat(pct[1]) : undefined,
+        projectRef: proj ? proj[1].trim() : undefined,
+      };
+    },
+    priority: 12,
+  },
+  {
+    intent: "action_update_project_status",
+    patterns: [
+      /(cambiar|actualizar|poner)\s+estado\s+(de\s+)?(?:la\s+)?obra/i,
+      /obra\s+[\w\s]+\s+(pasar?|poner|cambiar)\s+a\s+(activa|pausada|terminada|planificacion)/i,
+    ],
+    entities: (text: string) => {
+      const statusMap: Record<string, string> = {
+        activa: "in_progress", "en curso": "in_progress", iniciada: "in_progress",
+        pausada: "paused", pausar: "paused",
+        terminada: "finished", finalizada: "finished", cerrada: "finished",
+        planificacion: "planning", planeando: "planning",
+      };
+      const proj = text.match(/OB[-\s]?(\d+)/i) || text.match(/obra\s+([\w\s]+?)\s+(a\s+|en\s+|pasar)/i);
+      let status: string | undefined;
+      for (const [k, v] of Object.entries(statusMap)) {
+        if (new RegExp(k, 'i').test(text)) { status = v; break; }
+      }
+      return { projectRef: proj ? proj[1].trim() : undefined, status };
+    },
+    priority: 12,
+  },
+  {
+    intent: "action_create_project_direct",
+    patterns: [
+      /crear\s+obra\s+["']?[\w\s]+["']?\s*,?\s*presupuesto/i,
+      /nueva\s+obra\s*:\s*["']?[\w\s]+["']?/i,
+      /alta\s+de\s+obra\s*:\s*/i,
+    ],
+    entities: (text: string) => {
+      const nameMatch = text.match(/(?:crear|nueva|alta\s+de)\s+obra\s*:?\s*["']?([\w\s]+?)["']?\s*(?:,|presupuesto|cliente|$)/i);
+      const budgetMatch = text.match(/presupuesto\s*:?\s*\$?\s*([\d.,]+)/i);
+      const clientMatch = text.match(/cliente\s*:?\s*([\w\s]+?)(?:,|$)/i);
+      return {
+        name: nameMatch ? nameMatch[1].trim() : undefined,
+        budget: budgetMatch ? parseFloat(budgetMatch[1].replace(/[.,]/g, '').replace(',', '.')) : undefined,
+        clientName: clientMatch ? clientMatch[1].trim() : undefined,
+      };
+    },
+    priority: 13,
+  },
+  {
+    intent: "action_create_supplier",
+    patterns: [
+      /(crear|alta|nuevo|agregar)\s+(un\s+)?proveedor/i,
+      /dar\s+de\s+alta\s+(un\s+)?proveedor/i,
+    ],
+    entities: (text: string) => {
+      const nameMatch = text.match(/proveedor\s*:?\s*["']?([\w\s]+?)["']?(?:,|tel|email|rubro|$)/i);
+      const phoneMatch = text.match(/tel(?:efono)?\s*:?\s*([\d\s+()-]+)/i);
+      const emailMatch = text.match(/email\s*:?\s*([\w.@]+)/i);
+      const catMatch = text.match(/rubro\s*:?\s*([\w\s]+?)(?:,|$)/i);
+      return {
+        name: nameMatch ? nameMatch[1].trim() : undefined,
+        phone: phoneMatch ? phoneMatch[1].trim() : undefined,
+        email: emailMatch ? emailMatch[1].trim() : undefined,
+        category: catMatch ? catMatch[1].trim() : undefined,
+      };
+    },
+    priority: 11,
+  },
+  {
+    intent: "action_add_expense_to_project",
+    patterns: [
+      /(cargar|registrar|agregar|sumar)\s+(un\s+)?gasto\s+(a|en|para|de)\s+(la\s+)?obra\s+[\w]+/i,
+      /gasto\s+de\s+\$?\d+\s+(?:en|para|a)\s+(la\s+)?obra/i,
+    ],
+    entities: (text: string) => {
+      const amount = text.match(/\$?\s*([\d.,]+)/i);
+      const proj = text.match(/OB[-\s]?(\d+)/i) || text.match(/obra\s+([\w\s]+?)(?:\s+de|\s+por|\s+en|$)/i);
+      const catMatch = text.match(/(materiales?|mano\s*de\s*obra|servicios?|equipos?|alquiler|transporte|otros?)/i);
+      const descMatch = text.match(/(?:por|concepto|descripcion)\s*:?\s*([\w\s]+?)(?:,|$)/i);
+      return {
+        amount: amount ? parseFloat(amount[1].replace(/[,]/g, '')) : undefined,
+        projectRef: proj ? proj[1].trim() : undefined,
+        category: catMatch ? catMatch[1].toLowerCase() : 'otros',
+        description: descMatch ? descMatch[1].trim() : undefined,
+      };
+    },
+    priority: 11,
+  },
+  {
+    intent: "action_list_project_tasks",
+    patterns: [
+      /tareas\s+(de|del|en)\s+(la\s+)?obra/i,
+      /que\s+tareas\s+tiene\s+(la\s+)?obra/i,
+      /OB[-\s]?\d+\s+tareas/i,
+    ],
+    entities: (text: string) => {
+      const proj = text.match(/OB[-\s]?(\d+)/i) || text.match(/obra\s+([\w\s]+?)(?:\s+tiene|\s+hay|$)/i);
+      return { projectRef: proj ? proj[1].trim() : undefined };
+    },
+    priority: 9,
+  },
+  {
+    intent: "action_complete_task",
+    patterns: [
+      /(completar|terminar|marcar\s+como\s+hecha|finalizar)\s+(la\s+)?tarea/i,
+      /tarea\s+["']?[\w\s]+["']?\s+(completada|lista|terminada|hecha)/i,
+    ],
+    entities: (text: string) => {
+      const titleMatch = text.match(/(?:tarea\s+)?["']([\w\s]+)["']/i) || text.match(/(?:completar|terminar)\s+(?:la\s+)?tarea\s+(.+?)(?:,|$)/i);
+      return { taskTitle: titleMatch ? titleMatch[1].trim() : undefined };
+    },
+    priority: 11,
   },
   {
     intent: "action_close_project",
@@ -558,13 +719,84 @@ async function getProjectSummary() {
 
 async function resolveProject(ref?: string) {
   if (!ref) return null;
+  const norm = normalize(ref);
   // Si es número, buscar por código OB-XXX
-  if (/^\d+$/.test(ref)) {
-    const padded = ref.padStart(3, "0");
-    return await db.project.findFirst({ where: { OR: [{ code: `OB-${padded}` }, { code: { contains: ref } }] }, include: { transactions: true, tasks: true } });
+  if (/^\d+$/.test(norm)) {
+    const padded = norm.padStart(3, "0");
+    return await db.project.findFirst({ where: { OR: [{ code: `OB-${padded}` }, { code: { contains: norm } }] }, include: { transactions: true, tasks: true } });
   }
-  // Si no, buscar por nombre
-  return await db.project.findFirst({ where: { name: { contains: ref } }, include: { transactions: true, tasks: true } });
+  // Buscar exacto por código OB-XXX
+  if (/^ob[-\s]?\d+$/i.test(norm)) {
+    return await db.project.findFirst({ where: { code: { contains: norm.replace(/\s/, '-').toUpperCase() } }, include: { transactions: true, tasks: true } });
+  }
+  // Buscar por nombre — primero exacto, luego parcial, luego fuzzy word-by-word
+  const all = await db.project.findMany({ include: { transactions: true, tasks: true } });
+  // Exact
+  let found = all.find(p => normalize(p.name) === norm);
+  if (found) return found;
+  // Contains
+  found = all.find(p => normalize(p.name).includes(norm) || norm.includes(normalize(p.name)));
+  if (found) return found;
+  // Word overlap: best match
+  const words = norm.split(' ').filter(w => w.length > 2);
+  if (words.length > 0) {
+    let best: typeof all[0] | null = null;
+    let bestScore = 0;
+    for (const p of all) {
+      const pn = normalize(p.name);
+      const score = words.filter(w => pn.includes(w)).length;
+      if (score > bestScore) { bestScore = score; best = p; }
+    }
+    if (bestScore > 0) return best;
+  }
+  return null;
+}
+
+// Parser de lista de items ("10 bolsas de cemento, 3 bolsas de durlock")
+interface ParsedItem {
+  qty: number;
+  unit: string;
+  name: string;
+  rawText: string;
+}
+
+function parseItemList(text: string): ParsedItem[] {
+  const items: ParsedItem[] = [];
+  // Separar por comas o "y" / "e"
+  const segments = text.split(/,\s*|\s+y\s+|\s+e\s+/i);
+  for (const seg of segments) {
+    const trimmed = seg.trim();
+    if (!trimmed) continue;
+    // Patrón: número (opcional: unidad) nombre  e.g. "10 bolsas de cemento" o "3 kg de arena"
+    const m = trimmed.match(/^(\d+(?:[.,]\d+)?)\s*([a-záéíóúüñ]+)?\s+(?:de\s+)?(.+)$/i);
+    if (m) {
+      items.push({
+        qty: parseFloat(m[1].replace(',', '.')),
+        unit: m[2] || 'unidad',
+        name: m[3].trim(),
+        rawText: trimmed,
+      });
+    } else {
+      // Solo nombre sin cantidad → qty = 1
+      const m2 = trimmed.match(/^(.+)$/);
+      if (m2) items.push({ qty: 1, unit: 'unidad', name: m2[1].trim(), rawText: trimmed });
+    }
+  }
+  return items;
+}
+
+// Generar SKU automático desde nombre
+function generateSku(name: string): string {
+  return name
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9\s]/g, '')
+    .trim()
+    .split(/\s+/)
+    .map(w => w.slice(0, 3))
+    .join('-')
+    .slice(0, 12)
+    + '-' + Date.now().toString().slice(-4);
 }
 
 // ---------- Handlers por intención ----------
@@ -1063,15 +1295,15 @@ async function respondQueryMaterialHistory(parsed: ParsedCommand): Promise<Agent
     where: { materialId: match.id },
     orderBy: { date: "desc" },
     take: 10,
-    include: { project: true, supplier: true },
+    include: { supplier: true },
   });
   if (movements.length === 0) {
     return { text: `${match.name} no tiene movimientos registrados todavía.`, intent: "query_material_history" };
   }
   const lines = movements.map((m) => {
     const sign = m.type === "incoming" ? "+" : m.type === "outgoing" ? "−" : "=";
-    const who = m.project ? `obra ${m.project.code}` : m.supplier ? `prov. ${m.supplier.name}` : m.note || "";
-    return `• ${formatDate(m.date)} ${sign}${formatNumber(m.quantity)} ${match.unit} — ${m.reason.replace(/_/g, " ")} ${who ? `(${who})` : ""}`;
+    const who = m.supplier ? `prov. ${m.supplier.name}` : m.note || "";
+    return `• ${formatDate(m.date)} ${sign}${formatNumber(m.quantity)} ${match.unit} — ${(m.reason ?? "").replace(/_/g, " ")} ${who ? `(${who})` : ""}`;
   });
   return {
     text: `Historial de ${match.name} (${match.sku}):
@@ -1683,6 +1915,343 @@ async function respondActionUpdateStock(): Promise<AgentResponse> {
   };
 }
 
+// ─── Nuevos handlers de acción ───
+
+async function respondActionAddMaterials(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  // Extraer la sección de materiales del texto (después de ":" o "materiales:" o "items:")
+  const colonPart = rawText.match(/(?:materiales?|items?|productos?)\s*:\s*(.+)$/i);
+  const listText = colonPart ? colonPart[1] : rawText;
+  const items = parseItemList(listText);
+
+  if (items.length === 0) {
+    return {
+      text: `No pude identificar los materiales a crear. Usá el formato:\n\n*crea materiales: 10 bolsas de cemento, 3 bolsas de durlock, 5 kg de cal*`,
+      intent: "action_add_materials",
+      suggestions: ["crea materiales: 10 bolsas de cemento, 5 kg de cal"],
+    };
+  }
+
+  // Resolver obra si se menciona
+  let projectRef: string | undefined;
+  const projMatch = rawText.match(/en\s+la\s+obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega|\s+carg)/i)
+    || rawText.match(/para\s+(?:la\s+)?obra\s+([\w\s]+?)(?:,|\s+crea)/i)
+    || rawText.match(/obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega)/i);
+  if (projMatch) projectRef = projMatch[1].trim();
+  const project = projectRef ? await resolveProject(projectRef) : null;
+
+  const created: string[] = [];
+  const updated: string[] = [];
+
+  for (const item of items) {
+    // Buscar si ya existe un material con ese nombre (fuzzy)
+    const existing = await db.material.findFirst({
+      where: { name: { contains: item.name, mode: 'insensitive' } },
+    });
+
+    if (existing) {
+      // Actualizar stock
+      await db.material.update({
+        where: { id: existing.id },
+        data: { stock: { increment: item.qty } },
+      });
+      // Registrar movimiento de stock
+      await db.stockMovement.create({
+        data: {
+          type: 'incoming',
+          quantity: item.qty,
+          unitCost: existing.unitCost,
+          reason: 'compra',
+          note: `Cargado por asistente${project ? ` para obra ${project.code}` : ''}`,
+          materialId: existing.id,
+        },
+      });
+      updated.push(`• ${item.qty} ${item.unit} de ${existing.name} (stock actualizado)`);
+    } else {
+      // Crear material nuevo
+      const sku = generateSku(item.name);
+      const mat = await db.material.create({
+        data: {
+          sku,
+          name: item.name.charAt(0).toUpperCase() + item.name.slice(1),
+          category: 'materiales',
+          unit: item.unit,
+          stock: item.qty,
+          minStock: 0,
+        },
+      });
+      // Registrar movimiento inicial
+      await db.stockMovement.create({
+        data: {
+          type: 'incoming',
+          quantity: item.qty,
+          unitCost: 0,
+          reason: 'compra',
+          note: `Stock inicial cargado por asistente${project ? ` para obra ${project.code}` : ''}`,
+          materialId: mat.id,
+        },
+      });
+      created.push(`• ${item.qty} ${item.unit} de ${mat.name} (nuevo)`);
+    }
+  }
+
+  const total = created.length + updated.length;
+  const lines = [...created, ...updated].join('\n');
+
+  return {
+    text: `Listo, procesé ${total} ${total === 1 ? 'material' : 'materiales'}${project ? ` para la obra **${project.code} ${project.name}**` : ''}:\n\n${lines}\n\n${created.length > 0 ? `${created.length} creados nuevos. ` : ''}${updated.length > 0 ? `${updated.length} con stock actualizado.` : ''}`,
+    intent: "action_add_materials",
+    suggestions: ["Ver inventario", "¿Qué stock tengo?"],
+  };
+}
+
+async function respondActionAddStockMovement(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  // Determinar tipo de movimiento
+  const isEntry = /(entrada|ingreso|compra|recib)/i.test(rawText);
+  const isExit = /(salida|consumo|egreso|us[oa])/i.test(rawText);
+  const type = isEntry ? 'incoming' : isExit ? 'outgoing' : 'adjustment';
+
+  // Buscar material
+  const all = await db.material.findMany();
+  const match = all.find(m => normalize(rawText).includes(normalize(m.name)) || normalize(rawText).includes(normalize(m.sku)));
+  if (!match) {
+    const names = all.slice(0, 5).map(m => m.name).join(', ');
+    return {
+      text: `No encontré qué material querés mover. Tenés: ${names}${all.length > 5 ? '...' : ''}. Sé más específico: *entrada de 10 bolsas de cemento*.`,
+      intent: "action_add_stock_movement",
+    };
+  }
+
+  const qtyMatch = rawText.match(/(\d+(?:[.,]\d+)?)/);
+  const qty = qtyMatch ? parseFloat(qtyMatch[1].replace(',', '.')) : 1;
+
+  await db.material.update({
+    where: { id: match.id },
+    data: { stock: type === 'incoming' ? { increment: qty } : { decrement: qty } },
+  });
+  await db.stockMovement.create({
+    data: {
+      type,
+      quantity: qty,
+      unitCost: match.unitCost,
+      reason: type === 'incoming' ? 'compra' : type === 'outgoing' ? 'consumo' : 'ajuste',
+      note: 'Registrado por asistente',
+      materialId: match.id,
+    },
+  });
+
+  const verb = type === 'incoming' ? 'entrada' : type === 'outgoing' ? 'salida' : 'ajuste';
+  const newStock = type === 'incoming' ? match.stock + qty : Math.max(0, match.stock - qty);
+  return {
+    text: `Registré ${verb} de **${qty} ${match.unit} de ${match.name}**. Stock actualizado: ${formatNumber(newStock)} ${match.unit}.`,
+    intent: "action_add_stock_movement",
+    suggestions: ["Ver inventario", "¿Qué materiales faltan?"],
+  };
+}
+
+async function respondActionUpdateProjectProgress(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const projectRef = parsed.entities.projectRef as string | undefined;
+  const progress = parsed.entities.progress as number | undefined;
+
+  if (!progress && progress !== 0) {
+    return {
+      text: `Indicame la obra y el porcentaje. Ejemplo: *OB-001 va al 65%* o *actualizar avance de americas center al 40%*.`,
+      intent: "action_update_project_progress",
+    };
+  }
+
+  // También intentar extraer ref del texto crudo si el parser no lo encontró
+  let ref = projectRef;
+  if (!ref) {
+    const m = rawText.match(/(?:de|obra)\s+([\w\s]+?)\s+(?:al|va|tiene|esta|lleva)/i)
+      || rawText.match(/OB[-\s]?(\d+)/i);
+    if (m) ref = m[1].trim();
+  }
+
+  const project = await resolveProject(ref);
+  if (!project) {
+    return {
+      text: `No encontré la obra. Indicame el código (OB-001) o el nombre. Ejemplo: *avance de americas center al 60%*.`,
+      intent: "action_update_project_progress",
+    };
+  }
+
+  const pct = Math.min(100, Math.max(0, progress));
+  const updated = await db.project.update({
+    where: { id: project.id },
+    data: { progress: pct, ...(pct === 100 ? { status: 'finished', endDate: new Date() } : {}) },
+  });
+
+  return {
+    text: `Actualicé el avance de **${project.code} ${project.name}** al **${pct}%**.${pct === 100 ? ' La marqué como finalizada.' : ''}`,
+    intent: "action_update_project_progress",
+    data: { project: updated },
+    suggestions: [`Detalle de ${project.code}`, "Estado de obras"],
+  };
+}
+
+async function respondActionUpdateProjectStatus(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const projectRef = parsed.entities.projectRef as string | undefined;
+  const status = parsed.entities.status as string | undefined;
+
+  const project = await resolveProject(projectRef || rawText);
+  if (!project) {
+    return {
+      text: `No encontré la obra. Indicame el código o nombre. Ejemplo: *poner obra americas center como activa*.`,
+      intent: "action_update_project_status",
+    };
+  }
+  if (!status) {
+    return {
+      text: `¿A qué estado la quiero pasar? Opciones: **activa**, **pausada**, **terminada**, **planificación**.`,
+      intent: "action_update_project_status",
+    };
+  }
+
+  const updated = await db.project.update({
+    where: { id: project.id },
+    data: { status, ...(status === 'finished' ? { progress: 100, endDate: new Date() } : {}) },
+  });
+  const statusLabel: Record<string, string> = { in_progress: 'activa', paused: 'pausada', finished: 'finalizada', planning: 'en planificación' };
+  return {
+    text: `Listo, la obra **${project.code} ${project.name}** ahora está **${statusLabel[status] || status}**.`,
+    intent: "action_update_project_status",
+    data: { project: updated },
+    suggestions: ["Estado de obras"],
+  };
+}
+
+async function respondActionCreateProjectDirect(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const name = parsed.entities.name as string | undefined;
+  const budget = parsed.entities.budget as number | undefined;
+  const clientName = parsed.entities.clientName as string | undefined;
+
+  if (!name) {
+    return {
+      text: `Para crear una obra necesito al menos el nombre. Ejemplo:\n\n*crear obra "Casa Familia García", presupuesto $2000000, cliente Juan García*`,
+      intent: "action_create_project_direct",
+    };
+  }
+
+  // Generar código
+  const allProjects = await db.project.findMany({ select: { code: true } });
+  let maxNum = 0;
+  for (const p of allProjects) {
+    const m = p.code?.match(/OB-(\d+)/i);
+    if (m) { const n = parseInt(m[1], 10); if (n > maxNum) maxNum = n; }
+  }
+  const code = `OB-${String(maxNum + 1).padStart(3, '0')}`;
+
+  const project = await db.project.create({
+    data: {
+      code,
+      name,
+      budget: budget || 0,
+      clientName: clientName || null,
+      status: 'planning',
+      type: 'obra',
+      progress: 0,
+    },
+  });
+
+  return {
+    text: `¡Obra creada! Código asignado: **${code}**\n\n- Nombre: ${project.name}\n- Presupuesto: ${budget ? formatCurrency(budget) : 'sin definir'}\n- Cliente: ${clientName || 'sin definir'}\n- Estado: Planificación`,
+    intent: "action_create_project_direct",
+    data: { project },
+    suggestions: [`Detalle de ${code}`, "Actualizar avance", "Registrar gasto en esta obra"],
+  };
+}
+
+async function respondActionCreateSupplier(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const name = parsed.entities.name as string | undefined;
+  if (!name) {
+    return {
+      text: `Para crear un proveedor necesito al menos el nombre. Ejemplo:\n\n*crear proveedor: Cementos del Sur, tel: 011-1234-5678, rubro: materiales*`,
+      intent: "action_create_supplier",
+    };
+  }
+
+  const supplier = await db.supplier.create({
+    data: {
+      name,
+      phone: (parsed.entities.phone as string) || null,
+      email: (parsed.entities.email as string) || null,
+      category: (parsed.entities.category as string) || null,
+      rating: 3,
+    },
+  });
+
+  return {
+    text: `Proveedor **${supplier.name}** creado correctamente.${supplier.phone ? `\n- Tel: ${supplier.phone}` : ''}${supplier.email ? `\n- Email: ${supplier.email}` : ''}${supplier.category ? `\n- Rubro: ${supplier.category}` : ''}`,
+    intent: "action_create_supplier",
+    data: { supplier },
+    suggestions: ["Ver proveedores", "Crear otro proveedor"],
+  };
+}
+
+async function respondActionListProjectTasks(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const project = await resolveProject(parsed.entities.projectRef as string || rawText);
+  if (!project) {
+    return {
+      text: `No encontré la obra. Indicame el código (OB-001) o el nombre.`,
+      intent: "action_list_project_tasks",
+    };
+  }
+
+  const tasks = await db.task.findMany({
+    where: { projectId: project.id },
+    orderBy: [{ status: 'asc' }, { dueDate: 'asc' }],
+  });
+
+  if (tasks.length === 0) {
+    return {
+      text: `La obra **${project.code} ${project.name}** no tiene tareas asignadas.`,
+      intent: "action_list_project_tasks",
+      suggestions: [`Crear tarea para ${project.code}`],
+    };
+  }
+
+  const statusIcon: Record<string, string> = { pending: '⏳', in_progress: '🔄', completed: '✅', cancelled: '❌' };
+  const lines = tasks.map(t => `${statusIcon[t.status] || '•'} ${t.title} — ${t.status.replace('_', ' ')}${t.dueDate ? ` (vence ${formatDate(t.dueDate)})` : ''}`);
+  return {
+    text: `Tareas de **${project.code} ${project.name}** (${tasks.length}):\n\n${lines.join('\n')}`,
+    intent: "action_list_project_tasks",
+    data: { tasks },
+    suggestions: [`Crear tarea para ${project.code}`, `Detalle de ${project.code}`],
+  };
+}
+
+async function respondActionCompleteTask(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const taskTitle = parsed.entities.taskTitle as string | undefined;
+  const allTasks = await db.task.findMany({ where: { status: { in: ['pending', 'in_progress'] } } });
+  if (allTasks.length === 0) {
+    return { text: 'No hay tareas pendientes.', intent: 'action_complete_task' };
+  }
+
+  let task = taskTitle
+    ? allTasks.find(t => normalize(t.title).includes(normalize(taskTitle)))
+    : null;
+
+  if (!task) {
+    const top5 = allTasks.slice(0, 5).map(t => `• ${t.title}`).join('\n');
+    return {
+      text: `No encontré esa tarea. Tareas pendientes:\n\n${top5}\n\nEscribí: *completar tarea: [nombre exacto]*`,
+      intent: 'action_complete_task',
+    };
+  }
+
+  const updated = await db.task.update({
+    where: { id: task.id },
+    data: { status: 'completed' },
+  });
+
+  return {
+    text: `✅ Marqué como completada la tarea **"${task.title}"**.`,
+    intent: 'action_complete_task',
+    data: { task: updated },
+    suggestions: ['Ver tareas', '¿Qué tareas quedan?'],
+  };
+}
+
 async function respondActionCloseProject(parsed: ParsedCommand): Promise<AgentResponse> {
   const project = await resolveProject(parsed.entities.projectRef as string);
   if (!project) {
@@ -1771,6 +2340,17 @@ async function respondHelp(): Promise<AgentResponse> {
 - "registrar gasto de $50000 en materiales para OB-001"
 - "registrar ingreso de $200000 por venta"
 - "cargar anticipo de $150000 para OB-002"
+
+**Crear y editar**
+- "en la obra americas center, crea materiales: 10 bolsas de cemento, 3 bolsas de durlock"
+- "entrada de 20 kg de arena" / "salida de 5 unidades de cemento"
+- "crear obra \"Casa García\", presupuesto $3000000, cliente Juan García"
+- "crear proveedor: Cementos SA, tel: 011-1234-5678, rubro: materiales"
+- "OB-001 va al 65%" / "actualizar avance de americas center al 80%"
+- "poner obra OB-002 como activa" / "pausar OB-003"
+- "tareas de la obra OB-001"
+- "completar tarea: llamar al proveedor"
+- "cerrar obra OB-001"
 
 Escribime en lenguaje natural, en español, y te respondo al instante.`,
     intent: "help",
@@ -1892,6 +2472,30 @@ export async function processAgentMessage(text: string): Promise<AgentResponse> 
       break;
     case "action_close_project":
       response = await respondActionCloseProject(parsed);
+      break;
+    case "action_add_materials":
+      response = await respondActionAddMaterials(parsed, text);
+      break;
+    case "action_add_stock_movement":
+      response = await respondActionAddStockMovement(parsed, text);
+      break;
+    case "action_update_project_progress":
+      response = await respondActionUpdateProjectProgress(parsed, text);
+      break;
+    case "action_update_project_status":
+      response = await respondActionUpdateProjectStatus(parsed, text);
+      break;
+    case "action_create_project_direct":
+      response = await respondActionCreateProjectDirect(parsed, text);
+      break;
+    case "action_create_supplier":
+      response = await respondActionCreateSupplier(parsed, text);
+      break;
+    case "action_list_project_tasks":
+      response = await respondActionListProjectTasks(parsed, text);
+      break;
+    case "action_complete_task":
+      response = await respondActionCompleteTask(parsed, text);
       break;
     case "config_list_automations":
       response = await respondConfigListAutomations();
