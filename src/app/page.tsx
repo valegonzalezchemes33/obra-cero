@@ -9,10 +9,11 @@ import { InventoryView } from "@/components/views/inventory";
 import { SuppliersView } from "@/components/views/suppliers";
 import { TasksView } from "@/components/views/tasks";
 import { AgentView } from "@/components/views/agent";
+import { AutomationsView } from "@/components/views/automations";
 import { CommandPalette } from "@/components/command-palette";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Bell, Plus, Search } from "lucide-react";
+import { Bell, Plus, Search, Zap } from "lucide-react";
 
 const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: string; target: ViewKey } }> = {
   dashboard: { title: "Panel", sub: "Vista general de tu operación" },
@@ -22,6 +23,7 @@ const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: strin
   suppliers: { title: "Proveedores", sub: "Red de compras y contactos", cta: { label: "Nuevo proveedor", target: "suppliers" } },
   tasks: { title: "Tareas", sub: "Pendientes del equipo y del asistente", cta: { label: "Nueva tarea", target: "tasks" } },
   agent: { title: "Asistente", sub: "IA local para consultas y automatizaciones" },
+  automations: { title: "Automatizaciones", sub: "Workflows inteligentes con pasos multi-acción" },
 };
 
 export default function Home() {
@@ -105,6 +107,7 @@ export default function Home() {
             {view === "suppliers" && <SuppliersView />}
             {view === "tasks" && <TasksView />}
             {view === "agent" && <AgentView initialQuery={pendingAgentQuery} />}
+            {view === "automations" && <AutomationsView />}
           </div>
         </div>
       </main>

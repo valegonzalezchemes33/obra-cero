@@ -126,7 +126,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
             </div>
             <div className="grid grid-cols-3 gap-px bg-border rounded-md overflow-hidden border border-border">
               <HeroStat label="Obras activas" value={`${k.activeProjects}/${k.totalProjects}`} />
-              <HeroStat label="Valor en stock" value={formatCurrency(k.stockValue, 0)} />
+              <HeroStat label="Valor en stock" value={formatCurrency(k.stockValue)} />
               <HeroStat label="Tareas pend." value={String(k.pendingTasks)} />
             </div>
           </div>
@@ -217,7 +217,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                   <div key={c.name} className="flex items-center gap-2 text-[12px]">
                     <span className="size-2 rounded-sm shrink-0" style={{ background: chartColor(i) }} />
                     <span className="flex-1 truncate text-muted-foreground">{c.name}</span>
-                    <span className="tabular font-medium">{formatCurrency(c.value, 0)}</span>
+                    <span className="tabular font-medium">{typeof c.value === "number" ? formatCurrency(c.value) : "$0"}</span>
                   </div>
                 ))}
               </div>

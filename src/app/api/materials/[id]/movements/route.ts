@@ -22,7 +22,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         reason: body.reason || (body.type === "incoming" ? "compra" : "consumo_obra"),
         note: body.note,
         materialId: id,
-        projectId: body.projectId || null,
         supplierId: body.supplierId || null,
         date: body.date ? new Date(body.date) : new Date(),
       },

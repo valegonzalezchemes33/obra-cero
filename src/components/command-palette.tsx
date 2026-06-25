@@ -19,6 +19,7 @@ import {
   TrendingDown,
   Sparkles,
   Search,
+  Zap,
 } from "lucide-react";
 import { ViewKey } from "@/components/sidebar-nav";
 
@@ -36,6 +37,7 @@ const NAV_ITEMS: { key: ViewKey; label: string; icon: any; hint: string }[] = [
   { key: "inventory", label: "Inventario", icon: Package, hint: "Ver inventario" },
   { key: "suppliers", label: "Proveedores", icon: Truck, hint: "Ver proveedores" },
   { key: "tasks", label: "Tareas", icon: ListChecks, hint: "Ver tareas" },
+  { key: "automations", label: "Automatizaciones", icon: Zap, hint: "Ver automatizaciones" },
   { key: "agent", label: "Asistente IA", icon: Bot, hint: "Abrir asistente" },
 ];
 

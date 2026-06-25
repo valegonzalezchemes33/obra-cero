@@ -324,8 +324,8 @@ export function InventoryView() {
                             {!isOut && isLow && <Badge variant="warning" className="ml-2 text-[9px]">bajo</Badge>}
                           </TableCell>
                           <TableCell className="text-right text-muted-foreground text-[11px] tabular">{formatNumber(m.minStock, 2)}</TableCell>
-                          <TableCell className="text-right text-[11px] tabular">{formatCurrency(m.unitCost, 0)}</TableCell>
-                          <TableCell className="text-right font-medium tabular text-[13px] whitespace-nowrap">{formatCurrency(value, 0)}</TableCell>
+                          <TableCell className="text-right text-[11px] tabular">{formatCurrency(m.unitCost)}</TableCell>
+                          <TableCell className="text-right font-medium tabular text-[13px] whitespace-nowrap">{formatCurrency(value)}</TableCell>
                           <TableCell>
                             <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                               <Button size="icon-sm" variant="ghost" title="Movimiento" onClick={() => setMovementMaterial(m)}>

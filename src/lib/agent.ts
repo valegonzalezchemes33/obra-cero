@@ -786,7 +786,7 @@ function parseItemList(text: string): ParsedItem[] {
 }
 
 // Generar SKU automático desde nombre
-function generateSku(name: string): string {
+export function generateSku(name: string): string {
   return name
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
@@ -2623,6 +2623,51 @@ export async function runAutomations(): Promise<AgentActionItem[]> {
         recentTitles.add(item.title);
       }
     }
+  }
+
+  // ─── Disparar workflows basados en eventos detectados ───
+  try {
+    const { triggerWorkflows } = await import("./workflow-engine");
+
+    const stock = await getStockSummary();
+    if (stock.lowStock.length + stock.outOfStock.length > 0) {
+      await triggerWorkflows("event_low_stock", {
+        materials: [...stock.lowStock, ...stock.outOfStock],
+      });
+    }
+
+    const { projects } = await getProjectSummary();
+    const over = projects.filter((p) => {
+      const spent = p.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+      return p.budget > 0 && spent / p.budget > 0.9 && p.status !== "finished";
+    });
+    if (over.length > 0) {
+      await triggerWorkflows("event_budget_overrun", {
+        projects: over,
+      });
+    }
+
+    const weekTx = await db.transaction.findMany({
+      where: { type: "expense", date: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+    });
+    const totalWeek = weekTx.reduce((s, t) => s + t.amount, 0);
+    if (totalWeek > 1000000) {
+      await triggerWorkflows("event_expense_spike", {
+        total: totalWeek,
+        transactions: weekTx,
+      });
+    }
+
+    const lateTasks = await db.task.findMany({
+      where: { status: { in: ["pending", "in_progress"] }, dueDate: { lt: new Date() } },
+    });
+    if (lateTasks.length > 0) {
+      await triggerWorkflows("event_late_task", {
+        tasks: lateTasks,
+      });
+    }
+  } catch (e) {
+    // Silently fail - workflow integration is additive
   }
 
   return triggered;

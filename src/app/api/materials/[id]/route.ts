@@ -6,7 +6,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const mat = await db.material.findUnique({
       where: { id },
-      include: { supplier: true, stockMovements: { include: { project: true, supplier: true }, orderBy: { date: "desc" }, take: 50 } },
+      include: { supplier: true, stockMovements: { include: { supplier: true }, orderBy: { date: "desc" }, take: 50 } },
     });
     if (!mat) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(mat);

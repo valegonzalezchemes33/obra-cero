@@ -12,6 +12,7 @@ import {
   HardHat,
   Search,
   ChevronsUpDown,
+  Zap,
 } from "lucide-react";
 
 export type ViewKey =
@@ -21,7 +22,8 @@ export type ViewKey =
   | "inventory"
   | "suppliers"
   | "tasks"
-  | "agent";
+  | "agent"
+  | "automations";
 
 interface SidebarProps {
   current: ViewKey;
@@ -37,6 +39,7 @@ const NAV_ITEMS: { key: ViewKey; label: string; icon: any }[] = [
   { key: "inventory", label: "Inventario", icon: Package },
   { key: "suppliers", label: "Proveedores", icon: Truck },
   { key: "tasks", label: "Tareas", icon: ListChecks },
+  { key: "automations", label: "Automatizaciones", icon: Zap },
   { key: "agent", label: "Asistente", icon: Bot },
 ];
 

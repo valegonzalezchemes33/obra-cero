@@ -130,7 +130,7 @@ model StockMovement {
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 }
 
-// ─── REGLAS DE AUTOMATIZACIÓN ─────────────────────────────────
+// ─── REGLAS DE AUTOMATIZACIÓN (legacy) ─────────────────────────
 
 model AutomationRule {
   id          String   @id @default(cuid())
@@ -139,6 +139,63 @@ model AutomationRule {
   trigger     String   // stock_low | budget_exceeded | overdue_task | monthly_expense | etc.
   condition   String?  // JSON con parámetros de la condición
   action      String   @default("alert") // alert | notify | task
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── WORKFLOWS / FLUJOS DE AUTOMATIZACIÓN ────────────────────
+
+model Workflow {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  trigger     String   @default("manual") // manual | schedule | event | webhook
+  triggerConfig String? @db.Text // JSON: cron expression, event type, params
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps      WorkflowStep[]
+  executions WorkflowExecution[]
+}
+
+model WorkflowStep {
+  id         String   @id @default(cuid())
+  workflowId String
+  type       String   // trigger | condition | action | delay | loop | send_email | webhook
+  label      String?
+  config     String   @db.Text // JSON con configuración del paso
+  order      Float    // Permite insertar pasos entre otros
+  parentId   String?  // Para condiciones anidadas (if/else)
+  createdAt  DateTime @default(now())
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+}
+
+model WorkflowExecution {
+  id          String    @id @default(cuid())
+  workflowId  String
+  status      String    @default("pending") // pending | running | completed | failed | cancelled
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  log         String?   @db.Text // JSON array: [{ step, status, data, error }]
+  error       String?   @db.Text
+  triggeredBy String?   // "manual" | "schedule" | "event" | "webhook"
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+}
+
+// ─── AGENDA / SCHEDULER DEL AGENTE AUTÓNOMO ───────────────────
+
+model AgentSchedule {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // check_alerts | run_workflow | send_report | analyze
+  config      String   @db.Text // JSON: parámetros específicos
+  cron        String   // expresión cron: "*/5 * * * *" = cada 5 min
+  lastRun     DateTime?
+  nextRun     DateTime?
   enabled     Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

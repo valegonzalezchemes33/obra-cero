@@ -387,7 +387,7 @@ async function main() {
       note: "Uso en OB-001",
       date: monthsAgo(3),
       materialId: materials[0].id,
-      projectId: projects[0].id,
+      supplierId: null,
     },
   });
   await db.stockMovement.create({
@@ -399,7 +399,7 @@ async function main() {
       note: "Uso en OB-002",
       date: monthsAgo(1),
       materialId: materials[0].id,
-      projectId: projects[1].id,
+      supplierId: null,
     },
   });
 
