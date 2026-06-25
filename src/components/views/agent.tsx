@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp } from "lucide-react";
+import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -35,6 +35,9 @@ interface Msg {
   suggestions?: string[];
   actions?: any[];
   timestamp: Date;
+  _requiresConfirmation?: any;
+  _confirmed?: boolean;
+  _completed?: boolean;
 }
 
 interface AgentViewProps {
@@ -49,6 +52,34 @@ export function AgentView({ initialQuery }: AgentViewProps) {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialQueryConsumed = useRef<string | null>(null);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
+  // Cargar historial de conversación al montar
+  const { data: historyData } = useQuery({
+    queryKey: ["agent-history"],
+    queryFn: async () => {
+      const r = await fetch("/api/agent/conversation");
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !historyLoaded,
+  });
+
+  useEffect(() => {
+    if (historyData && !historyLoaded) {
+      const historyMessages: Msg[] = (historyData.messages || []).map((m: any) => ({
+        role: m.role,
+        content: m.content,
+        intent: m.intent || undefined,
+        suggestions: m.suggestions || undefined,
+        timestamp: new Date(m.createdAt),
+      }));
+      if (historyMessages.length > 0) {
+        setMessages(historyMessages);
+      }
+      setHistoryLoaded(true);
+    }
+  }, [historyData, historyLoaded]);
 
   const { data: actions } = useQuery({
     queryKey: ["agent-actions"],
@@ -89,15 +120,22 @@ export function AgentView({ initialQuery }: AgentViewProps) {
       setInput("");
     },
     onSuccess: (data) => {
+      // Detectar si es una respuesta de confirmación
+      const isConfirmation = data._requiresConfirmation || data._confirmed || data._completed;
+
+      // Para confirmaciones: agregar la respuesta del agente
       setMessages((prev) => [
         ...prev,
         {
           role: "agent",
           content: data.text,
           intent: data.intent,
-          suggestions: data.suggestions,
+          suggestions: data.suggestions || (isConfirmation ? ["Sí, confirmar", "No, cancelar"] : undefined),
           actions: data.actions,
           timestamp: new Date(),
+          _requiresConfirmation: data._requiresConfirmation || undefined,
+          _confirmed: data._confirmed || undefined,
+          _completed: data._completed || undefined,
         },
       ]);
       setIsThinking(false);
@@ -177,6 +215,9 @@ export function AgentView({ initialQuery }: AgentViewProps) {
     return acc;
   }, {} as Record<string, string[]>);
 
+  // Mostrar countdown de mensajes
+  const messageCount = messages.filter((m) => m.role === "user").length;
+
   return (
     <div className="space-y-5">
       {/* Header */}
@@ -192,7 +233,9 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                 <span className="size-1.5 rounded-full bg-success mr-1" /> activo
               </Badge>
             </div>
-            <p className="text-[11px] text-muted-foreground">Local · sin servicios externos · 35+ capacidades</p>
+            <p className="text-[11px] text-muted-foreground">
+              Memoria conversacional · {messageCount} mensajes en esta sesión
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -228,7 +271,8 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                 <h3 className="text-[15px] font-medium">¿En qué te puedo ayudar?</h3>
                 <p className="text-[13px] text-muted-foreground mt-1.5 max-w-md leading-relaxed">
                   Puedo analizar tu operación, darte recomendaciones, proyectar presupuestos,
-                  detectar gastos atípicos y mucho más.
+                  detectar gastos atípicos y mucho más. Ahora con **memoria conversacional**: entiendo
+                  referencias como "esa obra" o "este mes".
                 </p>
                 <div className="flex flex-wrap gap-1.5 justify-center max-w-xl mt-5">
                   {["¿Cómo vamos?", "¿Qué alertas hay?", "Recomendaciones", "Detectar anomalías", "Margen por obra", "¿Qué materiales faltan?"].map((s) => (
@@ -255,10 +299,22 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] text-muted-foreground mb-1 font-medium">Asistente</div>
+
+                      {/* Badge de confirmación */}
+                      {m._confirmed && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-success/10 border border-success/20 text-success text-[10px] font-medium mb-2">
+                          <CheckCircle2 className="h-3 w-3" /> Acción confirmada
+                        </div>
+                      )}
+                      {m._requiresConfirmation && (
+                        <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-warning/10 border border-warning/20 text-warning text-[10px] font-medium mb-2">
+                          <AlertTriangle className="h-3 w-3" /> Requiere confirmación
+                        </div>
+                      )}
+
                       <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_p]:my-1.5 [&_ul]:my-2 [&_ul]:space-y-1 [&_li]:text-[13px] [&_li]:leading-relaxed [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[12px] [&_code]:font-mono [&_*]:text-foreground/90">
                         <ReactMarkdown
                           components={{
-                            // Bullets: render with a colored dot
                             li: ({ children }) => (
                               <li className="flex gap-2">
                                 <span className="text-primary mt-1.5 size-1 shrink-0 rounded-full bg-primary" />
@@ -270,7 +326,20 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                           {m.content}
                         </ReactMarkdown>
                       </div>
-                      {m.suggestions && m.suggestions.length > 0 && (
+
+                      {/* Botones de confirmación */}
+                      {m._requiresConfirmation && (
+                        <div className="flex gap-2 mt-3">
+                          <Button size="sm" className="h-8 text-[12px]" onClick={() => handleSend("sí")}>
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" /> Sí, confirmar
+                          </Button>
+                          <Button size="sm" variant="outline" className="h-8 text-[12px]" onClick={() => handleSend("no")}>
+                            <XCircle className="h-3.5 w-3.5 mr-1.5" /> No, cancelar
+                          </Button>
+                        </div>
+                      )}
+
+                      {m.suggestions && m.suggestions.length > 0 && !m._requiresConfirmation && (
                         <div className="flex flex-wrap gap-1 mt-3">
                           {m.suggestions.map((s) => (
                             <Button key={s} variant="outline" size="xs" className="h-6 text-[11px]" onClick={() => handleSend(s)}>
@@ -412,6 +481,40 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                   </div>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          {/* Memory Status */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-[13px]">
+                <History className="h-3.5 w-3.5 text-primary" />
+                Estado de memoria
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2 text-[12px]">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Mensajes en sesión</span>
+                  <span className="font-medium">{messageCount}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Alertas activas</span>
+                  <span className="font-medium">{actions?.actions?.length || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Resolución de referencias</span>
+                  <Badge variant="success" className="text-[9px]">
+                    Activo
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Confirmación acciones</span>
+                  <Badge variant="success" className="text-[9px]">
+                    Activo
+                  </Badge>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>

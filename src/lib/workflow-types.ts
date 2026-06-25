@@ -256,8 +256,8 @@ export const STEP_TYPE_META: Record<StepType, { label: string; icon: string; col
 
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   {
-    name: "Stock bajo → Alerta + Tarea",
-    description: "Cuando un material cae bajo el mínimo, envía una alerta y crea una tarea de reposición",
+    name: "Stock bajo → Alerta + Tarea de reposición",
+    description: "Cuando un material cae bajo el mínimo, envía alerta y crea tarea de reposición automática",
     trigger: "event_low_stock",
     steps: [
       {
@@ -283,8 +283,8 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     ],
   },
   {
-    name: "Obra casi sin presupuesto",
-    description: "Cuando una obra supera el 85% del presupuesto ejecutado sin estar terminada, alerta y crea tarea",
+    name: "Obra sin presupuesto → Alerta crítica",
+    description: "Cuando una obra supera el 85% del presupuesto sin estar terminada, alerta y programa revisión",
     trigger: "event_budget_overrun",
     steps: [
       {
@@ -319,29 +319,30 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     ],
   },
   {
-    name: "Resumen semanal automático",
-    description: "Cada lunes a las 9am, revisa alertas activas y deja un resumen",
+    name: "Resumen semanal automático (Lunes 9am)",
+    description: "Cada lunes a las 9am, genera un resumen de alertas activas y KPIs del negocio",
     trigger: "schedule",
+    triggerConfig: { cron: "0 9 * * 1" },
     steps: [
       {
         type: "action_send_alert",
         label: "Resumen semanal",
         config: {
           title: "📊 Resumen semanal automático",
-          description: "Revisión programada del estado general del negocio. Revisar alertas activas.",
+          description: "Revisión programada del estado general del negocio. Revisar alertas activas, stock bajo y tareas vencidas.",
           severity: "info",
         } as ActionSendAlertConfig,
       },
     ],
   },
   {
-    name: "Gasto grande → Alerta inmediata",
-    description: "Cuando se registra una transacción de gasto mayor a $100,000, envía alerta inmediata",
+    name: "Gasto grande (+$100K) → Alerta inmediata",
+    description: "Cuando se registra un gasto mayor a $100,000, alerta y crea tarea de verificación",
     trigger: "event_new_transaction",
     steps: [
       {
         type: "condition",
-        label: "¿Es un gasto grande?",
+        label: "¿Es gasto?",
         config: {
           field: "transaction.type",
           operator: "eq",
@@ -371,7 +372,7 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
         label: "Verificar gasto",
         config: {
           title: "Verificar gasto de ${{transaction.amount}} - {{transaction.description}}",
-          description: "Gasto registrado que supera el umbral de $100,000. Verificar que corresponda.",
+          description: "Gasto que supera el umbral de $100,000. Verificar que corresponda.",
           priority: "medium",
           assignee: "Administración",
           dueDays: 3,
@@ -380,8 +381,8 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
     ],
   },
   {
-    name: "Cierre de obra automático",
-    description: "Cuando una obra llega al 100% de avance, cierra la obra y genera resumen final",
+    name: "Cierre de obra → Resumen financiero",
+    description: "Marca obra como finalizada, envía alerta de cierre con resumen de ingresos y gastos",
     trigger: "manual",
     steps: [
       {
@@ -397,9 +398,170 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
         label: "Notificar cierre",
         config: {
           title: "✅ Obra finalizada",
-          description: "La obra ha sido marcada como completada.",
+          description: "La obra ha sido marcada como completada. Revisar resumen financiero.",
           severity: "info",
         } as ActionSendAlertConfig,
+      },
+    ],
+  },
+  {
+    name: "Material nuevo → Registrar costo inicial",
+    description: "Cuando se crea un material nuevo, actualiza automáticamente su costo según el mejor proveedor",
+    trigger: "event_new_material",
+    steps: [
+      {
+        type: "action_send_alert",
+        label: "Nuevo material registrado",
+        config: {
+          title: "📦 Nuevo material: {{material.name}}",
+          description: "Se registró {{material.name}} ({{material.sku}}). Stock inicial: {{material.stock}} {{material.unit}}",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+    ],
+  },
+  {
+    name: "Tarea atrasada → Escalar al responsable",
+    description: "Cuando una tarea vence y sigue pendiente, escala con alerta de mayor severidad",
+    trigger: "event_late_task",
+    steps: [
+      {
+        type: "action_send_alert",
+        label: "Tarea atrasada",
+        config: {
+          title: "⏰ Tarea atrasada detectada",
+          description: "{{task.title}} venció. Asignada a {{task.assignee || 'sin asignar'}}.",
+          severity: "warning",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Tarea de escalado",
+        config: {
+          title: "ESCALADO: {{task.title}} - sin resolver",
+          description: "La tarea original venció y no fue completada. Tomar acción correctiva.",
+          priority: "high",
+          dueDays: 1,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "Nueva obra → Setup inicial automático",
+    description: "Cuando se crea una obra nueva, crea tareas de setup y da la bienvenida",
+    trigger: "event_new_project",
+    steps: [
+      {
+        type: "action_send_alert",
+        label: "Bienvenida obra nueva",
+        config: {
+          title: "🏗️ Nueva obra creada: {{project.name}}",
+          description: "{{project.code}} - Presupuesto: ${{project.budget}}. Iniciar configuración inicial.",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Configurar obra nueva",
+        config: {
+          title: "Setup inicial: {{project.code}} {{project.name}}",
+          description: "Configurar equipo de obra, proveedores y calendario de pagos.",
+          priority: "high",
+          assignee: "Jefe de obra",
+          dueDays: 5,
+        } as ActionCreateTaskConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Cargar presupuesto detallado",
+        config: {
+          title: "Cargar presupuesto detallado para {{project.code}}",
+          description: "Desglosar presupuesto en partidas: materiales, mano de obra, equipos, servicios.",
+          priority: "high",
+          assignee: "Administración",
+          dueDays: 7,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "Pico de gastos mensual → Auditoría",
+    description: "Si los gastos semanales superan $1,000,000, genera alerta y tarea de auditoría",
+    trigger: "event_expense_spike",
+    steps: [
+      {
+        type: "action_send_alert",
+        label: "Pico de gastos detectado",
+        config: {
+          title: "📈 Pico de gastos en la semana",
+          description: "Los gastos de esta semana superan el umbral. Revisar transacciones recientes.",
+          severity: "warning",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Auditar gastos",
+        config: {
+          title: "Auditar gastos de la semana - pico detectado",
+          description: "Revisar todas las transacciones de la semana para identificar gastos innecesarios o errores.",
+          priority: "high",
+          assignee: "Administración",
+          dueDays: 2,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "Reporte diario de cierre (19hs)",
+    description: "Cada día hábil a las 19hs, genera un resumen del día con movimientos y alertas",
+    trigger: "schedule",
+    triggerConfig: { cron: "0 19 * * 1-5" },
+    steps: [
+      {
+        type: "action_send_alert",
+        label: "Resumen del día",
+        config: {
+          title: "📋 Resumen diario",
+          description: "Cierre del día. Revisar movimientos registrados y tareas pendientes.",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Pendientes del día siguiente",
+        config: {
+          title: "Revisar pendientes para mañana",
+          description: "Verificar tareas sin completar del día y priorizar para mañana.",
+          priority: "medium",
+          dueDays: 1,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "Stock crítico sin movimiento → Revisar",
+    description: "Si hay materiales sin movimiento por más de 90 días, alerta para considerar descarte o venta",
+    trigger: "manual",
+    steps: [
+      {
+        type: "action_send_alert",
+        label: "Stock inmovilizado",
+        config: {
+          title: "📦 Stock sin rotación",
+          description: "Hay materiales sin movimiento por más de 90 días. Revisar para liberar capital.",
+          severity: "warning",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Revisar stock muerto",
+        config: {
+          title: "Revisar materiales sin rotación",
+          description: "Identificar materiales que no se movieron en 90+ días y decidir: mantener, vender o descartar.",
+          priority: "low",
+          assignee: "Administración",
+          dueDays: 15,
+        } as ActionCreateTaskConfig,
       },
     ],
   },

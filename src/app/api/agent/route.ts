@@ -1,15 +1,274 @@
 import { NextRequest, NextResponse } from "next/server";
 import { processAgentMessage, runAutomations } from "@/lib/agent";
+import type { Intent } from "@/lib/agent";
+import {
+  getConversationContext,
+  resolveReferences,
+  getPendingAction,
+  clearPendingAction,
+  savePendingAction,
+  saveContextMetadata,
+  isConfirmation,
+  isCancellation,
+  requiresConfirmation,
+  generateActionSummary,
+  type ConversationContext,
+  type PendingAction,
+} from "@/lib/agent-memory";
+import { normalizeMessage } from "@/lib/agent-nlu";
 
-// POST /api/agent - Enviar mensaje al agente
+// ─── Helper: Reconstruir mensaje en lenguaje natural para el NLU ───
+
+function reconstructMessageForNLU(intent: Intent, entities: Record<string, any>): string {
+  const ref = entities.projectRef ? ` OB-${entities.projectRef}` : "";
+  const refText = entities.projectRef ? ` para OB-${entities.projectRef}` : "";
+
+  switch (intent) {
+    case "action_create_expense":
+      return `registrar gasto de $${entities.amount} en ${entities.category || "materiales"}${refText}`;
+    case "action_create_income":
+      return `registrar ingreso de $${entities.amount}${refText}`;
+    case "action_create_project_direct":
+      return `crear obra "${entities.name}" presupuesto $${entities.budget || 0}${entities.clientName ? ` cliente ${entities.clientName}` : ""}`;
+    case "action_create_supplier":
+      return `crear proveedor: ${entities.name}${entities.phone ? ` tel: ${entities.phone}` : ""}${entities.category ? ` rubro: ${entities.category}` : ""}`;
+    case "action_close_project":
+      return `cerrar obra${ref}`;
+    case "action_add_materials":
+      // Para materiales, usar el texto original si existe porque contiene la lista de items
+      if (entities.originalText) return entities.originalText;
+      return `crea materiales: varios items${refText}`;
+    case "action_complete_task":
+      return `completar tarea: ${entities.taskTitle || "pendiente"}`;
+    case "action_add_stock_movement":
+      // Usar texto original si existe para preservar detalles del movimiento
+      if (entities.originalText) return entities.originalText;
+      return `registrar entrada de materiales${refText}`;
+    case "action_update_project_status":
+      return `poner obra${ref} como ${entities.status || "activa"}`;
+    case "action_update_project_progress":
+      return `actualizar avance de obra${ref} al ${entities.progress || 50}%`;
+    case "action_reorder":
+      return `generar pedido de compra`;
+    default:
+      return entities.originalText || `ejecutar ${intent}`;
+  }
+}
+
+// ─── Helper: Generar texto de preview sin ejecutar la acción ───
+
+function generatePreviewText(intent: Intent, entities: Record<string, any>): string {
+  switch (intent) {
+    case "action_create_expense":
+      return `📝 Se **registrará un gasto** de **$${entities.amount}** en la categoría **${entities.category || "general"}**${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
+    case "action_create_income":
+      return `📝 Se **registrará un ingreso** de **$${entities.amount}**${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
+    case "action_create_project_direct":
+      return `📝 Se **creará una obra** con nombre **"${entities.name}"**${entities.budget ? `, presupuesto **$${entities.budget}**` : ""}${entities.clientName ? `, cliente **${entities.clientName}**` : ""}.`;
+    case "action_create_supplier":
+      return `📝 Se **creará un proveedor** con nombre **"${entities.name}"**.`;
+    case "action_close_project":
+      return `📝 Se **cerrará la obra** OB-**${entities.projectRef}**. Se marcará como finalizada con 100% de avance.`;
+    case "action_add_materials":
+      return `📝 Se **agregarán materiales** al inventario${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
+    case "action_complete_task":
+      return `📝 Se **marcará como completada** la tarea **"${entities.taskTitle || "(pendiente)"}"**.`;
+    case "action_add_stock_movement":
+      return `📝 Se **registrará un movimiento de stock** de ${entities.quantity || "cierta"} ${entities.unit || "unidades"}.`;
+    case "action_update_project_status":
+      return `📝 Se **cambiará el estado** de la obra OB-**${entities.projectRef}** a **${entities.status || "nuevo estado"}**.`;
+    case "action_update_project_progress":
+      return `📝 Se **actualizará el avance** de la obra OB-**${entities.projectRef}** al **${entities.progress}%**.`;
+    case "action_reorder":
+      return `📝 Se **generará un pedido de compra** con los materiales que están por debajo del mínimo.`;
+    default:
+      return `📝 Se ejecutará la acción solicitada.`;
+  }
+}
+
+// POST /api/agent - Enviar mensaje al agente (con memoria y confirmación)
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const message: string = body.message || "";
-    if (!message.trim()) {
+    const rawMessage: string = body.message || "";
+    if (!rawMessage.trim()) {
       return NextResponse.json({ error: "Mensaje vacío" }, { status: 400 });
     }
+
+    const { db } = await import("@/lib/db");
+
+    // 0. Normalizar mensaje (traducir variaciones del lenguaje natural)
+    const normalizationResult = normalizeMessage(rawMessage);
+    const message = normalizationResult.normalized;
+    const wasNormalized = normalizationResult.wasNormalized;
+
+    // 1. Cargar contexto conversacional
+    const ctx: ConversationContext = await getConversationContext();
+
+    // 2. Verificar si hay una acción pendiente
+    const pendingAction: PendingAction | null = await getPendingAction();
+
+    // 3. Verificar si es confirmación o cancelación
+    if (pendingAction) {
+      if (isConfirmation(message)) {
+        // ✅ El usuario confirmó - ejecutar la acción pendiente
+        await clearPendingAction();
+
+        // Reconstruir el mensaje en formato natural que el NLU pueda re-parsear
+        const allEntities = { ...pendingAction.collectedEntities };
+        const reconstructedMessage = reconstructMessageForNLU(pendingAction.intent, allEntities);
+
+        const response = await processAgentMessage(reconstructedMessage);
+        return NextResponse.json({
+          ...response,
+          text: `✅ **Confirmado.**\n\n${response.text}`,
+          _confirmed: true,
+        });
+      } else if (isCancellation(message)) {
+        // ❌ El usuario canceló
+        await clearPendingAction();
+        return NextResponse.json({
+          text: `❌ **Acción cancelada.** No se realizó ningún cambio. ¿Necesitás algo más?`,
+          intent: pendingAction.intent,
+          suggestions: ["¿Cómo vamos?", "¿Qué alertas hay?", "Recomendaciones"],
+        });
+      } else {
+        // El usuario respondió algo que no es confirmación ni cancelación
+        // Podría ser un dato faltante (ej: "50000" cuando pregunté por el monto)
+        // O podría ser un mensaje nuevo. Intentamos detectar si completa la acción pendiente
+
+        // Verificar si el mensaje contiene datos que completan la acción
+        const mergedEntities = { ...pendingAction.collectedEntities };
+        let completedFields = 0;
+
+        // Intentar extraer monto
+        const amountMatch = message.match(/\$?\s*([\d.,]+)\s*(?:pesos|\$|ars)?/i);
+        if (amountMatch && pendingAction.missingFields.includes("amount")) {
+          mergedEntities.amount = parseFloat(amountMatch[1].replace(/[,]/g, ""));
+          completedFields++;
+        }
+
+        // Intentar extraer nombre
+        if (pendingAction.missingFields.includes("name")) {
+          mergedEntities.name = message.trim();
+          completedFields++;
+        }
+
+        // Intentar extraer categoría
+        const categoryMatch = message.match(/(materiales|mano\s*de\s*obra|servicios?|equipos?|alquiler|transporte|otros?)/i);
+        if (categoryMatch && pendingAction.missingFields.includes("category")) {
+          mergedEntities.category = categoryMatch[1].toLowerCase();
+          completedFields++;
+        }
+
+        if (completedFields > 0) {
+          // Actualizar missing fields y ejecutar
+          const newMissing = pendingAction.requiredFields.filter(
+            (f) => !mergedEntities[f] && mergedEntities[f] !== 0
+          );
+
+          if (newMissing.length === 0) {
+            // Ya tenemos todos los datos - ejecutar
+            await clearPendingAction();
+            const reconstructedMessage = pendingAction.originalText +
+              Object.entries(mergedEntities)
+                .filter(([k, v]) => v !== undefined)
+                .map(([k, v]) => ` ${k}:${v}`)
+                .join("");
+            const response = await processAgentMessage(reconstructedMessage);
+            return NextResponse.json({
+              ...response,
+              text: response.text,
+              _completed: true,
+            });
+          } else {
+            // Todavía faltan campos
+            const updatedAction: PendingAction = {
+              ...pendingAction,
+              collectedEntities: mergedEntities,
+              missingFields: newMissing,
+              timestamp: Date.now(),
+            };
+            await savePendingAction(updatedAction);
+            const fieldsList = newMissing
+              .map((f) => {
+                const labels: Record<string, string> = {
+                  amount: "el monto ($)",
+                  name: "el nombre",
+                  category: "la categoría (materiales, mano de obra, servicios)",
+                  projectRef: "la referencia de la obra",
+                  title: "el título de la tarea",
+                  budget: "el presupuesto",
+                  clientName: "el nombre del cliente",
+                  phone: "el teléfono",
+                  email: "el email",
+                  taskTitle: "el título de la tarea",
+                  description: "la descripción",
+                };
+                return labels[f] || f;
+              })
+              .join(", ");
+            return NextResponse.json({
+              text: `Necesito que me digas **${fieldsList}** para completar la acción.`,
+              intent: pendingAction.intent,
+              _pendingAction: updatedAction,
+              suggestions: ["Cancelar"],
+            });
+          }
+        }
+      }
+    }
+
+    // 4. Procesar normalmente el mensaje
+    const parsed = (await import("@/lib/agent")).parseIntent(message);
+
+    // Verificar si la acción requiere confirmación
+    const requiresConfirm = requiresConfirmation(parsed.intent);
+
+    if (requiresConfirm) {
+      // Verificar si tenemos todos los datos necesarios
+      const entities = resolveReferences(message, parsed.entities, ctx);
+
+      // Guardar contexto de la acción
+      const actionSummary = generateActionSummary(parsed.intent, entities);
+
+      // Crear acción pendiente para confirmación
+      const pending: PendingAction = {
+        intent: parsed.intent,
+        collectedEntities: entities,
+        requiredFields: Object.keys(entities),
+        missingFields: [],
+        prompt: actionSummary,
+        originalText: message,
+        timestamp: Date.now(),
+      };
+
+      // Guardar acción pendiente (para cuando el usuario confirme)
+      await savePendingAction(pending);
+
+      // Generar texto de preview SIN ejecutar la acción (para no duplicar)
+      const previewText = generatePreviewText(parsed.intent, entities);
+
+      return NextResponse.json({
+        text: `⚠️ **¿Confirmás esta acción?**\n\n${previewText}\n\n---\n\nRespondé **"sí"** para confirmar o **"no"** para cancelar.`,
+        intent: parsed.intent,
+        _requiresConfirmation: {
+          action: actionSummary,
+          details: previewText,
+          intent: parsed.intent,
+          entities,
+        },
+        _pendingAction: pending,
+        suggestions: ["Sí, confirmar", "No, cancelar"],
+      });
+    }
+
+    // 5. Procesar normalmente (sin confirmación)
     const response = await processAgentMessage(message);
+
+    // 6. Guardar metadatos de contexto
+    await saveContextMetadata(response, parsed.entities);
+
     return NextResponse.json(response);
   } catch (error: any) {
     console.error("[API] POST /api/agent:", error.message);
