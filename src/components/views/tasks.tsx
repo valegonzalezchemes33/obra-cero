@@ -17,11 +17,19 @@ export function TasksView() {
   const queryClient = useQueryClient();
   const { data: tasks } = useQuery({
     queryKey: ["tasks"],
-    queryFn: async () => (await fetch("/api/tasks")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/tasks");
+      if (!r.ok) throw new Error("Error al cargar tareas");
+      return r.json();
+    },
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
-    queryFn: async () => (await fetch("/api/projects")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/projects");
+      if (!r.ok) throw new Error("Error al cargar obras");
+      return r.json();
+    },
   });
 
   const createMutation = useMutation({
@@ -35,6 +43,9 @@ export function TasksView() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
+    onError: () => {
+      toast.error("Error al crear la tarea");
+    },
   });
 
   const updateMutation = useMutation({
@@ -47,6 +58,9 @@ export function TasksView() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
+    onError: () => {
+      toast.error("Error al actualizar la tarea");
+    },
   });
 
   const deleteMutation = useMutation({
@@ -55,6 +69,9 @@ export function TasksView() {
       toast.success("Tarea eliminada");
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: () => {
+      toast.error("Error al eliminar la tarea");
     },
   });
 

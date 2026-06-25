@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 
 export async function GET() {
-  const [transactions, materials, projects, tasks, suppliers] = await Promise.all([
-    db.transaction.findMany({ include: { project: true } }),
-    db.material.findMany({ include: { supplier: true } }),
-    db.project.findMany({ include: { transactions: true, tasks: true } }),
-    db.task.findMany(),
-    db.supplier.findMany(),
-  ]);
+  try {
+    const [transactions, materials, projects, tasks, suppliers] = await Promise.all([
+      db.transaction.findMany({ include: { project: true } }),
+      db.material.findMany({ include: { supplier: true } }),
+      db.project.findMany({ include: { transactions: true, tasks: true } }),
+      db.task.findMany(),
+      db.supplier.findMany(),
+    ]);
 
   const income = transactions.filter((t) => t.type === "income");
   const expenses = transactions.filter((t) => t.type === "expense");
@@ -94,49 +95,53 @@ export async function GET() {
   );
 
   return NextResponse.json({
-    kpis: {
-      totalIncome,
-      totalExpenses,
-      profit,
-      margin,
-      stockValue,
-      lowStockCount: lowStock.length,
-      outOfStockCount: outOfStock.length,
-      activeProjects: activeProjects.length,
-      totalProjects: projects.length,
-      totalBudget,
-      totalSpentOnProjects,
-      avgProgress,
-      pendingTasks: pendingTasks.length,
-      overdueTasks: overdueTasks.length,
-      totalSuppliers: suppliers.length,
-      totalMaterials: materials.length,
-    },
-    cashflow,
-    expenseByCategory,
-    incomeByCategory,
-    lowStock,
-    outOfStock,
-    projectExpenses,
-    recentExpenses,
-    projects: projects.map((p) => ({
-      id: p.id,
-      code: p.code,
-      name: p.name,
-      status: p.status,
-      type: p.type,
-      address: p.address,
-      clientName: p.clientName,
-      budget: p.budget,
-      progress: p.progress,
-      startDate: p.startDate,
-      endDate: p.endDate,
-      spent: p.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-      income: p.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-    })),
-    tasks: tasks.map((t) => ({
-      ...t,
-      projectCode: t.projectId ? projects.find((p) => p.id === t.projectId)?.code : null,
-    })),
-  });
+      kpis: {
+        totalIncome,
+        totalExpenses,
+        profit,
+        margin,
+        stockValue,
+        lowStockCount: lowStock.length,
+        outOfStockCount: outOfStock.length,
+        activeProjects: activeProjects.length,
+        totalProjects: projects.length,
+        totalBudget,
+        totalSpentOnProjects,
+        avgProgress,
+        pendingTasks: pendingTasks.length,
+        overdueTasks: overdueTasks.length,
+        totalSuppliers: suppliers.length,
+        totalMaterials: materials.length,
+      },
+      cashflow,
+      expenseByCategory,
+      incomeByCategory,
+      lowStock,
+      outOfStock,
+      projectExpenses,
+      recentExpenses,
+      projects: projects.map((p) => ({
+        id: p.id,
+        code: p.code,
+        name: p.name,
+        status: p.status,
+        type: p.type,
+        address: p.address,
+        clientName: p.clientName,
+        budget: p.budget,
+        progress: p.progress,
+        startDate: p.startDate,
+        endDate: p.endDate,
+        spent: p.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
+        income: p.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
+      })),
+      tasks: tasks.map((t) => ({
+        ...t,
+        projectCode: t.projectId ? projects.find((p) => p.id === t.projectId)?.code : null,
+      })),
+    });
+  } catch (error: any) {
+    console.error("[API] GET /api/dashboard:", error.message);
+    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+  }
 }

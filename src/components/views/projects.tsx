@@ -26,7 +26,11 @@ export function ProjectsView() {
   const queryClient = useQueryClient();
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects"],
-    queryFn: async () => (await fetch("/api/projects")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/projects");
+      if (!r.ok) throw new Error("Error al cargar obras");
+      return r.json();
+    },
   });
 
   const [open, setOpen] = useState(false);
@@ -46,6 +50,9 @@ export function ProjectsView() {
       setOpen(false);
       setEditing(null);
     },
+    onError: () => {
+      toast.error("Error al crear la obra");
+    },
   });
 
   const updateMutation = useMutation({
@@ -61,6 +68,9 @@ export function ProjectsView() {
       setOpen(false);
       setEditing(null);
     },
+    onError: () => {
+      toast.error("Error al guardar los cambios");
+    },
   });
 
   const deleteMutation = useMutation({
@@ -69,6 +79,9 @@ export function ProjectsView() {
       toast.success("Obra eliminada");
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: () => {
+      toast.error("Error al eliminar la obra");
     },
   });
 

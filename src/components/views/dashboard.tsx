@@ -33,11 +33,12 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     queryKey: ["dashboard"],
     queryFn: async () => {
       const r = await fetch("/api/dashboard");
+      if (!r.ok) throw new Error("Error al cargar el panel");
       return r.json();
     },
   });
 
-  if (isLoading || !data) {
+  if (isLoading || !data || !data.kpis) {
     return (
       <div className="space-y-6">
         <div className="h-40 bg-card rounded-lg border shimmer" />

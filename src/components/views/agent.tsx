@@ -52,7 +52,11 @@ export function AgentView({ initialQuery }: AgentViewProps) {
 
   const { data: actions } = useQuery({
     queryKey: ["agent-actions"],
-    queryFn: async () => (await fetch("/api/agent")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/agent");
+      if (!r.ok) throw new Error("Error al cargar acciones");
+      return r.json();
+    },
     refetchInterval: 30000,
   });
 
@@ -76,7 +80,7 @@ export function AgentView({ initialQuery }: AgentViewProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
       });
-      if (!r.ok) throw new Error("Error");
+      if (!r.ok) throw new Error("Error al procesar el mensaje");
       return r.json();
     },
     onMutate: (text) => {
@@ -116,35 +120,47 @@ export function AgentView({ initialQuery }: AgentViewProps) {
 
   const clearMutation = useMutation({
     mutationFn: async () => {
-      await fetch("/api/agent/conversation", { method: "DELETE" });
+      const r = await fetch("/api/agent/conversation", { method: "DELETE" });
+      if (!r.ok) throw new Error("Error al limpiar");
     },
     onSuccess: () => {
       setMessages([]);
       toast.success("Conversación reiniciada");
+    },
+    onError: () => {
+      toast.error("Error al limpiar la conversación");
     },
   });
 
   const runAutomationsMutation = useMutation({
     mutationFn: async () => {
       const r = await fetch("/api/automations/run", { method: "POST" });
+      if (!r.ok) throw new Error("Error al ejecutar automatizaciones");
       return r.json();
     },
     onSuccess: (data) => {
       toast.success(`${data.count} ${data.count === 1 ? "automatización activada" : "automatizaciones activadas"}`);
       queryClient.invalidateQueries({ queryKey: ["agent-actions"] });
     },
+    onError: () => {
+      toast.error("Error al ejecutar automatizaciones");
+    },
   });
 
   const dismissAction = useMutation({
     mutationFn: async (id: string) => {
-      await fetch("/api/agent/actions", {
+      const r = await fetch("/api/agent/actions", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status: "dismissed" }),
       });
+      if (!r.ok) throw new Error("Error al descartar acción");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agent-actions"] });
+    },
+    onError: () => {
+      toast.error("Error al descartar la acción");
     },
   });
 

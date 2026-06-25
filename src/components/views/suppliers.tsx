@@ -17,7 +17,11 @@ export function SuppliersView() {
   const queryClient = useQueryClient();
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
-    queryFn: async () => (await fetch("/api/suppliers")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/suppliers");
+      if (!r.ok) throw new Error("Error al cargar proveedores");
+      return r.json();
+    },
   });
 
   const createMutation = useMutation({
@@ -30,6 +34,9 @@ export function SuppliersView() {
       toast.success("Proveedor creado");
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: () => {
+      toast.error("Error al crear el proveedor");
     },
   });
 

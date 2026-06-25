@@ -31,7 +31,11 @@ export default function Home() {
 
   const { data: actions } = useQuery({
     queryKey: ["agent-actions-count"],
-    queryFn: async () => (await fetch("/api/agent")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/agent");
+      if (!r.ok) return { actions: [] };
+      return r.json();
+    },
     refetchInterval: 60000,
   });
   const alertsCount = actions?.actions?.length || 0;

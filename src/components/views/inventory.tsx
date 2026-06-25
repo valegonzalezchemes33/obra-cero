@@ -27,15 +27,27 @@ export function InventoryView() {
 
   const { data: materials, isLoading } = useQuery({
     queryKey: ["materials"],
-    queryFn: async () => (await fetch("/api/materials")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/materials");
+      if (!r.ok) throw new Error("Error al cargar materiales");
+      return r.json();
+    },
   });
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
-    queryFn: async () => (await fetch("/api/suppliers")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/suppliers");
+      if (!r.ok) throw new Error("Error al cargar proveedores");
+      return r.json();
+    },
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
-    queryFn: async () => (await fetch("/api/projects")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/projects");
+      if (!r.ok) throw new Error("Error al cargar obras");
+      return r.json();
+    },
   });
 
   const createMutation = useMutation({
@@ -50,6 +62,9 @@ export function InventoryView() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setOpen(false);
       setEditMaterial(null);
+    },
+    onError: () => {
+      toast.error("Error al crear el material");
     },
   });
 
@@ -66,6 +81,9 @@ export function InventoryView() {
       setOpen(false);
       setEditMaterial(null);
     },
+    onError: () => {
+      toast.error("Error al guardar los cambios");
+    },
   });
 
   const deleteMutation = useMutation({
@@ -74,6 +92,9 @@ export function InventoryView() {
       toast.success("Material eliminado");
       queryClient.invalidateQueries({ queryKey: ["materials"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: () => {
+      toast.error("Error al eliminar el material");
     },
   });
 
@@ -89,6 +110,9 @@ export function InventoryView() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       setMovementMaterial(null);
+    },
+    onError: () => {
+      toast.error("Error al registrar el movimiento");
     },
   });
 

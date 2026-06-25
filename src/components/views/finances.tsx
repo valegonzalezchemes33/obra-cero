@@ -28,19 +28,35 @@ export function FinancesView() {
 
   const { data: transactions, isLoading } = useQuery({
     queryKey: ["transactions"],
-    queryFn: async () => (await fetch("/api/transactions?limit=200")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/transactions?limit=200");
+      if (!r.ok) throw new Error("Error al cargar movimientos");
+      return r.json();
+    },
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
-    queryFn: async () => (await fetch("/api/projects")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/projects");
+      if (!r.ok) throw new Error("Error al cargar obras");
+      return r.json();
+    },
   });
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
-    queryFn: async () => (await fetch("/api/suppliers")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/suppliers");
+      if (!r.ok) throw new Error("Error al cargar proveedores");
+      return r.json();
+    },
   });
   const { data: dash } = useQuery({
     queryKey: ["dashboard"],
-    queryFn: async () => (await fetch("/api/dashboard")).json(),
+    queryFn: async () => {
+      const r = await fetch("/api/dashboard");
+      if (!r.ok) throw new Error("Error al cargar dashboard");
+      return r.json();
+    },
   });
 
   const createMutation = useMutation({
@@ -55,6 +71,9 @@ export function FinancesView() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setOpen(false);
     },
+    onError: () => {
+      toast.error("Error al registrar el movimiento");
+    },
   });
 
   const deleteMutation = useMutation({
@@ -63,6 +82,9 @@ export function FinancesView() {
       toast.success("Movimiento eliminado");
       queryClient.invalidateQueries({ queryKey: ["transactions"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: () => {
+      toast.error("Error al eliminar el movimiento");
     },
   });
 
