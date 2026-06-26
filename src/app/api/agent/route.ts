@@ -250,7 +250,8 @@ export async function POST(req: NextRequest) {
 
       if (groqResult.success && groqResult.intent && groqResult.intent !== "unknown" && (groqResult.confidence || 0) >= 0.4) {
         // Si Groq detectó una ACCIÓN (crear, editar, eliminar) → ejecutar el handler real
-        // Nota: processAgentMessage ya guarda user+agent messages internamente                if (groqResult.intent.startsWith("action_")) {
+        // Nota: processAgentMessage ya guarda user+agent messages internamente
+        if (groqResult.intent.startsWith("action_")) {
           // ✅ Groq + Agente interno trabajan juntos:
           // Groq extrajo las entidades del lenguaje natural.
           // En lugar de reconstruir texto y re-parsarlo con el NLU local
