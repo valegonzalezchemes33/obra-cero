@@ -8,7 +8,7 @@ export async function GET() {
       orderBy: { createdAt: "asc" },
       take: 100,
     });
-    return NextResponse.json(messages);
+    return NextResponse.json({ messages });
   } catch (error: any) {
     console.error("[API] GET /api/agent/conversation:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });

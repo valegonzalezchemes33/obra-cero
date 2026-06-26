@@ -99,6 +99,20 @@ export async function POST(req: NextRequest) {
 
     const { db } = await import("@/lib/db");
 
+    // Helper para guardar mensajes en la BD
+    async function saveMessage(role: "user" | "agent", content: string, intent?: string, meta?: any) {
+      try {
+        await db.agentMessage.create({
+          data: {
+            role,
+            content: content.slice(0, 5000),
+            intent: intent || null,
+            meta: meta ? JSON.stringify(meta).slice(0, 4000) : null,
+          },
+        });
+      } catch {}
+    }
+
     // 0. Normalizar mensaje (traducir variaciones del lenguaje natural)
     const normalizationResult = normalizeMessage(rawMessage);
     const message = normalizationResult.normalized;
@@ -235,6 +249,22 @@ export async function POST(req: NextRequest) {
       const groqResult = await tryGroqIntentRecognition(rawMessage, recentMessages);
 
       if (groqResult.success && groqResult.intent && groqResult.intent !== "unknown" && (groqResult.confidence || 0) >= 0.4) {
+        // Si Groq detectó una ACCIÓN (crear, editar, eliminar) → ejecutar el handler real
+        // Nota: processAgentMessage ya guarda user+agent messages internamente
+        if (groqResult.intent.startsWith("action_")) {
+          // Reconstruir mensaje en formato que el NLU local pueda parsear
+          const reconstructed = reconstructMessageForNLU(groqResult.intent as Intent, groqResult.entities || {});
+          const response = await processAgentMessage(reconstructed);
+          await saveContextMetadata(response, groqResult.entities || {});
+          return NextResponse.json({
+            ...response,
+            _groqEnhanced: true,
+            _groqIntent: groqResult.intent,
+            _groqConfidence: groqResult.confidence,
+          });
+        }
+
+        // Para consultas (query_*) → generar respuesta enriquecida con Groq
         const systemContext = await getSystemContext();
         const groqResponse = await tryGroqEnhancedResponse(
           rawMessage,
@@ -248,6 +278,8 @@ export async function POST(req: NextRequest) {
         );
 
         if (groqResponse) {
+          // Guardar respuesta del agente
+          await saveMessage("agent", groqResponse.text, groqResponse.intent, groqResponse.data);
           return NextResponse.json({
             ...groqResponse,
             _groqEnhanced: true,
