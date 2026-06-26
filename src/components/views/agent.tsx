@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History } from "lucide-react";
+import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History, Code, Copy } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 import { ConversationHistory } from "./conversation-history";
 
 const SUGGESTIONS_BY_CONTEXT = [
@@ -336,7 +338,7 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                         </div>
                       )}
 
-                      <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_p]:my-1.5 [&_ul]:my-2 [&_ul]:space-y-1 [&_li]:text-[13px] [&_li]:leading-relaxed [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[12px] [&_code]:font-mono [&_*]:text-foreground/90">
+                      <div className="prose prose-sm max-w-none text-[13px] leading-relaxed [&_strong]:font-semibold [&_strong]:text-foreground [&_p]:my-1.5 [&_ul]:my-2 [&_ul]:space-y-1 [&_li]:text-[13px] [&_li]:leading-relaxed [&_code]:bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[12px] [&_code]:font-mono [&_*]:text-foreground/90]">
                         <ReactMarkdown
                           components={{
                             li: ({ children }) => (
@@ -345,6 +347,81 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                                 <span>{children}</span>
                               </li>
                             ),
+                            code({ className, children, ...props }) {
+                              const match = /language-(\w+)/.exec(className || "");
+                              const codeStr = String(children).replace(/\n$/, "");
+
+                              if (match) {
+                                return (
+                                  <div className="relative group my-3 -mx-1">
+                                    <div className="flex items-center justify-between px-3 py-1.5 rounded-t-lg bg-muted/80 border border-border/60 border-b-0 text-[11px] text-muted-foreground">
+                                      <span className="flex items-center gap-1.5">
+                                        <Code className="h-3 w-3" />
+                                        {match[1]}
+                                      </span>
+                                      <button
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(codeStr);
+                                          toast.success("Copiado al portapapeles");
+                                        }}
+                                        className="flex items-center gap-1 hover:text-foreground transition-colors"
+                                      >
+                                        <Copy className="h-3 w-3" />
+                                        Copiar
+                                      </button>
+                                    </div>
+                                    <SyntaxHighlighter
+                                      style={oneDark}
+                                      language={match[1]}
+                                      PreTag="div"
+                                      customStyle={{
+                                        margin: 0,
+                                        borderRadius: "0 0 8px 8px",
+                                        fontSize: "12px",
+                                        lineHeight: "1.5",
+                                        border: "1px solid var(--border)",
+                                        borderTop: "none",
+                                      }}
+                                    >
+                                      {codeStr}
+                                    </SyntaxHighlighter>
+                                  </div>
+                                );
+                              }
+
+                              // Inline code
+                              return (
+                                <code className="bg-muted px-1.5 py-0.5 rounded text-[12px] font-mono" {...props}>
+                                  {children}
+                                </code>
+                              );
+                            },
+                            pre({ children }) {
+                              // Prevent double-rendering when code block is nested in pre
+                              return <>{children}</>;
+                            },
+                            table({ children }) {
+                              return (
+                                <div className="overflow-x-auto my-3 rounded-lg border border-border/60">
+                                  <table className="min-w-full text-[12px] divide-y divide-border/60">
+                                    {children}
+                                  </table>
+                                </div>
+                              );
+                            },
+                            th({ children }) {
+                              return <th className="px-3 py-2 bg-muted/50 text-left font-medium text-muted-foreground text-[11px] uppercase tracking-wider">{children}</th>;
+                            },
+                            td({ children }) {
+                              return <td className="px-3 py-2 border-t border-border/30">{children}</td>;
+                            },
+                            blockquote({ children }) {
+                              return (
+                                <blockquote className="border-l-3 border-primary/30 pl-4 italic text-muted-foreground my-3">
+                                  {children}
+                                </blockquote>
+                              );
+                            },
                           }}
                         >
                           {m.content}

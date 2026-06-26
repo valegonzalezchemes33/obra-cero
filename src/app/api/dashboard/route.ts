@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getCached } from "@/lib/cache";
 
 export async function GET() {
   try {
-    const [transactions, materials, projects, tasks, suppliers] = await Promise.all([
-      db.transaction.findMany({ include: { project: true } }),
-      db.material.findMany({ include: { supplier: true } }),
-      db.project.findMany({ include: { transactions: true, tasks: true } }),
-      db.task.findMany(),
-      db.supplier.findMany(),
-    ]);
+    // Usar caché en servidor para evitar consultas repetitivas costosas
+    const data = await getCached("dashboard:full", async () => {
+      const [transactions, materials, projects, tasks, suppliers] = await Promise.all([
+        db.transaction.findMany({ include: { project: true } }),
+        db.material.findMany({ include: { supplier: true } }),
+        db.project.findMany({ include: { transactions: true, tasks: true } }),
+        db.task.findMany(),
+        db.supplier.findMany(),
+      ]);
+      return { transactions, materials, projects, tasks, suppliers };
+    }, 15000); // Cache 15 segundos
+
+    const { transactions, materials, projects, tasks, suppliers } = data;
 
   const income = transactions.filter((t) => t.type === "income");
   const expenses = transactions.filter((t) => t.type === "expense");

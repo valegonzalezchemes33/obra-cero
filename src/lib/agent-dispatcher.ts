@@ -105,7 +105,6 @@ export async function enrichQueryWithGroq(
     const available = await isGroqAvailable();
 
     if (available && localResponse.data) {
-      // Pasar a Groq los datos reales que devolvió el handler
       const dbData = {
         intent,
         handlerData: localResponse.data,
@@ -125,13 +124,11 @@ export async function enrichQueryWithGroq(
           text: groqResponse.text,
           _groqEnhanced: true,
           _groqConfidence: groqConfidence,
-          // Preservar las sugerencias específicas del handler local
           suggestions: localResponse.suggestions || groqResponse.suggestions,
         };
       }
     }
 
-    // Sin datos en la respuesta: intentar igual con el texto del handler
     if (available) {
       const groqResponse = await tryGroqEnhancedResponse(
         rawText,
@@ -149,6 +146,111 @@ export async function enrichQueryWithGroq(
     }
   } catch {
     // Groq falló, usar respuesta local
+  }
+
+  return localResponse;
+}
+
+// ─── Procesar mensaje COMPUESTO (múltiples intents) ───
+// Ejecuta varios handlers en secuencia y combina las respuestas
+// Útil para: "crear obra X + agregar materiales" en un solo mensaje
+
+export async function processCompoundMessage(
+  intents: Array<{ intent: Intent; entities: Record<string, any> }>,
+  rawText: string,
+): Promise<AgentResponse> {
+  if (intents.length === 0) {
+    return {
+      text: "No entendí qué acciones realizar.",
+      intent: "unknown" as Intent,
+    };
+  }
+
+  if (intents.length === 1) {
+    return await processMessageWithIntent(intents[0].intent, intents[0].entities, rawText, 0.9);
+  }
+
+  const responses: AgentResponse[] = [];
+  let lastResponse: AgentResponse | null = null;
+
+  for (let i = 0; i < intents.length; i++) {
+    const { intent, entities } = intents[i];
+    
+    // Si el intent anterior creó un proyecto, pasar su código al siguiente intent
+    if (lastResponse?.data?.project?.code) {
+      if (intent === "action_add_materials" ||
+          intent === "action_add_expense_to_project" ||
+          intent === "action_update_project_progress" ||
+          intent === "action_update_project_status") {
+        entities.projectRef = lastResponse.data.project.code;
+      }
+    }
+
+    const response = await processMessageWithIntent(intent, entities, rawText, 0.9);
+    responses.push(response);
+    lastResponse = response;
+  }
+
+  // Combinar todas las respuestas en una sola
+  const combinedText = responses
+    .map((r, i) => {
+      if (i === 0) return r.text;
+      return `---\n${r.text}`;
+    })
+    .join("\n\n");
+
+  const allSuggestions = [
+    ...new Set(responses.flatMap((r) => r.suggestions || [])),
+  ].slice(0, 4);
+
+  return {
+    text: combinedText,
+    intent: intents[0].intent,
+    data: {
+      compound: true,
+      individualResponses: responses.map((r) => ({
+        intent: r.intent,
+        data: r.data,
+      })),
+    },
+    suggestions: allSuggestions.length > 0 ? allSuggestions : ["¿Cómo vamos?", "Ver obras"],
+  };
+}
+
+// ─── Enriquecer respuesta de ACCIÓN con Groq ───
+// Para acciones (crear obra, agregar materiales, etc.),
+// usa Groq para dar una respuesta más natural y completa
+
+export async function enrichActionResponseWithGroq(
+  localResponse: AgentResponse,
+  rawText: string,
+  intent: Intent,
+  entities: Record<string, any>,
+  recentMessages: string[]
+): Promise<AgentResponse> {
+  try {
+    const { isGroqAvailable, tryGroqEnhancedResponse } = await import("./groq-integration");
+    const available = await isGroqAvailable();
+    if (!available) return localResponse;
+
+    const dbData = {
+      intent,
+      handlerData: localResponse.data || {},
+      handlerText: localResponse.text,
+    };
+
+    const groqResponse = await tryGroqEnhancedResponse(rawText, intent, dbData, recentMessages);
+    if (groqResponse && groqResponse.text) {
+      return {
+        ...localResponse,
+        text: groqResponse.text,
+        _groqEnhanced: true,
+        _groqActionEnhanced: true,
+        suggestions: localResponse.suggestions || groqResponse.suggestions,
+      };
+    }
+  } catch {
+    // Fallback a respuesta local
   }
 
   return localResponse;

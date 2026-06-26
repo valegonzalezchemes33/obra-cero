@@ -13,7 +13,8 @@ import { AutomationsView } from "@/components/views/automations";
 import { CommandPalette } from "@/components/command-palette";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Bell, Plus, Search, Zap } from "lucide-react";
+import { Search } from "lucide-react";
+import { NotificationPanel } from "@/components/notification-panel";
 
 const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: string; target: ViewKey } }> = {
   dashboard: { title: "Panel", sub: "Vista general de tu operación" },
@@ -86,13 +87,7 @@ export default function Home() {
                 <Search className="h-4 w-4" />
               </Button>
               {/* Notifications */}
-              <Button variant="outline" size="icon" className="relative"
-                onClick={() => setView("agent")}>
-                <Bell className="h-4 w-4" />
-                {alertsCount > 0 && (
-                  <span className="absolute top-1 right-1 size-1.5 rounded-full bg-destructive" />
-                )}
-              </Button>
+              <NotificationPanel />
             </div>
           </div>
         </header>

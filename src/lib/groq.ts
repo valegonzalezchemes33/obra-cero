@@ -176,7 +176,11 @@ Analiza el mensaje del usuario y determina:
 3. Un nivel de confianza (0-1)
 4. Una breve explicación
 
+IMPORTANTE: El mensaje del usuario puede contener MULTIPLES intenciones separadas (ej: "crea una obra y agrega materiales"). Si detectas más de una intención, devuelve hasta 2 intents en el array "intents".
+
 INTENCIONES DISPONIBLES:
+
+== CONSULTAS ==
 - greeting: Saludo inicial
 - query_profit: Consultar ganancias/rentabilidad
 - query_expenses: Consultar gastos
@@ -205,44 +209,73 @@ INTENCIONES DISPONIBLES:
 - recommend: Recomendaciones/sugerencias
 - summarize: Resumen general del negocio
 - help: Ayuda / qué puedo hacer
+
+== ACCIONES ==
 - action_create_expense: Registrar un gasto
+  Entidades: amount (número), category (texto: materiales|mano_obra|servicios|equipos|alquiler|transporte|otros), projectRef (código o nombre de obra, opcional)
 - action_create_income: Registrar un ingreso
+  Entidades: amount (número), projectRef (opcional)
 - action_create_task: Crear una tarea
+  Entidades: title (texto), projectRef (opcional), priority (baja|media|alta, opcional)
 - action_reorder: Generar pedido de reposición
 - action_create_project_direct: Crear una obra nueva
-- action_edit_project: Editar una obra
-- action_edit_task: Editar una tarea
-- action_edit_material: Editar un material
-- action_delete_task: Eliminar una tarea
-- action_delete_material: Eliminar un material
-- action_delete_transaction: Eliminar un gasto/ingreso
-- action_trigger_workflow: Ejecutar un workflow
-- action_list_workflows: Listar workflows
-- action_export_data: Exportar datos del sistema
-- action_create_supplier: Dar de alta un proveedor
-- action_add_materials: Agregar materiales al inventario
-- action_add_stock_movement: Registrar movimiento de stock
+  Entidades: name (texto, nombre de la obra), budget (número, opcional), clientName (texto, opcional)
+- action_add_materials: Agregar materiales al inventario (crear o actualizar stock)
+  Entidades: items (array de objetos con qty, unit, name), projectRef (código o nombre de obra, opcional)
+- action_add_stock_movement: Registrar entrada/salida de stock
+  Entidades: type (incoming|outgoing), materialName (texto), quantity (número), unit (texto, opcional)
 - action_update_project_progress: Actualizar avance de obra
+  Entidades: projectRef (código o nombre), progress (número, 0-100)
 - action_update_project_status: Cambiar estado de obra
+  Entidades: projectRef (código o nombre), status (in_progress|paused|finished|planning)
 - action_complete_task: Marcar tarea como completada
+  Entidades: taskTitle (texto)
 - action_close_project: Cerrar/finalizar una obra
+  Entidades: projectRef (código o nombre)
+- action_create_supplier: Dar de alta un proveedor
+  Entidades: name (texto), phone (texto, opcional), email (texto, opcional), category (texto, opcional)
 - action_edit_project: Editar datos de una obra
+  Entidades: projectRef, name (texto, opcional), budget (número, opcional), clientName (texto, opcional)
 - action_edit_task: Editar una tarea
+  Entidades: taskTitle, title (opcional), priority (opcional), status (opcional)
 - action_edit_material: Editar un material
+  Entidades: materialName (texto), unitCost (número, opcional), stock (número, opcional), minStock (número, opcional)
 - action_delete_task: Eliminar una tarea
+  Entidades: taskTitle (texto)
 - action_delete_material: Eliminar un material
-- action_delete_transaction: Eliminar un movimiento
+  Entidades: materialName (texto)
+- action_delete_transaction: Eliminar un gasto/ingreso
+  Entidades: amount (número, opcional)
 - action_trigger_workflow: Ejecutar un workflow
+  Entidades: workflowName (texto)
 - action_list_workflows: Listar workflows disponibles
-- action_create_workflow: Crear un workflow desde lenguaje natural
-- unknown: No se puede determinar la intención
+- action_export_data: Exportar datos del sistema
+  Entidades: type (gastos|materiales|obras|tareas|proveedores, opcional)
 
-Responde SOLO con JSON en este formato exacto:
+EJEMPLOS DE MENSAJES COMPUESTOS:
+- "crea una obra llamada amarras center y agregale 2 bolsas de clavos, 4 bolsas de cemento" → intents: [{intent:"action_create_project_direct",entities:{name:"amarras center"}},{intent:"action_add_materials",entities:{items:[{qty:2,unit:"bolsas",name:"clavos 22mm"},{qty:4,unit:"bolsas",name:"cemento 20kg"}]}}]
+- "crea la obra Casa Garcia con presupuesto 2000000 para Juan Garcia" → intent único
+
+Responde SOLO con JSON. Para intent único:
 {
   "intent": "nombre_del_intent",
   "confidence": 0.95,
   "entities": { "key": "value" },
-  "explanation": "Por qué crees que esta es la intención"
+  "explanation": "Por qué crees que esta es la intención",
+  "isCompound": false
+}
+
+Para mensajes compuestos (2 intenciones):
+{
+  "intent": "compound",
+  "confidence": 0.9,
+  "entities": {},
+  "explanation": "El mensaje contiene dos acciones",
+  "isCompound": true,
+  "compoundIntents": [
+    { "intent": "action_create_project_direct", "entities": { "name": "amarras center" } },
+    { "intent": "action_add_materials", "entities": { "items": [{ "qty": 2, "unit": "bolsas", "name": "clavos 22mm" }] } }
+  ]
 }`;
 
   try {

@@ -282,14 +282,15 @@ const INTENT_PATTERNS: IntentPattern[] = [
   {
     intent: "action_create_project_direct",
     patterns: [
-      /crear\s+obra\s+["']?[\w\s]+["']?\s*,?\s*presupuesto/i,
-      /nueva\s+obra\s*:\s*["']?[\w\s]+["']?/i,
+      /crear\s+obra\s+["']?[\w\sÀ-ÿ]+["']?\s*,?\s*presupuesto/i,
+      /nueva\s+obra\s*:\s*["']?[\w\sÀ-ÿ]+["']?/i,
       /alta\s+de\s+obra\s*:\s*/i,
+      /crear\s+obra\s+["']?[^"']+["']?(?:\s*\.|\s*,|$)/i,
     ],
     entities: (text: string) => {
-      const nameMatch = text.match(/(?:crear|nueva|alta\s+de)\s+obra\s*:?\s*["']?([\w\s]+?)["']?\s*(?:,|presupuesto|cliente|$)/i);
+      const nameMatch = text.match(/(?:crear|nueva|alta\s+de)\s+obra\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?\s*(?:\.|,|presupuesto|cliente|$)/i);
       const budgetMatch = text.match(/presupuesto\s*:?\s*\$?\s*([\d.,]+)/i);
-      const clientMatch = text.match(/cliente\s*:?\s*([\w\s]+?)(?:,|$)/i);
+      const clientMatch = text.match(/cliente\s*:?\s*([\w\sÀ-ÿ]+?)(?:,|$)/i);
       return {
         name: nameMatch ? nameMatch[1].trim() : undefined,
         budget: budgetMatch ? parseFloat(budgetMatch[1].replace(/[.,]/g, '').replace(',', '.')) : undefined,
@@ -2165,6 +2166,38 @@ async function respondActionCreateProjectDirect(parsed: ParsedCommand, rawText: 
     },
   });
 
+
+  // Detectar si el mensaje tambien incluye materiales para agregar a la obra
+  const hasMaterials = /(?:materiales?|items?|productos?)\s*:/.test(rawText) || /agrega\s+materiales/i.test(rawText);
+  
+  if (hasMaterials) {
+    try {
+      // Crear un ParsedCommand sintetico para action_add_materials con la obra recien creada
+      // Primero intentar reemplazar la parte de creacion de obra en el texto
+      let materialText = rawText.replace(/crear obra[^.]+\.\s*/i, `en la obra ${code}, crea materiales: `);
+      // Si el reemplazo no cambio el texto, prepend manualmente
+      if (materialText === rawText) {
+        materialText = `en la obra ${code}, crea materiales: ${rawText}`;
+      }
+      const parsedMat = {
+        intent: "action_add_materials" as Intent,
+        rawText: materialText,
+        normalized: `en la obra ${code}, `,
+        entities: { projectRef: code },
+        confidence: 0.9,
+      } as ParsedCommand;
+      const matResponse = await respondActionAddMaterials(parsedMat, materialText);
+      
+      return {
+        text: `¡Obra creada! Código asignado: **${code}**\n\n- Nombre: ${project.name}\n- Presupuesto: ${budget ? formatCurrency(budget) : 'sin definir'}\n- Cliente: ${clientName || 'sin definir'}\n- Estado: Planificación\n\n---\n${matResponse.text}`,
+        intent: "action_create_project_direct",
+        data: { project, materialsResponse: matResponse.data },
+        suggestions: [`Detalle de ${code}`, "Ver inventario", "Actualizar avance"],
+      };
+    } catch (err) {
+      console.error("[Agent] Error al agregar materiales a la obra nueva:", err);
+    }
+  }
   return {
     text: `¡Obra creada! Código asignado: **${code}**\n\n- Nombre: ${project.name}\n- Presupuesto: ${budget ? formatCurrency(budget) : 'sin definir'}\n- Cliente: ${clientName || 'sin definir'}\n- Estado: Planificación`,
     intent: "action_create_project_direct",

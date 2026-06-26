@@ -17,7 +17,7 @@ import {
   type PendingAction,
 } from "@/lib/agent-memory";
 import { normalizeMessage } from "@/lib/agent-nlu";
-import { tryGroqIntentRecognition } from "@/lib/groq-integration";
+import { tryGroqCompoundIntent } from "@/lib/groq-integration";
 
 // ─── Helper: Reconstruir mensaje en lenguaje natural para el NLU ───
 
@@ -235,66 +235,90 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Intentar primero con el agente extendido (editar, eliminar, workflows)
+    // 4. Cargar contexto para Groq
+    const recentCtx = await getConversationContext();
+    const recentMessages = recentCtx.recentMessages?.map(m => m.content) || [];
+
+    // 5. Groq como NLU PRINCIPAL — intentar entender el mensaje con IA primero
+    // Groq puede detectar intents únicos o compuestos múltiples ("crear obra + agregar materiales")
+    // Si Groq tiene éxito, retorna inmediatamente. Si falla, continua con los siguientes pasos.
+    try {
+      const compoundResult = await tryGroqCompoundIntent(rawMessage, recentMessages);
+
+      if (compoundResult.success && compoundResult.intents && compoundResult.intents.length > 0) {
+        const { processCompoundMessage, enrichActionResponseWithGroq } = await import("@/lib/agent-dispatcher");
+
+        // Si es múltiples intents, ejecutar secuencialmente
+        if (compoundResult.intents.length > 1) {
+          const compoundResponse = await processCompoundMessage(
+            compoundResult.intents.map(i => ({ intent: i.intent as Intent, entities: i.entities })),
+            rawMessage
+          );
+          await saveContextMetadata(compoundResponse, compoundResult.intents[0]?.entities || {});
+          return NextResponse.json({
+            ...compoundResponse,
+            _groqEnhanced: true,
+            _groqCompound: true,
+            _groqConfidence: compoundResult.intents[0]?.confidence || 0.8,
+          });
+        }
+
+        // Si es un único intent, procesarlo
+        const singleIntent = compoundResult.intents[0];
+        if (singleIntent.intent.startsWith("action_")) {
+          const { processMessageWithIntent } = await import("@/lib/agent-dispatcher");
+          const response = await processMessageWithIntent(
+            singleIntent.intent as Intent,
+            singleIntent.entities || {},
+            rawMessage,
+            singleIntent.confidence || 0.8
+          );
+          await saveContextMetadata(response, singleIntent.entities || {});
+
+          const enrichedResponse = await enrichActionResponseWithGroq(
+            response,
+            rawMessage,
+            singleIntent.intent as Intent,
+            singleIntent.entities || {},
+            recentMessages
+          );
+
+          return NextResponse.json({
+            ...enrichedResponse,
+            _groqEnhanced: true,
+            _groqIntent: singleIntent.intent,
+            _groqConfidence: singleIntent.confidence,
+          });
+        }
+
+        // Para consultas (query_*), enriquecer con Groq usando datos reales
+        const { enrichQueryWithGroq } = await import("@/lib/agent-dispatcher");
+        const enrichedResponse = await enrichQueryWithGroq(
+          singleIntent.intent as Intent,
+          singleIntent.entities || {},
+          rawMessage,
+          singleIntent.confidence || 0.8,
+          recentMessages
+        );
+        await saveContextMetadata(enrichedResponse, singleIntent.entities || {});
+        return NextResponse.json({
+          ...enrichedResponse,
+          _groqEnhanced: true,
+          _groqIntent: singleIntent.intent,
+          _groqConfidence: singleIntent.confidence,
+        });
+      }
+    } catch {
+      // Groq falló, continuar con siguientes pasos
+    }
+
+    // 6. Si Groq no manejó, intentar con el agente extendido (editar, eliminar, workflows)
     const extendedResult = await processExtendedMessage(message, rawMessage);
     if (extendedResult.wasExtended) {
       return NextResponse.json(extendedResult.response);
     }
 
-    // 5. Groq como NLU PRINCIPAL — intentar entender el mensaje con IA primero
-    const recentCtx = await getConversationContext();
-    const recentMessages = recentCtx.recentMessages?.map(m => m.content) || [];
-
-    try {
-      const groqResult = await tryGroqIntentRecognition(rawMessage, recentMessages);
-
-      if (groqResult.success && groqResult.intent && groqResult.intent !== "unknown" && (groqResult.confidence || 0) >= 0.4) {
-        // Si Groq detectó una ACCIÓN (crear, editar, eliminar) → ejecutar el handler real
-        // Nota: processAgentMessage ya guarda user+agent messages internamente
-        if (groqResult.intent.startsWith("action_")) {
-          // ✅ Groq + Agente interno trabajan juntos:
-          // Groq extrajo las entidades del lenguaje natural.
-          // En lugar de reconstruir texto y re-parsarlo con el NLU local
-          // (que pierde información), pasamos las entidades directamente.
-          const { processMessageWithIntent } = await import("@/lib/agent-dispatcher");
-          const response = await processMessageWithIntent(
-            groqResult.intent as Intent,
-            groqResult.entities || {},
-            rawMessage,
-            groqResult.confidence || 0.8
-          );
-          await saveContextMetadata(response, groqResult.entities || {});
-          return NextResponse.json({
-            ...response,
-            _groqEnhanced: true,
-            _groqIntent: groqResult.intent,
-            _groqConfidence: groqResult.confidence,
-          });
-        }
-
-        // Para consultas (query_*) → ejecutar handler REAL primero,
-        // luego enriquecer la respuesta con Groq usando datos reales
-        const { enrichQueryWithGroq } = await import("@/lib/agent-dispatcher");
-        const enrichedResponse = await enrichQueryWithGroq(
-          groqResult.intent as Intent,
-          groqResult.entities || {},
-          rawMessage,
-          groqResult.confidence || 0.8,
-          recentMessages
-        );
-        await saveContextMetadata(enrichedResponse, groqResult.entities || {});
-        return NextResponse.json({
-          ...enrichedResponse,
-          _groqEnhanced: true,
-          _groqIntent: groqResult.intent,
-          _groqConfidence: groqResult.confidence,
-        });
-      }
-    } catch {
-      // Groq falló, continuar con NLU local
-    }
-
-    // 6. Fallback: NLU local si Groq no entendió
+    // 7. Fallback: NLU local si ni Groq ni extended handlers entendieron
     const parsed = parseIntent(message);
 
     // Verificar si la acción requiere confirmación
@@ -331,17 +355,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 7. Procesar con el motor local
+    // 8. Procesar con el motor local
     const response = await processAgentMessage(message);
 
-    // 8. Si local también falló, smart matching
+    // 9. Si local también falló, smart matching
     if (response.intent === "unknown") {
       const closest = findClosestIntent(rawMessage);
       const smartResponse = generateSmartUnknownResponse(rawMessage, closest);
       return NextResponse.json(smartResponse);
     }
 
-    // 7. Guardar metadatos de contexto
+    // Guardar metadatos de contexto
     await saveContextMetadata(response, parsed.entities);
 
     return NextResponse.json(response);

@@ -34,8 +34,7 @@ export async function isGroqAvailable(): Promise<boolean> {
   }
 }
 
-// ─── Intentar entender el mensaje con Groq ───
-// Se llama cuando el NLU local devuelve "unknown"
+// ─── Intentar entender el mensaje con Groq (intent único) ───
 // Devuelve un intent parseado por Groq, o null si falla
 
 export async function tryGroqIntentRecognition(
@@ -47,6 +46,8 @@ export async function tryGroqIntentRecognition(
   entities?: Record<string, any>;
   explanation?: string;
   confidence?: number;
+  isCompound?: boolean;
+  compoundIntents?: Array<{ intent: string; entities: Record<string, any> }>;
 }> {
   try {
     const available = await isGroqAvailable();
@@ -54,7 +55,7 @@ export async function tryGroqIntentRecognition(
 
     const result = await parseIntentWithGroq(message, {
       recentMessages,
-      availableIntents: undefined, // dejamos que Groq use su lista completa
+      availableIntents: undefined,
     });
 
     if (!result || result.intent === "unknown" || result.confidence < 0.4) {
@@ -67,7 +68,63 @@ export async function tryGroqIntentRecognition(
       entities: result.entities,
       explanation: result.explanation,
       confidence: result.confidence,
+      isCompound: (result as any).isCompound || false,
+      compoundIntents: (result as any).compoundIntents || undefined,
     };
+  } catch {
+    return { success: false };
+  }
+}
+
+
+// ─── Intentar entender mensajes COMPUESTOS con Groq ───
+// Para mensajes que contienen múltiples acciones (ej: "crear obra + agregar materiales")
+// Devuelve un array de intents con sus entidades para ejecutar secuencialmente
+
+export async function tryGroqCompoundIntent(
+  message: string,
+  recentMessages?: string[]
+): Promise<{
+  success: boolean;
+  intents?: Array<{ intent: string; entities: Record<string, any>; confidence: number }>;
+}> {
+  try {
+    const available = await isGroqAvailable();
+    if (!available) return { success: false };
+
+    // Primero intentar con el nuevo prompt compuesto
+    const result = await parseIntentWithGroq(message, {
+      recentMessages,
+      availableIntents: undefined,
+    });
+
+    if (!result) return { success: false };
+
+    // Si Groq detectó compound, devolver los intents compuestos
+    if ((result as any).isCompound && (result as any).compoundIntents) {
+      const intents = (result as any).compoundIntents.map((ci: any) => ({
+        intent: ci.intent,
+        entities: ci.entities || {},
+        confidence: result.confidence,
+      }));
+      return { success: true, intents };
+    }
+
+    // Si no detectó compound pero tiene un intent único válido
+    if (result.intent !== "unknown" && result.confidence >= 0.4) {
+      return {
+        success: true,
+        intents: [
+          {
+            intent: result.intent,
+            entities: result.entities,
+            confidence: result.confidence,
+          },
+        ],
+      };
+    }
+
+    return { success: false };
   } catch {
     return { success: false };
   }

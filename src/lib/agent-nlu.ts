@@ -237,14 +237,31 @@ const NORMALIZATION_RULES: NormalizationRule[] = [
   { pattern: /(?:donde|dónde|con quien|con quién)\s+compro\s+(?:mas|más\s+)?(barato|economico|económico)\b(.*)$/i,
     replacement: "mejor proveedor", priority: 70, description: "donde comprar mas barato" },
 
+  // ─── Crear obra llamada "X" con o sin texto adicional ───
+  // Transforma "crear una nueva obra llamada 'amarras center'. A la obra agrega materiales..."
+  // → "crear obra \"amarras center\". A la obra agrega materiales..."
+  { pattern: /^(?:crear)\s+(?:una\s+)?(?:obra|proyecto)\s+(?:nueva?\s+)?(?:llamada?\s+|con\s+el\s+nombre\s+)?["']?([\w\sÀ-ÿ]+?)["']?[\.]?\s*(.*)$/i,
+    replacement: (m: RegExpMatchArray) => {
+      const name = (m[1] || "").trim();
+      const rest = (m[2] || "").trim();
+      let result = `crear obra "${name}"`;
+      if (rest) result += `. ${rest}`;
+      return result;
+    },
+    priority: 68,
+    description: "crear obra llamada X con texto adicional"
+  },
+
   // ─── Crear obra con nombre y presupuesto ───
+  // Esta regla se aplica DESPUÉS de la anterior si el texto termina en la obra
+  // (no hay texto adicional después del nombre)
   { pattern: /crear\s+(?:una\s+)?(?:obra|proyecto)\s+(?:nueva?\s+)?(?:llamada?\s+|con\s+el\s+nombre\s+)?["']?(.+?)["']?(?:\s*,?\s*con\s+presupuesto\s+(?:de\s+)?\$?\s*([\d.,]+))?(?:\s*,?\s*(?:cliente|para)\s+(.+))?$/i,
     replacement: (m: RegExpMatchArray) => {
       let result = `crear obra "${(m[1] || "").trim()}"`;
       if (m[2]) result += `, presupuesto $${m[2].replace(/[.,]/g, "")}`;
       if (m[3]) result += `, cliente ${(m[3] || "").trim()}`;
       return result;
-    }, priority: 68, description: "crear obra con nombre" },
+    }, priority: 67, description: "crear obra con nombre y presupuesto" },
 
   // ─── Asignar/Añadir materiales a obra ───
   { pattern: /(?:asignar|poner|meter|mandar|agregar|añadir|incorporar)\s+(.+?)\s+(?:a|en|para|a la|en la|para la)\s+(?:obra|proyecto)\s+["']?(.+?)["']?(?:\s*$|[\.;,])/i,
