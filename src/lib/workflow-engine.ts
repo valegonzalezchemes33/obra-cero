@@ -27,8 +27,11 @@ import type {
   ActionSendEmailConfig,
   ActionRunWorkflowConfig,
   ActionWebhookConfig,
+  ActionCallLlmConfig,
+  ActionQueryDbConfig,
 } from "./workflow-types";
 import { normalize, generateSku } from "./agent";
+import { analyzeDataWithGroq } from "./groq-integration";
 
 // ─── Helpers ───
 
@@ -462,6 +465,61 @@ async function executeAction(
 
         ctx.variables.lastStockUpdate = { material, qty, movementType };
         return { success: true, data: { material, qty, movementType } };
+      }
+
+      case "action_query_db": {
+        const c = config.config as ActionQueryDbConfig;
+        const where = c.where ? { ...c.where } : {};
+        const orderBy = c.orderBy ? { [c.orderBy.field]: c.orderBy.direction } : undefined;
+        const take = c.take || 100;
+
+        let results: any[] = [];
+        switch (c.model) {
+          case "transaction":
+            results = await db.transaction.findMany({ where, orderBy, take });
+            break;
+          case "task":
+            results = await db.task.findMany({ where, orderBy, take });
+            break;
+          case "material":
+            results = await db.material.findMany({ where, orderBy, take });
+            break;
+          case "project":
+            results = await db.project.findMany({ where, orderBy, take });
+            break;
+          case "supplier":
+            results = await db.supplier.findMany({ where, orderBy, take });
+            break;
+          case "stockMovement":
+            results = await db.stockMovement.findMany({ where, orderBy, take });
+            break;
+        }
+
+        ctx.variables[c.outputVariable] = results;
+        return { success: true, data: { count: results.length } };
+      }
+
+      case "action_call_llm": {
+        const c = config.config as ActionCallLlmConfig;
+        const systemPrompt = interpolate(c.systemPrompt, vars);
+        const userPrompt = interpolate(c.userPrompt, vars);
+
+        // Obtener datos del dataSource si está configurado
+        let data = {};
+        if (c.dataSource) {
+          const sourceVar = vars[c.dataSource];
+          if (sourceVar) data = sourceVar;
+        }
+
+        const result = await analyzeDataWithGroq(systemPrompt, userPrompt, data);
+
+        if (result.success) {
+          // Guardar resultado en la variable de salida
+          ctx.variables[c.outputVariable] = result.result;
+          return { success: true, data: { output: result.result } };
+        } else {
+          return { success: false, error: result.error || "Error al llamar a Groq" };
+        }
       }
 
       default:

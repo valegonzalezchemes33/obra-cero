@@ -39,6 +39,8 @@ export type StepType =
   | "action_send_email"
   | "action_webhook"
   | "action_run_workflow"
+  | "action_call_llm"
+  | "action_query_db"
   | "delay"
   | "loop"
   | "end";
@@ -127,6 +129,24 @@ export interface ActionRunWorkflowConfig {
   workflowId: string;
 }
 
+export interface ActionQueryDbConfig {
+  model: "transaction" | "task" | "material" | "project" | "supplier" | "stockMovement";
+  where?: Record<string, any>;
+  orderBy?: { field: string; direction: "asc" | "desc" };
+  take?: number;
+  outputVariable: string;
+}
+
+export interface ActionCallLlmConfig {
+  systemPrompt: string;       // Prompt del sistema para Groq
+  userPrompt: string;         // Prompt del usuario (puede incluir {{variables}})
+  dataSource?: string;        // Variable del contexto a pasar como datos (ej: "transactions", "materials")
+  outputVariable: string;     // Variable donde guardar el resultado (ej: "llmResult")
+  model?: string;             // Modelo Groq a usar (opcional, default: llama-3.3-70b-versatile)
+  temperature?: number;       // Temperatura (opcional, default: 0.3)
+  maxTokens?: number;         // Máximo de tokens (opcional, default: 1024)
+}
+
 export interface DelayConfig {
   unit: "minutes" | "hours" | "days";
   value: number;
@@ -159,6 +179,8 @@ export interface WorkflowStepConfig {
     | ActionSendEmailConfig
     | ActionWebhookConfig
     | ActionRunWorkflowConfig
+    | ActionCallLlmConfig
+    | ActionQueryDbConfig
     | DelayConfig
     | LoopConfig
     | Record<string, any>;
@@ -247,6 +269,8 @@ export const STEP_TYPE_META: Record<StepType, { label: string; icon: string; col
   action_send_email: { label: "Enviar email", icon: "mail", color: "text-pink-500", group: "Comunicación" },
   action_webhook: { label: "Webhook", icon: "globe", color: "text-slate-500", group: "Integraciones" },
   action_run_workflow: { label: "Ejecutar workflow", icon: "workflow", color: "text-violet-500", group: "Workflows" },
+  action_call_llm: { label: "Llamar a Groq AI", icon: "brain", color: "text-emerald-500", group: "IA" },
+  action_query_db: { label: "Consultar base de datos", icon: "database", color: "text-cyan-500", group: "Datos" },
   delay: { label: "Esperar", icon: "clock", color: "text-yellow-500", group: "Control" },
   loop: { label: "Repetir", icon: "repeat", color: "text-purple-500", group: "Control" },
   end: { label: "Finalizar", icon: "stop-circle", color: "text-red-500", group: "Control" },
@@ -561,6 +585,308 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
           priority: "low",
           assignee: "Administración",
           dueDays: 15,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  // ═══════════════════════════════════════════════════════════════
+  // WORKFLOWS CON GROQ AI — Análisis inteligente
+  // ═══════════════════════════════════════════════════════════════
+  // Estos workflows usan el paso action_call_llm para que Groq
+  // analice datos del sistema y genere insights accionables.
+  // ═══════════════════════════════════════════════════════════════
+  {
+    name: "🤖 Análisis y optimización de stock con IA",
+    description:
+      "Usa Groq AI para analizar el inventario actual, identificar materiales con baja rotación, sugerir cantidades óptimas de reposición y priorizar compras según urgencia e impacto financiero.",
+    trigger: "manual",
+    steps: [
+      {
+        type: "action_reorder",
+        label: "Obtener materiales bajo mínimo",
+        config: { useLowStock: true } as ActionReorderConfig,
+      },
+      {
+        type: "action_call_llm",
+        label: "Groq analiza el stock",
+        config: {
+          systemPrompt:
+            "Eres un asesor experto en gestión de inventarios para una constructora. Analizá los datos de stock y generá recomendaciones accionables.",
+          userPrompt:
+            "Analizá estos materiales con stock bajo o sin stock. Para cada uno:" +
+            "\n1. Determiná la prioridad de compra (alta/media/baja) según si puede detener una obra" +
+            "\n2. Sugerí la cantidad óptima a pedir considerando el consumo estimado" +
+            "\n3. Identificá si algún material debería tener un proveedor alternativo" +
+            "\n4. Calculá el costo total estimado de la reposición" +
+            "\n\nFinalmente, indicá el monto total necesario y el top 3 de compras urgentes.",
+          dataSource: "reorderItems",
+          outputVariable: "stockAnalysis",
+          temperature: 0.3,
+          maxTokens: 2048,
+        } as ActionCallLlmConfig,
+      },
+      {
+        type: "action_send_alert",
+        label: "Enviar análisis de stock",
+        config: {
+          title: "🤖 Análisis de stock por IA",
+          description:
+            "Groq AI analizó el inventario. Revisar recomendaciones de compra y prioridades. {{stockAnalysis}}",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Tarea de compras prioritarias",
+        config: {
+          title: "Revisar análisis de stock generado por IA y ejecutar compras prioritarias",
+          description:
+            "Groq analizó el inventario y generó recomendaciones. Revisar el análisis y realizar las compras sugeridas.",
+          priority: "high",
+          assignee: "Compras",
+          dueDays: 3,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "🤖 Análisis financiero inteligente",
+    description:
+      "Usa Groq AI para analizar las finanzas reales de la constructora: consulta ingresos, gastos y transacciones recientes, y genera un informe con recomendaciones.",
+    trigger: "manual",
+    steps: [
+      {
+        type: "action_query_db",
+        label: "Obtener transacciones recientes",
+        config: {
+          model: "transaction",
+          orderBy: { field: "date", direction: "desc" },
+          take: 50,
+          outputVariable: "transactions",
+        } as ActionQueryDbConfig,
+      },
+      {
+        type: "action_call_llm",
+        label: "Groq analiza finanzas",
+        config: {
+          systemPrompt:
+            "Eres un analista financiero experto en construcción. Generá un informe claro con recomendaciones accionables basadas en los datos reales. Respondé en español argentino.",
+          userPrompt:
+            "Analizá estas transacciones reales y generá un informe con:" +
+            "\n1. Resumen ejecutivo: ingresos totales, gastos totales, saldo" +
+            "\n2. Principales categorías de gasto" +
+            "\n3. Recomendaciones concretas para mejorar rentabilidad (3-5 acciones)" +
+            "\n4. Alertas sobre gastos inusuales" +
+            "\n\nFormateá con secciones claras y emojis.",
+          dataSource: "transactions",
+          outputVariable: "financialAnalysis",
+          temperature: 0.4,
+          maxTokens: 500,
+        } as ActionCallLlmConfig,
+      },
+      {
+        type: "action_send_alert",
+        label: "Enviar análisis financiero",
+        config: {
+          title: "🤖 Análisis financiero por IA",
+          description:
+            "📊 Análisis financiero:\n{{financialAnalysis}}",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Tarea de revisión financiera",
+        config: {
+          title: "Revisar análisis financiero generado por IA",
+          description:
+            "Groq generó un análisis financiero en base a datos reales. Revisar recomendaciones y asignar responsables.",
+          priority: "high",
+          assignee: "Administración",
+          dueDays: 5,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "🤖 Priorización inteligente de tareas",
+    description:
+      "Usa Groq AI para analizar las tareas pendientes reales de la base de datos y sugerir un orden de prioridad según urgencia e impacto en obras.",
+    trigger: "manual",
+    steps: [
+      {
+        type: "action_query_db",
+        label: "Obtener tareas pendientes",
+        config: {
+          model: "task",
+          where: { status: { not: "completed" } },
+          orderBy: { field: "createdAt", direction: "desc" },
+          take: 30,
+          outputVariable: "tasks",
+        } as ActionQueryDbConfig,
+      },
+      {
+        type: "action_call_llm",
+        label: "Groq prioriza tareas",
+        config: {
+          systemPrompt:
+            "Eres un project manager experto en construcción. Analizá las tareas reales y sugerí priorización considerando urgencia, impacto en obras y recursos disponibles.",
+          userPrompt:
+            "Analizá estas tareas pendientes reales y:" +
+            "\n1. Clasificá cada una como: urgente, importante, normal, o puede esperar" +
+            "\n2. Sugerí orden de ejecución diario" +
+            "\n3. Identificá tareas para reasignar a otro responsable" +
+            "\n4. Detectá tareas que podrían cancelarse" +
+            "\n\nPriorizá las vinculadas a obras activas y las vencidas.",
+          dataSource: "tasks",
+          outputVariable: "taskPrioritization",
+          temperature: 0.3,
+          maxTokens: 500,
+        } as ActionCallLlmConfig,
+      },
+      {
+        type: "action_send_alert",
+        label: "Enviar priorización",
+        config: {
+          title: "🤖 Priorización de tareas por IA",
+          description:
+            "📋 Priorización:\n{{taskPrioritization}}",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Reasignar según priorización",
+        config: {
+          title: "Revisar priorización de tareas generada por IA",
+          description:
+            "Groq analizó {{tasks.length}} tareas pendientes y generó una priorización. Revisar y reasignar según corresponda.",
+          priority: "high",
+          assignee: "Jefe de obra",
+          dueDays: 1,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "🤖 Reporte de salud de proyectos",
+    description:
+      "Usa Groq AI para analizar las obras reales de la base de datos: avance, presupuesto, riesgos y ETA. Genera un reporte ejecutivo con semáforo de salud.",
+    trigger: "manual",
+    steps: [
+      {
+        type: "action_query_db",
+        label: "Obtener proyectos activos",
+        config: {
+          model: "project",
+          where: { status: { not: "finished" } },
+          orderBy: { field: "updatedAt", direction: "desc" },
+          take: 20,
+          outputVariable: "projects",
+        } as ActionQueryDbConfig,
+      },
+      {
+        type: "action_query_db",
+        label: "Obtener transacciones por proyecto",
+        config: {
+          model: "transaction",
+          orderBy: { field: "date", direction: "desc" },
+          take: 100,
+          outputVariable: "allTransactions",
+        } as ActionQueryDbConfig,
+      },
+      {
+        type: "action_call_llm",
+        label: "Groq analiza proyectos",
+        config: {
+          systemPrompt:
+            "Eres un controller de obras experto. Analizá los datos reales de proyectos y transacciones. Generá un reporte ejecutivo con alertas tempranas y recomendaciones accionables.",
+          userPrompt:
+            "Analizá estos proyectos reales y sus transacciones financieras. Generá:" +
+            "\n1. Semáforo de salud por proyecto (🟢 verde / 🟡 amarillo / 🔴 rojo)" +
+            "\n2. Principales riesgos por proyecto (presupuesto, atraso, materiales)" +
+            "\n3. Recomendaciones específicas para cada obra" +
+            "\n4. Ranking de proyectos que requieren atención inmediata" +
+            "\n\nPara cada proyecto, considerá: avance vs tiempo transcurrido, presupuesto gastado, y estado actual.",
+          dataSource: "projects",
+          outputVariable: "projectHealthReport",
+          temperature: 0.4,
+          maxTokens: 600,
+        } as ActionCallLlmConfig,
+      },
+      {
+        type: "action_send_alert",
+        label: "Enviar reporte de salud",
+        config: {
+          title: "🤖 Salud de proyectos por IA",
+          description:
+            "🏗️ Reporte de salud (basado en datos reales):\n{{projectHealthReport}}",
+          severity: "info",
+        } as ActionSendAlertConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Revisar proyectos críticos",
+        config: {
+          title: "Revisar proyectos con salud crítica según análisis de IA",
+          description:
+            "Groq analizó {{projects.length}} proyectos activos. Revisar los que están en rojo/amarillo y tomar acciones correctivas.",
+          priority: "critical",
+          assignee: "Director de obra",
+          dueDays: 2,
+        } as ActionCreateTaskConfig,
+      },
+    ],
+  },
+  {
+    name: "🤖 Clasificación y alerta de gastos con IA",
+    description:
+      "Cuando se registra un nuevo gasto, Groq AI lo analiza para clasificarlo, detectar anomalías y sugerir acciones. Incluye alerta inteligente si el gasto requiere revisión.",
+    trigger: "event_new_transaction",
+    steps: [
+      {
+        type: "action_call_llm",
+        label: "Groq clasifica el gasto",
+        config: {
+          systemPrompt:
+            "Eres un asistente financiero que clasifica gastos de construcción. Tu respuesta DEBE terminar exactamente con '[REQUIERE_REVISION: SI]' o '[REQUIERE_REVISION: NO]' en la última línea.",
+          userPrompt:
+            "Clasificá este gasto:\n" +
+            "- Tipo: {{transaction.type}}\n" +
+            "- Monto: ${{transaction.amount}}\n" +
+            "- Categoría: {{transaction.category}}\n" +
+            "- Descripción: {{transaction.description}}\n" +
+            "- Obra: {{transaction.projectId}}\n\n" +
+            "Determiná:\n" +
+            "1. Categoría correcta\n" +
+            "2. ¿Monto inusualmente alto?\n" +
+            "3. ¿Requiere revisión?\n" +
+            "4. Acción sugerida\n\n" +
+            "IMPORTANTE: tu última línea debe ser '[REQUIERE_REVISION: SI]' o '[REQUIERE_REVISION: NO]'",
+          outputVariable: "expenseClassification",
+          temperature: 0.2,
+          maxTokens: 500,
+        } as ActionCallLlmConfig,
+      },
+      {
+        type: "condition",
+        label: "¿Requiere revisión?",
+        config: {
+          field: "expenseClassification",
+          operator: "contains",
+          value: "REQUIERE_REVISION: SI",
+        } as ConditionConfig,
+      },
+      {
+        type: "action_create_task",
+        label: "Tarea de revisión",
+        config: {
+          title: "Revisar gasto de ${{transaction.amount}} clasificado por IA",
+          description:
+            "Groq AI clasificó este gasto como posible anomalía:\n{{expenseClassification}}",
+          priority: "medium",
+          assignee: "Administración",
+          dueDays: 3,
         } as ActionCreateTaskConfig,
       },
     ],

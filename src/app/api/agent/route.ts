@@ -17,6 +17,7 @@ import {
   type PendingAction,
 } from "@/lib/agent-memory";
 import { normalizeMessage } from "@/lib/agent-nlu";
+import { tryGroqIntentRecognition, tryGroqEnhancedResponse, getSystemContext } from "@/lib/groq-integration";
 
 // ─── Helper: Reconstruir mensaje en lenguaje natural para el NLU ───
 
@@ -226,20 +227,49 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(extendedResult.response);
     }
 
-    // 5. Procesar normalmente el mensaje
+    // 5. Groq como NLU PRINCIPAL — intentar entender el mensaje con IA primero
+    const recentCtx = await getConversationContext();
+    const recentMessages = recentCtx.recentMessages?.map(m => m.content) || [];
+
+    try {
+      const groqResult = await tryGroqIntentRecognition(rawMessage, recentMessages);
+
+      if (groqResult.success && groqResult.intent && groqResult.intent !== "unknown" && (groqResult.confidence || 0) >= 0.4) {
+        const systemContext = await getSystemContext();
+        const groqResponse = await tryGroqEnhancedResponse(
+          rawMessage,
+          groqResult.intent,
+          {
+            financialSummary: systemContext.financialSummary,
+            stockSummary: systemContext.stockSummary,
+            projectSummary: systemContext.projectSummary,
+          },
+          recentMessages
+        );
+
+        if (groqResponse) {
+          return NextResponse.json({
+            ...groqResponse,
+            _groqEnhanced: true,
+            _groqIntent: groqResult.intent,
+            _groqConfidence: groqResult.confidence,
+          });
+        }
+      }
+    } catch {
+      // Groq falló, continuar con NLU local
+    }
+
+    // 6. Fallback: NLU local si Groq no entendió
     const parsed = parseIntent(message);
 
     // Verificar si la acción requiere confirmación
     const requiresConfirm = requiresConfirmation(parsed.intent);
 
     if (requiresConfirm) {
-      // Verificar si tenemos todos los datos necesarios
       const entities = resolveReferences(message, parsed.entities, ctx);
-
-      // Guardar contexto de la acción
       const actionSummary = generateActionSummary(parsed.intent, entities);
 
-      // Crear acción pendiente para confirmación
       const pending: PendingAction = {
         intent: parsed.intent,
         collectedEntities: entities,
@@ -250,10 +280,7 @@ export async function POST(req: NextRequest) {
         timestamp: Date.now(),
       };
 
-      // Guardar acción pendiente (para cuando el usuario confirme)
       await savePendingAction(pending);
-
-      // Generar texto de preview SIN ejecutar la acción (para no duplicar)
       const previewText = generatePreviewText(parsed.intent, entities);
 
       return NextResponse.json({
@@ -270,10 +297,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 6. Procesar normalmente (sin confirmación)
+    // 7. Procesar con el motor local
     const response = await processAgentMessage(message);
 
-    // Si el agente devolvió unknown, intentar smart matching
+    // 8. Si local también falló, smart matching
     if (response.intent === "unknown") {
       const closest = findClosestIntent(rawMessage);
       const smartResponse = generateSmartUnknownResponse(rawMessage, closest);
