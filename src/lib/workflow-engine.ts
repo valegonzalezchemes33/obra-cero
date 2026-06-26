@@ -23,6 +23,11 @@ import {
   type WorkflowWithSteps,
   type WorkflowStepWithParsed,
 } from "./workflow-types";
+import type {
+  ActionSendEmailConfig,
+  ActionRunWorkflowConfig,
+  ActionWebhookConfig,
+} from "./workflow-types";
 import { normalize, generateSku } from "./agent";
 
 // ─── Helpers ───
@@ -370,6 +375,93 @@ async function executeAction(
           results.push({ index: i });
         }
         return { success: true, data: results };
+      }
+
+      case "action_send_email": {
+        const c = config.config as ActionSendEmailConfig;
+        // Registrar la intención de envío (requiere servicio SMTP externo configurado)
+        const action = await db.agentAction.create({
+          data: {
+            type: "alert",
+            severity: "info",
+            title: `📧 Email pendiente: ${interpolate(c.subject, vars).slice(0, 200)}`,
+            description: `Para: ${interpolate(c.to, vars).slice(0, 200)}\nAsunto: ${interpolate(c.subject, vars).slice(0, 200)}\nCuerpo: ${interpolate(c.body, vars).slice(0, 250)}`,
+            status: "active",
+          },
+        });
+        ctx.variables.lastEmail = action;
+        return { success: true, data: action };
+      }
+
+      case "action_run_workflow": {
+        const c = config.config as ActionRunWorkflowConfig;
+        const subWorkflowId = interpolate(c.workflowId, vars);
+        const result = await executeWorkflow(subWorkflowId, "event", ctx.variables);
+        return result.success
+          ? { success: true, data: result.logs }
+          : { success: false, error: `Sub-workflow falló: ${result.logs.find(l => l.status === "failed")?.error || "error desconocido"}` };
+      }
+
+      case "action_webhook": {
+        const c = config.config as ActionWebhookConfig;
+        const url = interpolate(c.url, vars);
+        const method = c.method || "POST";
+        const headers = c.headers || {};
+        const body = c.body ? interpolate(JSON.stringify(c.body), vars) : undefined;
+
+        try {
+          const response = await fetch(url, {
+            method,
+            headers: {
+              "Content-Type": "application/json",
+              ...headers,
+            },
+            body: method !== "GET" ? body : undefined,
+          });
+
+          const responseBody = await response.text();
+          ctx.variables.lastWebhookResponse = { status: response.status, body: responseBody.slice(0, 1000) };
+
+          return {
+            success: response.ok,
+            data: { status: response.status, body: responseBody.slice(0, 500) },
+            error: response.ok ? undefined : `HTTP ${response.status}: ${responseBody.slice(0, 200)}`,
+          };
+        } catch (error: any) {
+          return { success: false, error: `Error en webhook: ${error.message}` };
+        }
+      }
+
+      case "action_update_stock": {
+        const c = config.config as any;
+        const materialName = interpolate(c.materialName || "", vars);
+        const qty = typeof c.quantity === "number" ? c.quantity : parseFloat(interpolate(String(c.quantity || "0"), vars));
+        const movementType = c.movementType || "incoming";
+
+        const material = materialName
+          ? await db.material.findFirst({ where: { name: { contains: materialName, mode: "insensitive" } } })
+          : null;
+
+        if (!material) return { success: false, error: `Material no encontrado: ${materialName}` };
+
+        await db.material.update({
+          where: { id: material.id },
+          data: { stock: movementType === "incoming" ? { increment: qty } : { decrement: qty } },
+        });
+
+        await db.stockMovement.create({
+          data: {
+            type: movementType,
+            quantity: qty,
+            unitCost: material.unitCost,
+            reason: movementType === "incoming" ? "compra" : "consumo",
+            note: "Workflow automatizado",
+            materialId: material.id,
+          },
+        });
+
+        ctx.variables.lastStockUpdate = { material, qty, movementType };
+        return { success: true, data: { material, qty, movementType } };
       }
 
       default:

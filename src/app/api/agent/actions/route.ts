@@ -15,16 +15,24 @@ export async function GET() {
   }
 }
 
-// PATCH - marcar acción como resuelta o descartada
+// PATCH - marcar acción(es) como resuelta(s) o descartada(s)
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json();
-    const { id, status } = body;
-    const action = await db.agentAction.update({
-      where: { id },
-      data: { status },
+    const { id, ids, status } = body;
+
+    // Soporte para bulk (ids) o individual (id)
+    const targetIds = ids || (id ? [id] : []);
+    if (targetIds.length === 0) {
+      return NextResponse.json({ error: "Se requiere id o ids" }, { status: 400 });
+    }
+
+    const result = await db.agentAction.updateMany({
+      where: { id: { in: targetIds } },
+      data: { status: status || "resolved" },
     });
-    return NextResponse.json(action);
+
+    return NextResponse.json({ updated: result.count });
   } catch (error: any) {
     console.error("[API] PATCH /api/agent/actions:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processAgentMessage, runAutomations } from "@/lib/agent";
+import { processAgentMessage, runAutomations, parseIntent } from "@/lib/agent";
 import type { Intent } from "@/lib/agent";
+import { processExtendedMessage, findClosestIntent, generateSmartUnknownResponse } from "@/lib/agent-extended";
 import {
   getConversationContext,
   resolveReferences,
@@ -219,8 +220,14 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. Procesar normalmente el mensaje
-    const parsed = (await import("@/lib/agent")).parseIntent(message);
+    // 4. Intentar primero con el agente extendido (editar, eliminar, workflows)
+    const extendedResult = await processExtendedMessage(message, rawMessage);
+    if (extendedResult.wasExtended) {
+      return NextResponse.json(extendedResult.response);
+    }
+
+    // 5. Procesar normalmente el mensaje
+    const parsed = parseIntent(message);
 
     // Verificar si la acción requiere confirmación
     const requiresConfirm = requiresConfirmation(parsed.intent);
@@ -263,10 +270,17 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 5. Procesar normalmente (sin confirmación)
+    // 6. Procesar normalmente (sin confirmación)
     const response = await processAgentMessage(message);
 
-    // 6. Guardar metadatos de contexto
+    // Si el agente devolvió unknown, intentar smart matching
+    if (response.intent === "unknown") {
+      const closest = findClosestIntent(rawMessage);
+      const smartResponse = generateSmartUnknownResponse(rawMessage, closest);
+      return NextResponse.json(smartResponse);
+    }
+
+    // 7. Guardar metadatos de contexto
     await saveContextMetadata(response, parsed.entities);
 
     return NextResponse.json(response);

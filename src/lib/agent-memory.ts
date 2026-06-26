@@ -266,7 +266,7 @@ export async function saveContextMetadata(response: AgentResponse, entities: Rec
 
 // ─── Verificar si un intent requiere confirmación ───
 
-const CONFIRMATION_INTENTS: Intent[] = [
+const CONFIRMATION_INTENTS: string[] = [
   "action_create_expense",
   "action_create_income",
   "action_create_project_direct",
@@ -278,6 +278,13 @@ const CONFIRMATION_INTENTS: Intent[] = [
   "action_add_stock_movement",
   "action_update_project_status",
   "action_update_project_progress",
+  "action_edit_project",
+  "action_edit_task",
+  "action_edit_material",
+  "action_delete_task",
+  "action_delete_material",
+  "action_delete_transaction",
+  "action_trigger_workflow",
 ];
 
 export function requiresConfirmation(intent: Intent): boolean {
@@ -286,7 +293,7 @@ export function requiresConfirmation(intent: Intent): boolean {
 
 // ─── Generar resumen de acción para confirmación ───
 
-export function generateActionSummary(intent: Intent, entities: Record<string, any>): string {
+export function generateActionSummary(intent: string, entities: Record<string, any>): string {
   switch (intent) {
     case "action_create_expense":
       return `Registrar gasto de $${entities.amount} en ${entities.category || "general"}${entities.projectRef ? ` para obra OB-${entities.projectRef}` : ""}`;
@@ -310,6 +317,20 @@ export function generateActionSummary(intent: Intent, entities: Record<string, a
       return `Cambiar estado de obra a "${entities.status}"`;
     case "action_update_project_progress":
       return `Actualizar avance de obra al ${entities.progress}%`;
+    case "action_edit_project":
+      return `Editar obra ${entities.projectRef || "(sin especificar)"}`;
+    case "action_edit_task":
+      return `Editar tarea "${entities.taskTitle || entities.title || "(sin especificar)"}"`;
+    case "action_edit_material":
+      return `Editar material "${entities.materialName || "(sin especificar)"}"`;
+    case "action_delete_task":
+      return `Eliminar tarea "${entities.taskTitle || "(sin especificar)"}"`;
+    case "action_delete_material":
+      return `Eliminar material "${entities.materialName || "(sin especificar)"}"`;
+    case "action_delete_transaction":
+      return `Eliminar movimiento de $${entities.amount || "(sin especificar)"}`;
+    case "action_trigger_workflow":
+      return `Ejecutar workflow`;
     default:
       return "Ejecutar acción";
   }

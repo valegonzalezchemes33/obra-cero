@@ -283,6 +283,62 @@ const NORMALIZATION_RULES: NormalizationRule[] = [
   { pattern: /(?:cerrar|finalizar|terminar)\s+(?:la\s+)?(?:obra|proyecto)\s+["']?(.+?)["']?(?:\s*$|[\.;,])/i,
     replacement: (m: RegExpMatchArray) => `cerrar obra ${(m[1] || "").trim()}`,
     priority: 68, description: "cerrar obra con nombre" },
+
+  // ─── Crear workflow desde lenguaje natural ───
+  { pattern: /^automatiz[áa]\s*(?::\s*)?(.+)$/i,
+    replacement: (m: RegExpMatchArray) => `crear workflow que ${(m[1] || "").trim()}`,
+    priority: 70, description: "automatiza X" },
+
+  { pattern: /^cre[áa]\s+una?\s+automatizacion\s*(?::\s*)?(.+)$/i,
+    replacement: (m: RegExpMatchArray) => `crear workflow que ${(m[1] || "").trim()}`,
+    priority: 70, description: "crea automatizacion" },
+
+  { pattern: /^cuando\s+(.+?)\s+(?:que\s+)?(?:me\s+)?(?:hac[ée]|cre[ée]|manda|registr[áa]|pon[ée]|envi[áa])\s+(.+)$/i,
+    replacement: (m: RegExpMatchArray) => `crear workflow que cuando ${(m[1] || "").trim()}, ${(m[2] || "").trim()}`,
+    priority: 68, description: "cuando X, accion Y → workflow" },
+
+  { pattern: /^si\s+(.+?)\s+(?:que\s+)?(?:me\s+)?(?:hac[ée]|cre[ée]|manda|registr[áa]|pon[ée]|envi[áa])\s+(.+)$/i,
+    replacement: (m: RegExpMatchArray) => `crear workflow que si ${(m[1] || "").trim()}, ${(m[2] || "").trim()}`,
+    priority: 68, description: "si X, accion Y → workflow" },
+
+  { pattern: /^todos?\s+(?:los\s+)?(lunes|martes|mi[eé]rcoles|jueves|viernes|s[aá]bado|domingo|d[ií]as?)\s+(?:a\s+las?\s+)?(\d{1,2})\s*(?:hs|:?\s*horas?)?\s*(?:que\s+)?(?:me\s+)?(?:hac[ée]|cre[ée]|manda|registr[áa]|pon[ée]|envi[áa])\s+(.+)$/i,
+    replacement: (m: RegExpMatchArray) => `crear workflow que todos los ${(m[1] || "").trim()} a las ${(m[2] || "9").trim()}, ${(m[3] || "").trim()}`,
+    priority: 68, description: "todos los lunes a las X, accion → workflow" },
+
+  // ─── Editar obra ───
+  { pattern: /(?:editar|modificar|cambiar|actualizar)\s+(?:la\s+)?(?:obra|proyecto)\s+["']?(.+?)["']?(?:\s*,|\s+nombre|\s+presupuesto|\s+cliente|$)/i,
+    replacement: (m: RegExpMatchArray) => `editar obra ${(m[1] || "").trim()}`,
+    priority: 68, description: "editar obra" },
+
+  // ─── Editar tarea ───
+  { pattern: /(?:editar|modificar|cambiar)\s+(?:la\s+)?tarea\s+["']?(.+?)["']?(?:\s*,|\s+prioridad|\s+estado|$)/i,
+    replacement: (m: RegExpMatchArray) => `editar tarea "${(m[1] || "").trim()}"`,
+    priority: 68, description: "editar tarea" },
+
+  // ─── Editar material ───
+  { pattern: /(?:editar|modificar|cambiar)\s+(?:el\s+)?material\s+["']?(.+?)["']?(?:\s*,|\s+precio|\s+costo|\s+stock|$)/i,
+    replacement: (m: RegExpMatchArray) => `editar material ${(m[1] || "").trim()}`,
+    priority: 68, description: "editar material" },
+
+  // ─── Eliminar tarea ───
+  { pattern: /(?:eliminar|borrar|remover|quitar)\s+(?:la\s+)?tarea\s+["']?(.+?)["']?(?:\s*$|[\.;,])/i,
+    replacement: (m: RegExpMatchArray) => `eliminar tarea "${(m[1] || "").trim()}"`,
+    priority: 68, description: "eliminar tarea" },
+
+  // ─── Eliminar material ───
+  { pattern: /(?:eliminar|borrar|remover|quitar)\s+(?:el\s+)?material\s+["']?(.+?)["']?(?:\s*$|[\.;,])/i,
+    replacement: (m: RegExpMatchArray) => `eliminar material ${(m[1] || "").trim()}`,
+    priority: 68, description: "eliminar material" },
+
+  // ─── Eliminar gasto ───
+  { pattern: /(?:eliminar|borrar|remover|quitar)\s+(?:el\s+)?(?:gasto|ingreso|movimiento)\s+(?:de\s+)?\$?\s*([\d.,]+)/i,
+    replacement: (m: RegExpMatchArray) => `eliminar gasto de $${(m[1] || "0").replace(/[.,]/g, "")}`,
+    priority: 68, description: "eliminar gasto" },
+
+  // ─── Ejecutar workflow ───
+  { pattern: /(?:ejecutar|correr|activar|lanzar)\s+(?:el\s+)?(?:workflow|automatizacion|automatización)\s+["']?(.+?)["']?(?:\s*$|[\.;,])/i,
+    replacement: (m: RegExpMatchArray) => `ejecutar workflow "${(m[1] || "").trim()}"`,
+    priority: 68, description: "ejecutar workflow" },
 ];
 
 // ─── Normalizador principal ───
