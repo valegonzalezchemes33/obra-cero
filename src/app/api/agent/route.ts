@@ -17,7 +17,7 @@ import {
   type PendingAction,
 } from "@/lib/agent-memory";
 import { normalizeMessage } from "@/lib/agent-nlu";
-import { tryGroqIntentRecognition, tryGroqEnhancedResponse, getSystemContext } from "@/lib/groq-integration";
+import { tryGroqIntentRecognition } from "@/lib/groq-integration";
 
 // ─── Helper: Reconstruir mensaje en lenguaje natural para el NLU ───
 
@@ -250,11 +250,18 @@ export async function POST(req: NextRequest) {
 
       if (groqResult.success && groqResult.intent && groqResult.intent !== "unknown" && (groqResult.confidence || 0) >= 0.4) {
         // Si Groq detectó una ACCIÓN (crear, editar, eliminar) → ejecutar el handler real
-        // Nota: processAgentMessage ya guarda user+agent messages internamente
-        if (groqResult.intent.startsWith("action_")) {
-          // Reconstruir mensaje en formato que el NLU local pueda parsear
-          const reconstructed = reconstructMessageForNLU(groqResult.intent as Intent, groqResult.entities || {});
-          const response = await processAgentMessage(reconstructed);
+        // Nota: processAgentMessage ya guarda user+agent messages internamente                if (groqResult.intent.startsWith("action_")) {
+          // ✅ Groq + Agente interno trabajan juntos:
+          // Groq extrajo las entidades del lenguaje natural.
+          // En lugar de reconstruir texto y re-parsarlo con el NLU local
+          // (que pierde información), pasamos las entidades directamente.
+          const { processMessageWithIntent } = await import("@/lib/agent-dispatcher");
+          const response = await processMessageWithIntent(
+            groqResult.intent as Intent,
+            groqResult.entities || {},
+            rawMessage,
+            groqResult.confidence || 0.8
+          );
           await saveContextMetadata(response, groqResult.entities || {});
           return NextResponse.json({
             ...response,
@@ -264,29 +271,23 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        // Para consultas (query_*) → generar respuesta enriquecida con Groq
-        const systemContext = await getSystemContext();
-        const groqResponse = await tryGroqEnhancedResponse(
+        // Para consultas (query_*) → ejecutar handler REAL primero,
+        // luego enriquecer la respuesta con Groq usando datos reales
+        const { enrichQueryWithGroq } = await import("@/lib/agent-dispatcher");
+        const enrichedResponse = await enrichQueryWithGroq(
+          groqResult.intent as Intent,
+          groqResult.entities || {},
           rawMessage,
-          groqResult.intent,
-          {
-            financialSummary: systemContext.financialSummary,
-            stockSummary: systemContext.stockSummary,
-            projectSummary: systemContext.projectSummary,
-          },
+          groqResult.confidence || 0.8,
           recentMessages
         );
-
-        if (groqResponse) {
-          // Guardar respuesta del agente
-          await saveMessage("agent", groqResponse.text, groqResponse.intent, groqResponse.data);
-          return NextResponse.json({
-            ...groqResponse,
-            _groqEnhanced: true,
-            _groqIntent: groqResult.intent,
-            _groqConfidence: groqResult.confidence,
-          });
-        }
+        await saveContextMetadata(enrichedResponse, groqResult.entities || {});
+        return NextResponse.json({
+          ...enrichedResponse,
+          _groqEnhanced: true,
+          _groqIntent: groqResult.intent,
+          _groqConfidence: groqResult.confidence,
+        });
       }
     } catch {
       // Groq falló, continuar con NLU local

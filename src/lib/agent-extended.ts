@@ -1213,6 +1213,15 @@ export function generateMultiIntentResponse(intents: ParsedCommand[], responses:
   };
 }
 
+// ─── Export handlers para uso desde dispatchByIntent ───
+// Estos handlers se llaman desde agent.ts cuando Groq o el NLU local
+// identifican un intent de editar, eliminar, workflow, exportar, etc.
+
+export { handleEditProject, handleEditTask, handleEditMaterial };
+export { handleDeleteTask, handleDeleteMaterial, handleDeleteTransaction };
+export { handleTriggerWorkflow, handleListWorkflows };
+export { handleSupplierCompare, handlePurchasePlan, handleExpenseTrend, handleExportData };
+
 // ─── Punto de entrada extendido ───
 
 export async function processExtendedMessage(

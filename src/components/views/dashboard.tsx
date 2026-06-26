@@ -21,8 +21,9 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight, Sparkles, Building2, AlertTriangle, Clock, CheckCircle2, ChevronRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Sparkles, Building2, AlertTriangle, Clock, CheckCircle2, ChevronRight, TrendingUp, Lightbulb, Zap, BarChart3 } from "lucide-react";
 import { ViewKey } from "@/components/sidebar-nav";
+import type { ReactNode } from "react";
 
 interface DashboardProps {
   onNavigate: (v: ViewKey) => void;
@@ -36,6 +37,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       if (!r.ok) throw new Error("Error al cargar el panel");
       return r.json();
     },
+  });
+
+  // Datos de insights del asistente (separado para no bloquear el panel)
+  const { data: agentData } = useQuery({
+    queryKey: ["dashboard-insights"],
+    queryFn: async () => {
+      try {
+        const r = await fetch("/api/dashboard/insights");
+        if (!r.ok) return null;
+        return r.json();
+      } catch {
+        return null;
+      }
+    },
+    refetchInterval: 120000, // cada 2 minutos
   });
 
   if (isLoading || !data || !data.kpis) {
@@ -354,6 +370,156 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </Card>
       </div>
 
+      {/* ─── Insights del Asistente ─── */}
+      {agentData && (agentData.recommendations || agentData.alerts) && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            <h2 className="text-[15px] font-display tracking-tight">Insights del asistente</h2>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Recomendaciones */}
+            {agentData.recommendations?.actions?.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-[13px]">
+                      <Lightbulb className="h-3.5 w-3.5 text-warning" />
+                      Recomendaciones
+                    </CardTitle>
+                    <Button variant="ghost" size="xs" onClick={() => onNavigate("agent")}>
+                      Ver todas <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <CardDescription>Basadas en tus datos actuales</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-72 overflow-y-auto">
+                  {agentData.recommendations.actions.slice(0, 5).map((rec: any, i: number) => (
+                    <div
+                      key={i}
+                      className={`p-3 rounded-md border text-[12px] leading-relaxed ${
+                        rec.severity === "critical"
+                          ? "bg-destructive/5 border-destructive/15"
+                          : rec.severity === "warning"
+                          ? "bg-warning-soft/50 border-warning/15"
+                          : "bg-info-soft/50 border-info/15"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <span className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                          rec.severity === "critical" ? "bg-destructive"
+                          : rec.severity === "warning" ? "bg-warning"
+                          : "bg-info"
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-[12px]">{rec.title}</div>
+                          <div className="text-[11px] text-muted-foreground mt-1 leading-snug">{rec.description}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Alertas activas */}
+            {agentData.alerts?.actions?.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-[13px]">
+                      <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                      Alertas activas
+                    </CardTitle>
+                    <Button variant="ghost" size="xs" onClick={() => onNavigate("agent")}>
+                      Ver todo <ChevronRight className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <CardDescription>{agentData.alerts.actions.length} detectadas por el asistente</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2 max-h-72 overflow-y-auto">
+                  {agentData.alerts.actions.slice(0, 5).map((alert: any, i: number) => (
+                    <div
+                      key={i}
+                      className={`flex items-start gap-2.5 p-3 rounded-md border ${
+                        alert.severity === "critical"
+                          ? "bg-destructive/5 border-destructive/15"
+                          : alert.severity === "warning"
+                          ? "bg-warning-soft/50 border-warning/15"
+                          : "bg-info-soft/50 border-info/15"
+                      }`}
+                    >
+                      <div className={`mt-0.5 h-2 w-2 shrink-0 rounded-full ${
+                        alert.severity === "critical" ? "bg-destructive animate-pulse"
+                        : alert.severity === "warning" ? "bg-warning"
+                        : "bg-info"
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[12px] font-medium">{alert.title}</div>
+                        <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug">{alert.description}</div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* ─── Acciones rápidas del asistente ─── */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-warning" />
+          <h2 className="text-[15px] font-display tracking-tight">Consultas rápidas</h2>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <QuickQueryCard
+            icon={<TrendingUp className="h-4 w-4" />}
+            label="Ganancias"
+            description="¿Cuánto gané?"
+            accent="success"
+            onClick={() => onNavigate("agent")}
+          />
+          <QuickQueryCard
+            icon={<AlertTriangle className="h-4 w-4" />}
+            label="Alertas"
+            description="¿Qué alertas hay?"
+            accent="warning"
+            onClick={() => onNavigate("agent")}
+          />
+          <QuickQueryCard
+            icon={<Lightbulb className="h-4 w-4" />}
+            label="Recomendaciones"
+            description="¿Qué me recomendás?"
+            accent="primary"
+            onClick={() => onNavigate("agent")}
+          />
+          <QuickQueryCard
+            icon={<Building2 className="h-4 w-4" />}
+            label="Stock bajo"
+            description="¿Qué materiales faltan?"
+            accent="destructive"
+            onClick={() => onNavigate("agent")}
+          />
+          <QuickQueryCard
+            icon={<BarChart3 className="h-4 w-4" />}
+            label="Comparar"
+            description="Comparar con mes anterior"
+            accent="info"
+            onClick={() => onNavigate("agent")}
+          />
+          <QuickQueryCard
+            icon={<Sparkles className="h-4 w-4" />}
+            label="Resumen"
+            description="¿Cómo vamos?"
+            accent="primary"
+            onClick={() => onNavigate("agent")}
+          />
+        </div>
+      </section>
+
       {/* CTA sutil */}
       <Card className="border-dashed">
         <CardContent className="py-4 px-5 flex flex-col md:flex-row items-start md:items-center gap-3 justify-between">
@@ -383,6 +549,41 @@ function HeroStat({ label, value }: { label: string; value: string }) {
       <div className="text-[10px] text-muted-foreground uppercase tracking-[0.06em] font-semibold leading-none">{label}</div>
       <div className="text-[15px] font-display tabular mt-1 leading-none">{value}</div>
     </div>
+  );
+}
+
+function QuickQueryCard({
+  icon,
+  label,
+  description,
+  accent = "primary",
+  onClick,
+}: {
+  icon: ReactNode;
+  label: string;
+  description: string;
+  accent?: "primary" | "success" | "warning" | "destructive" | "info";
+  onClick?: () => void;
+}) {
+  const accentMap: Record<string, string> = {
+    primary: "bg-primary/10 text-primary border-primary/15 hover:bg-primary/15",
+    success: "bg-success-soft text-success border-success/15 hover:bg-success-soft/80",
+    warning: "bg-warning-soft text-warning border-warning/20 hover:bg-warning-soft/80",
+    destructive: "bg-destructive/10 text-destructive border-destructive/15 hover:bg-destructive/15",
+    info: "bg-info-soft text-info border-info/15 hover:bg-info-soft/80",
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border text-center transition-all duration-150 hover:-translate-y-px hover:shadow-xs group ${accentMap[accent] || accentMap.primary}`}
+    >
+      <div className="h-6 w-6 flex items-center justify-center group-hover:scale-110 transition-transform">
+        {icon}
+      </div>
+      <span className="text-[11px] font-medium leading-tight">{label}</span>
+      <span className="text-[9px] text-muted-foreground/70 leading-tight">{description}</span>
+    </button>
   );
 }
 

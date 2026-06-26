@@ -210,6 +210,15 @@ INTENCIONES DISPONIBLES:
 - action_create_task: Crear una tarea
 - action_reorder: Generar pedido de reposición
 - action_create_project_direct: Crear una obra nueva
+- action_edit_project: Editar una obra
+- action_edit_task: Editar una tarea
+- action_edit_material: Editar un material
+- action_delete_task: Eliminar una tarea
+- action_delete_material: Eliminar un material
+- action_delete_transaction: Eliminar un gasto/ingreso
+- action_trigger_workflow: Ejecutar un workflow
+- action_list_workflows: Listar workflows
+- action_export_data: Exportar datos del sistema
 - action_create_supplier: Dar de alta un proveedor
 - action_add_materials: Agregar materiales al inventario
 - action_add_stock_movement: Registrar movimiento de stock

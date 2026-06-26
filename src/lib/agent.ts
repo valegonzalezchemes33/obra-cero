@@ -72,6 +72,18 @@ export type Intent =
   | "action_add_expense_to_project"
   | "action_list_project_tasks"
   | "action_complete_task"
+  // Editar / Eliminar
+  | "action_edit_project"
+  | "action_edit_task"
+  | "action_edit_material"
+  | "action_delete_task"
+  | "action_delete_material"
+  | "action_delete_transaction"
+  // Workflows
+  | "action_trigger_workflow"
+  | "action_list_workflows"
+  // Análisis extendido
+  | "action_export_data"
   | "unknown";
 
 export interface ParsedCommand {
@@ -2358,15 +2370,10 @@ Escribime en lenguaje natural, en español, y te respondo al instante.`,
   };
 }
 
-// ---------- Dispatcher principal ----------
+// ---------- Dispatch by intent (exportable, sin guardar mensajes) ----------
 
-export async function processAgentMessage(text: string): Promise<AgentResponse> {
-  const parsed = parseIntent(text);
-
-  // Guardar mensaje
-  try {
-    await db.agentMessage.create({ data: { role: "user", content: text, intent: parsed.intent } });
-  } catch {}
+export async function dispatchByIntent(parsed: ParsedCommand, rawText?: string): Promise<AgentResponse> {
+  const text = rawText || parsed.rawText;
 
   let response: AgentResponse;
   switch (parsed.intent) {
@@ -2503,6 +2510,52 @@ export async function processAgentMessage(text: string): Promise<AgentResponse> 
     case "help":
       response = await respondHelp();
       break;
+    // ─── Handlers extendidos (editar, eliminar, workflows, exportar) ───
+    case "action_edit_project": {
+      const { handleEditProject } = await import("./agent-extended");
+      response = await handleEditProject(parsed, text);
+      break;
+    }
+    case "action_edit_task": {
+      const { handleEditTask } = await import("./agent-extended");
+      response = await handleEditTask(parsed, text);
+      break;
+    }
+    case "action_edit_material": {
+      const { handleEditMaterial } = await import("./agent-extended");
+      response = await handleEditMaterial(parsed, text);
+      break;
+    }
+    case "action_delete_task": {
+      const { handleDeleteTask } = await import("./agent-extended");
+      response = await handleDeleteTask(parsed, text);
+      break;
+    }
+    case "action_delete_material": {
+      const { handleDeleteMaterial } = await import("./agent-extended");
+      response = await handleDeleteMaterial(parsed, text);
+      break;
+    }
+    case "action_delete_transaction": {
+      const { handleDeleteTransaction } = await import("./agent-extended");
+      response = await handleDeleteTransaction(parsed, text);
+      break;
+    }
+    case "action_trigger_workflow": {
+      const { handleTriggerWorkflow } = await import("./agent-extended");
+      response = await handleTriggerWorkflow(parsed, text);
+      break;
+    }
+    case "action_list_workflows": {
+      const { handleListWorkflows } = await import("./agent-extended");
+      response = await handleListWorkflows();
+      break;
+    }
+    case "action_export_data": {
+      const { handleExportData } = await import("./agent-extended");
+      response = await handleExportData(parsed, text);
+      break;
+    }
     default:
       response = {
         text: `No estoy seguro de qué necesitás. Escribí *ayuda* para ver todo lo que puedo hacer, o probá con: "¿cómo vamos?", "¿qué alertas hay?" o "recomendaciones".`,
@@ -2510,6 +2563,21 @@ export async function processAgentMessage(text: string): Promise<AgentResponse> 
         suggestions: ["Ayuda", "¿Cómo vamos?", "Recomendaciones"],
       };
   }
+
+  return response;
+}
+
+// ---------- Dispatcher principal ----------
+
+export async function processAgentMessage(text: string): Promise<AgentResponse> {
+  const parsed = parseIntent(text);
+
+  // Guardar mensaje
+  try {
+    await db.agentMessage.create({ data: { role: "user", content: text, intent: parsed.intent } });
+  } catch {}
+
+  const response = await dispatchByIntent(parsed, text);
 
   // Guardar respuesta
   try {

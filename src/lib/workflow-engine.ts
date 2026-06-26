@@ -6,6 +6,7 @@
 
 import { db } from "./db";
 import {
+  type StepType,
   type WorkflowStepConfig,
   type ConditionConfig,
   type ActionCreateTaskConfig,
@@ -572,7 +573,14 @@ export async function executeWorkflow(
   let success = true;
 
   for (const step of steps) {
-    const parsedConfig: WorkflowStepConfig = JSON.parse(step.config);
+    const parsedConfig = JSON.parse(step.config);
+    // Reconstruir WorkflowStepConfig completo: el type está en step.type (Prisma),
+    // no dentro del JSON config. El config es solo el objeto de configuración.
+    const fullStepConfig: WorkflowStepConfig = {
+      type: step.type as StepType,
+      label: step.label || undefined,
+      config: parsedConfig,
+    };
     const logEntry: ExecutionLogEntry = {
       stepId: step.id,
       stepLabel: step.label || undefined,
@@ -583,14 +591,14 @@ export async function executeWorkflow(
 
     try {
       // Si es condición, evaluar
-      if (parsedConfig.type === "condition") {
-        const condConfig = parsedConfig.config as ConditionConfig;
+      if (fullStepConfig.type === "condition") {
+        const condConfig = fullStepConfig.config as ConditionConfig;
         const result = evaluateCondition(condConfig, ctx.variables);
         logEntry.data = { condition: condConfig.field, operator: condConfig.operator, value: condConfig.value, result };
         logEntry.status = "completed";
         ctx.variables.lastConditionResult = result;
       } else {
-        const result = await executeAction(parsedConfig, ctx);
+        const result = await executeAction(fullStepConfig, ctx);
         if (result.success) {
           logEntry.status = "completed";
           logEntry.data = result.data;
@@ -610,7 +618,7 @@ export async function executeWorkflow(
     ctx.logs.push(logEntry);
 
     // Si falló y no es condición ni delay ni loop, detener
-    if (logEntry.status === "failed" && parsedConfig.type !== "condition" && parsedConfig.type !== "delay") {
+    if (logEntry.status === "failed" && fullStepConfig.type !== "condition" && fullStepConfig.type !== "delay") {
       break;
     }
   }

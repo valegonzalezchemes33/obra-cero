@@ -20,16 +20,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id } = await params;
     const body = await req.json();
+
+    // Filtrar campos null/undefined para no pisar valores existentes con NaN
+    const safeVal = (v: any) => (v !== undefined && v !== null && v !== '' && !isNaN(Number(v)) ? Number(v) : undefined);
+
+    const updateData: any = {};
+    for (const key of ['unitCost', 'unitPrice', 'stock', 'minStock']) {
+      if (key in body) {
+        const parsed = safeVal(body[key]);
+        if (parsed !== undefined) updateData[key] = parsed;
+      }
+    }
+    // maxStock permite null (para eliminar el valor máximo)
+    if ('maxStock' in body) {
+      updateData.maxStock = body.maxStock !== null && body.maxStock !== '' && !isNaN(Number(body.maxStock)) ? Number(body.maxStock) : null;
+    }
+    // supplierId: vacío → null
+    if ('supplierId' in body) {
+      updateData.supplierId = body.supplierId || null;
+    }
+    // Campos de texto
+    for (const key of ['sku', 'name', 'category', 'unit', 'location']) {
+      if (key in body && body[key] !== undefined && body[key] !== null) {
+        updateData[key] = body[key];
+      }
+    }
+
     const mat = await db.material.update({
       where: { id },
-      data: {
-        ...body,
-        unitCost: body.unitCost !== undefined ? parseFloat(body.unitCost) : undefined,
-        unitPrice: body.unitPrice !== undefined ? parseFloat(body.unitPrice) : undefined,
-        stock: body.stock !== undefined ? parseFloat(body.stock) : undefined,
-        minStock: body.minStock !== undefined ? parseFloat(body.minStock) : undefined,
-        maxStock: body.maxStock !== undefined ? (body.maxStock ? parseFloat(body.maxStock) : null) : undefined,
-      },
+      data: updateData,
     });
     return NextResponse.json(mat);
   } catch (error: any) {

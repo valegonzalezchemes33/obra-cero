@@ -10,6 +10,7 @@ import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, Chev
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
+import { ConversationHistory } from "./conversation-history";
 
 const SUGGESTIONS_BY_CONTEXT = [
   { label: "¿Cómo vamos?", group: "Panorama" },
@@ -50,6 +51,7 @@ export function AgentView({ initialQuery }: AgentViewProps) {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [isThinking, setIsThinking] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialQueryConsumed = useRef<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -208,6 +210,18 @@ export function AgentView({ initialQuery }: AgentViewProps) {
     sendMutation.mutate(msg);
   };
 
+  // Cargar conversación del historial
+  const handleLoadConversation = (historyMessages: any[]) => {
+    const loaded: Msg[] = historyMessages.map((m: any) => ({
+      role: m.role,
+      content: m.content,
+      intent: m.intent || undefined,
+      suggestions: m.suggestions || undefined,
+      timestamp: new Date(m.createdAt),
+    }));
+    setMessages(loaded);
+  };
+
   // Agrupar sugerencias por grupo
   const groupedSuggestions = SUGGESTIONS_BY_CONTEXT.reduce((acc, s) => {
     if (!acc[s.group]) acc[s.group] = [];
@@ -220,6 +234,7 @@ export function AgentView({ initialQuery }: AgentViewProps) {
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -239,6 +254,15 @@ export function AgentView({ initialQuery }: AgentViewProps) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setHistoryOpen(true)}
+            className="relative"
+          >
+            <History className="h-3.5 w-3.5 mr-1.5" />
+            Historial
+          </Button>
           <Button variant="outline" size="sm" onClick={() => runAutomationsMutation.mutate()} disabled={runAutomationsMutation.isPending}>
             <Zap className="h-3.5 w-3.5 mr-1.5" /> Ejecutar automatizaciones
           </Button>
@@ -519,6 +543,13 @@ export function AgentView({ initialQuery }: AgentViewProps) {
           </Card>
         </div>
       </div>
+
+      {/* Historial de conversaciones */}
+      <ConversationHistory
+        open={historyOpen}
+        onOpenChange={setHistoryOpen}
+        onLoadConversation={handleLoadConversation}
+      />
     </div>
   );
 }
