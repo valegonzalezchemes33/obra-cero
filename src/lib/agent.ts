@@ -102,6 +102,15 @@ export interface AgentResponse {
   data?: any;
   actions?: AgentActionItem[];
   suggestions?: string[];
+
+  // ─── Metadata flexible para clientes (UI, MCP, workflows, endpoint) ───
+  // Permite que cada capa agregue campos auxiliares sin redefinir el tipo:
+  //   _groqEnhanced, _groqConfidence, _groqCompound
+  //   _tool, _riskLevel, _validationErrors
+  //   route (para que la UI navegue)
+  //   _requiresConfirmation (agent-extended.ts)
+  //   _canUndo (post-delete)
+  [key: string]: any;
 }
 
 export interface AgentResponseWithEntities {

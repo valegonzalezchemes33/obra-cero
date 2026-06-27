@@ -1,16 +1,23 @@
 // ============================================================
-// CLIENTE GROQ API — Integración con modelos de lenguaje
+// CLIENTE GROQ → Wrapper de compatibilidad sobre llm-provider
 // ============================================================
-// Proporciona:
-//  - chatWithGroq(): chat completo con mensajes y system prompt
-//  - generateCompletion(): completación simple
-//  - parseIntentWithGroq(): entender lenguaje natural → intent/entidades
-//  - Sistema de fallback: si Groq falla, devuelve null para que
-//    el sistema local tome el control
+// Este módulo preserva las funciones históricas (chatWithGroq,
+// parseIntentWithGroq, generateAgentResponseWithGroq,
+// checkGroqAvailability) pero por dentro delega en llm-provider.ts,
+// que soporta múltiples providers (Groq, OpenAI, Anthropic, Ollama).
+//
+// Para usar otro provider:
+//   setActiveProvider("openai" | "anthropic" | "ollama")
 // ============================================================
 
-const GROQ_API_BASE = "https://api.groq.com/openai/v1";
+import {
+  chat as llmChat,
+  checkProvider as llmCheckProvider,
+  type LLMProviderType,
+} from "./llm-provider";
+
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const FAST_MODEL = "llama-3.1-8b-instant";
 const FALLBACK_MODEL = "mixtral-8x7b-32768";
 
 export type GroqModel =
@@ -26,11 +33,13 @@ export interface GroqMessage {
 }
 
 export interface GroqChatOptions {
-  model?: GroqModel;
+  model?: GroqModel | string;
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
   messages?: GroqMessage[];
+  // Permite override del provider sin cambiar el global
+  provider?: LLMProviderType;
 }
 
 export interface GroqResponse {
@@ -52,96 +61,51 @@ export interface GroqIntentResult {
   explanation: string;
 }
 
-// ─── Obtener API key ───
-
-function getApiKey(): string | null {
-  // Usar la variable de entorno configurada en .env
-  const envKey = process.env.GROQ_API_KEY;
-  if (envKey && envKey.length > 0 && envKey.startsWith("gsk_")) return envKey;
-
-  return null;
-}
-
-// ─── Chat completo con Groq ───
+// ─── Chat con Groq (u otro provider activo) ───
 
 export async function chatWithGroq(
   userMessage: string,
   options: GroqChatOptions = {}
 ): Promise<GroqResponse> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return { success: false, content: "", model: "", error: "GROQ_API_KEY no configurada" };
-  }
-
-  const model = options.model || DEFAULT_MODEL;
-  const messages: GroqMessage[] = [];
-
-  if (options.systemPrompt) {
-    messages.push({ role: "system", content: options.systemPrompt });
-  }
-
-  if (options.messages) {
-    // Si hay mensajes previos, los agregamos (útil para mantener contexto)
-    messages.push(...options.messages);
-  }
-
-  messages.push({ role: "user", content: userMessage });
-
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15s timeout
+    // Si vienen `messages` históricos, los concatenamos al final del
+    // userMessage así preservamos contexto multi-turn sin tocar la API
+    // del llm-provider (que solo acepta system + último user).
+    let fullPrompt = userMessage;
+    if (options.messages && options.messages.length > 0) {
+      const contextLines = options.messages
+        .map((m) => `[${m.role}] ${m.content}`)
+        .join("\n");
+      fullPrompt = `${contextLines}\n[user] ${userMessage}`;
+    }
 
-    const response = await fetch(`${GROQ_API_BASE}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.maxTokens ?? 1024,
-      }),
-      signal: controller.signal,
+    const result = await llmChat(fullPrompt, options.systemPrompt, {
+      temperature: options.temperature ?? 0.7,
+      maxTokens: options.maxTokens ?? 1024,
+      provider: options.provider,
     });
 
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      const errorText = await response.text();
+    if (!result.success) {
       return {
         success: false,
         content: "",
-        model,
-        error: `Groq API error ${response.status}: ${errorText.slice(0, 200)}`,
+        model: result.model,
+        error: result.error,
       };
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-
     return {
       success: true,
-      content,
-      model: data.model || model,
-      usage: data.usage
-        ? {
-            promptTokens: data.usage.prompt_tokens,
-            completionTokens: data.usage.completion_tokens,
-            totalTokens: data.usage.total_tokens,
-          }
-        : undefined,
+      content: result.content,
+      model: result.model,
+      usage: result.usage,
     };
   } catch (error: any) {
-    if (error.name === "AbortError") {
-      return { success: false, content: "", model, error: "Timeout: Groq no respondió en 15s" };
-    }
     return {
       success: false,
       content: "",
-      model,
-      error: `Error de conexión con Groq: ${error.message}`,
+      model: options.model || DEFAULT_MODEL,
+      error: error.message,
     };
   }
 }
@@ -158,9 +122,7 @@ export async function generateCompletion(
   });
 }
 
-// ─── Entender lenguaje natural con Groq ───
-// Parsea el mensaje del usuario y devuelve intent + entidades.
-// Se usa cuando el NLU local no puede determinar la intención.
+// ─── Entender lenguaje natural → intent + entidades ───
 
 export async function parseIntentWithGroq(
   userMessage: string,
@@ -267,21 +229,11 @@ Ejemplo de salida compuesta:
 `;
 
   try {
-    let contextMessages: GroqMessage[] = [];
-
-    if (context?.recentMessages && context.recentMessages.length > 0) {
-      contextMessages = context.recentMessages.slice(-4).map((msg) => ({
-        role: "user",
-        content: msg,
-      }));
-    }
-
     const result = await chatWithGroq(userMessage, {
       systemPrompt,
-      model: "llama-3.1-8b-instant",
-      temperature: 0.0,
+      model: FAST_MODEL, // llama-3.1-8b-instant, temperature 0
+      temperature: 0,
       maxTokens: 512,
-      messages: contextMessages.length > 0 ? contextMessages : undefined,
     });
 
     if (!result.success) return null;
@@ -332,26 +284,11 @@ IMPORTANTE:
 - Usa emojis moderadamente para hacer la respuesta más amigable`;
 
   try {
-    let messages: GroqMessage[] = [];
-
-    // Agregar conversación reciente como contexto
-    if (systemData.recentConversation && systemData.recentConversation.length > 0) {
-      const recentMessages = systemData.recentConversation.slice(-6);
-      for (const msg of recentMessages) {
-        if (msg.startsWith("user:")) {
-          messages.push({ role: "user", content: msg.slice(5).trim() });
-        } else if (msg.startsWith("agent:")) {
-          messages.push({ role: "assistant", content: msg.slice(6).trim() });
-        }
-      }
-    }
-
     const result = await chatWithGroq(userMessage, {
       systemPrompt,
-      model: DEFAULT_MODEL,
+      model: DEFAULT_MODEL, // llama-3.3-70b-versatile
       temperature: 0.7,
       maxTokens: 1024,
-      messages: messages.length > 0 ? messages : undefined,
     });
 
     return result.success ? result.content : null;
@@ -360,29 +297,17 @@ IMPORTANTE:
   }
 }
 
-// ─── Verificar si Groq está disponible ───
+// ─── Verificar disponibilidad del provider activo ───
 
 export async function checkGroqAvailability(): Promise<{
   available: boolean;
   model: string;
   error?: string;
 }> {
-  const apiKey = getApiKey();
-  if (!apiKey) {
-    return { available: false, model: "", error: "API key no configurada" };
-  }
-
-  try {
-    const response = await fetch(`${GROQ_API_BASE}/models`, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-
-    if (!response.ok) {
-      return { available: false, model: "", error: `Error ${response.status}` };
-    }
-
-    return { available: true, model: DEFAULT_MODEL };
-  } catch (error: any) {
-    return { available: false, model: "", error: error.message };
-  }
+  const result = await llmCheckProvider();
+  return {
+    available: result.available,
+    model: result.model,
+    error: result.error,
+  };
 }

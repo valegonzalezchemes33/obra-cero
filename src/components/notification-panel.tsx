@@ -28,14 +28,12 @@ interface Notification {
 export function NotificationPanel() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [newNotification, setNewNotification] = useState(false);
   const esRef = useRef<EventSource | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Cargar notificaciones iniciales
-  const { data: initialData } = useQuery({
+  // Cargar notificaciones iniciales vía TanStack Query
+  const { data: initialData, isLoading } = useQuery({
     queryKey: ["agent-actions"],
     queryFn: async () => {
       const r = await fetch("/api/agent");
@@ -43,17 +41,15 @@ export function NotificationPanel() {
       return r.json();
     },
     enabled: !open,
+    refetchInterval: 30000,
   });
 
-  // Sincronizar estado inicial
-  useEffect(() => {
-    if (initialData?.actions) {
-      const active = initialData.actions.filter((a: Notification) => a.status === "active");
-      setNotifications(active);
-      setUnreadCount(active.length);
-      setLoading(false);
-    }
-  }, [initialData]);
+  // Derivar lista activa desde la query, filtrando las que el usuario ya descartó localmente
+  const baseActive: Notification[] =
+    initialData?.actions?.filter((a: Notification) => a.status === "active") ?? [];
+  const notifications = baseActive.filter((n) => !dismissedIds.has(n.id));
+  const unreadCount = notifications.length;
+  const loading = isLoading && !initialData;
 
   // SSE — actualizaciones en tiempo real
   useEffect(() => {
@@ -74,27 +70,24 @@ export function NotificationPanel() {
             const data = JSON.parse(event.data);
             const active = (data.actions || []).filter((a: Notification) => a.status === "active");
 
-            setNotifications((prev) => {
-              // Detectar si hay notificaciones nuevas
-              const prevIds = new Set(prev.map((n) => n.id));
-              const hasNew = active.some((a: Notification) => !prevIds.has(a.id));
-              if (hasNew) {
-                setNewNotification(true);
-                // Auto-limpiar el indicador después de 5s
-                setTimeout(() => setNewNotification(false), 5000);
-                // Sonido sutil para críticas
-                const critical = active.some((a: Notification) => a.severity === "critical" && !prevIds.has(a.id));
-                if (critical) {
-                  try {
-                    const audio = new Audio("/sounds/notification.mp3");
-                    audio.volume = 0.3;
-                    audio.play().catch(() => {});
-                  } catch {}
-                }
+            // El SSE solo dispara el indicador visual de "nueva notificación"
+            // La lista real se rehidrata desde la query (que se invalida abajo)
+            queryClient.invalidateQueries({ queryKey: ["agent-actions"] });
+
+            if (active.some((a: Notification) => !baseActive.some((b) => b.id === a.id))) {
+              setNewNotification(true);
+              setTimeout(() => setNewNotification(false), 5000);
+              const critical = active.some(
+                (a: Notification) => a.severity === "critical" && !baseActive.some((b) => b.id === a.id)
+              );
+              if (critical) {
+                try {
+                  const audio = new Audio("/sounds/notification.mp3");
+                  audio.volume = 0.3;
+                  audio.play().catch(() => {});
+                } catch {}
               }
-              return active;
-            });
-            setUnreadCount(data.count || active.length);
+            }
           } catch {}
         });
 
@@ -127,9 +120,12 @@ export function NotificationPanel() {
       return r.json();
     },
     onMutate: async (id) => {
-      // Optimistic update
-      setNotifications((prev) => prev.filter((n) => n.id !== id));
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+      // Optimistic update vía Set local de IDs descartados
+      setDismissedIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        return next;
+      });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["agent-actions"] });
@@ -152,10 +148,10 @@ export function NotificationPanel() {
       );
     },
     onMutate: () => {
-      setNotifications([]);
-      setUnreadCount(0);
+      setDismissedIds(new Set(notifications.map((n) => n.id)));
     },
     onSettled: () => {
+      setDismissedIds(new Set()); // limpiar al sincronizar
       queryClient.invalidateQueries({ queryKey: ["agent-actions"] });
       queryClient.invalidateQueries({ queryKey: ["agent-actions-count"] });
     },

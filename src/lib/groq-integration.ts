@@ -11,6 +11,22 @@
 import { parseIntentWithGroq, generateAgentResponseWithGroq, chatWithGroq, checkGroqAvailability } from "./groq";
 import type { AgentResponse, Intent } from "./agent";
 import { db } from "./db";
+import {
+  getAvailableProviders as getLlmProviders,
+  getActiveProvider as getActiveLlmProvider,
+  type LLMProviderType,
+} from "./llm-provider";
+
+// ─── Provider activo / disponibles ───
+// Helpers para que el agente y la UI sepan qué provider LLM se está usando.
+
+export function getProvider(): LLMProviderType {
+  return getActiveLlmProvider();
+}
+
+export async function listProviders() {
+  return getLlmProviders();
+}
 
 // ─── Cache de disponibilidad ───
 

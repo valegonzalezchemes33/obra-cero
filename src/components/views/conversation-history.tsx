@@ -160,7 +160,10 @@ export function ConversationHistory({
 
   // Reset search when dialog opens
   useEffect(() => {
-    if (open) setSearchQuery("");
+    if (!open) return;
+    // Sólo reset de UI cuando se abre; no cascada (render post-effect).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSearchQuery("");
   }, [open]);
 
   // Agrupar y filtrar

@@ -1,49 +1,147 @@
-import { type ToolCall, type ToolExecutionResult } from "./tool-registry";
-import { type Intent, type ParsedCommand, type AgentResponse } from "./agent";
-import { dispatchByIntent } from "./agent";
+// ============================================================
+// TOOL EXECUTION — Bridge entre tool-calls y el motor del agente
+// ============================================================
+// Esta capa es el punto único de entrada para ejecutar tools
+// desde cualquier origen: chat del agente, MCP bridge, workflows
+// o futuros clientes LLM con tool-calling nativo.
+// ============================================================
 
-// Implementación inicial: “bridge” entre tool-call y el motor existente.
-// No cambia la lógica de negocio todavía; cambia el enrutamiento.
-export async function executeToolCall(call: ToolCall): Promise<ToolExecutionResult> {
-  // Según la tool, reconstruimos un Intent/ParsedCommand para reutilizar dispatchByIntent.
-  // Esto nos permite avanzar hacia “tool router” sin reescribir todos los handlers.
+import {
+  type ToolCall,
+  type ToolContext,
+  type RiskLevel,
+  getRiskLevel,
+  validateToolArgs,
+  toolSchemas,
+} from "./tool-registry";
+import { type AgentResponse } from "./agent";
+import {
+  getToolDefinition,
+  listToolDefinitions,
+  type ExecutableTool,
+} from "./tools/registry-definitions";
 
-  // Heurística: tool->intent
-  const toolToIntent: Record<string, Intent> = {
-    export_data: "action_export_data" as Intent,
-    update_project_progress: "action_update_project_progress" as Intent,
-    update_project_status: "action_update_project_status" as Intent,
-    create_task: "action_create_task" as Intent,
-    complete_task: "action_complete_task" as Intent,
-    create_project: "action_create_project_direct" as Intent,
-    create_expense: "action_create_expense" as Intent,
-    create_income: "action_create_income" as Intent,
-    add_materials: "action_add_materials" as Intent,
-    add_stock_movement: "action_add_stock_movement" as Intent,
-    create_supplier: "action_create_supplier" as Intent,
-    list_workflows: "action_list_workflows" as Intent,
-    trigger_workflow: "action_trigger_workflow" as Intent,
-    list_project_tasks: "action_list_project_tasks" as Intent,
-    edit_project: "action_edit_project" as Intent,
-    edit_task: "action_edit_task" as Intent,
-    edit_material: "action_edit_material" as Intent,
-    delete_task: "action_delete_task" as Intent,
-    delete_material: "action_delete_material" as Intent,
-    delete_transaction: "action_delete_transaction" as Intent,
-  };
-
-  const intent = toolToIntent[call.tool];
-  const rawText = typeof call.args === "string" ? call.args : call.args?.rawText || call.args?.originalText || "";
-
-  const parsed: ParsedCommand = {
-    intent,
-    rawText,
-    normalized: rawText,
-    confidence: 0.95,
-    entities: call.args || {},
-  };
-
-  const response: AgentResponse = await dispatchByIntent(parsed, rawText);
-  return { response };
+export interface ToolExecutionResult {
+  ok: boolean;
+  response: AgentResponse;
+  tool: string;
+  errors?: string[];
+  riskLevel: RiskLevel;
+  requiresConfirmation?: boolean;
+  intent?: string;
 }
 
+// ─── Punto de entrada principal ───
+
+export async function executeToolCall(
+  call: ToolCall,
+  ctx: ToolContext = {}
+): Promise<ToolExecutionResult> {
+  const { tool, args } = call;
+  const context: ToolContext = {
+    rawText: ctx.rawText ?? call.rawText,
+    conversationContext: ctx.conversationContext,
+  };
+
+  // 1. Validar args con Zod
+  const validation = validateToolArgs(tool, args);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      tool,
+      riskLevel: getRiskLevel(tool),
+      errors: validation.errors,
+      response: {
+        text: `❌ Parámetros inválidos para **${tool}**:\n\n${validation.errors
+          .map((e) => `• ${e}`)
+          .join("\n")}`,
+        intent: "unknown",
+        suggestions: ["Ayuda"],
+      },
+    };
+  }
+
+  const riskLevel = getRiskLevel(tool);
+
+  // 2. Resolver la definición de la tool y ejecutarla
+  const definition = getToolDefinition(tool);
+  if (!definition) {
+    return {
+      ok: false,
+      tool,
+      riskLevel,
+      errors: [`No hay implementación registrada para la tool "${tool}".`],
+      response: {
+        text: `❌ La tool "${tool}" no está implementada todavía.`,
+        intent: "unknown",
+        suggestions: ["¿Cómo vamos?"],
+      },
+    };
+  }
+
+  try {
+    const response = await definition.execute(validation.args, context);
+
+    return {
+      ok: true,
+      tool,
+      riskLevel,
+      intent: definition.intent,
+      requiresConfirmation: riskLevel === "destructive" || riskLevel === "moderate",
+      response,
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      tool,
+      riskLevel,
+      errors: [error.message || "Error al ejecutar la tool"],
+      response: {
+        text: `❌ Error ejecutando **${tool}**: ${error.message || "Error desconocido"}`,
+        intent: "unknown",
+        suggestions: ["Ayuda"],
+      },
+    };
+  }
+}
+
+// ─── Helpers para integración ───
+
+/**
+ * Ejecuta una tool desde un intent Groq ya resuelto.
+ */
+export async function executeToolFromIntent(
+  intent: string,
+  entities: Record<string, any>,
+  rawText: string
+): Promise<ToolExecutionResult | null> {
+  const { intentToTool } = await import("./tool-registry");
+  const tool = intentToTool[intent as keyof typeof intentToTool];
+  if (!tool) return null;
+  return executeToolCall({ tool, args: entities, rawText });
+}
+
+/**
+ * Lista herramientas con definición ejecutable (no todas las registradas tienen implementación).
+ */
+export function listExecutableTools() {
+  return listToolDefinitions();
+}
+
+/**
+ * Lista completa del registry (incluye tools sin implementación).
+ */
+export function listAllRegisteredTools(): Array<{
+  tool: string;
+  riskLevel: RiskLevel;
+  hasImplementation: boolean;
+}> {
+  return Object.keys(toolSchemas).map((toolName) => {
+    const def = getToolDefinition(toolName as any);
+    return {
+      tool: toolName,
+      riskLevel: getRiskLevel(toolName as any),
+      hasImplementation: Boolean(def),
+    };
+  });
+}

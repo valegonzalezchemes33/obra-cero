@@ -79,6 +79,10 @@ export function AgentView({ initialQuery }: AgentViewProps) {
         timestamp: new Date(m.createdAt),
       }));
       if (historyMessages.length > 0) {
+        // Inicialización diferida del historial desde la query (one-shot)
+        // es segura porque la query se desactiva vía `enabled: !historyLoaded`
+        // inmediatamente después.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setMessages(historyMessages);
       }
       setHistoryLoaded(true);

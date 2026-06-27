@@ -93,7 +93,7 @@ function SortableStepCard({
   };
 
   const meta = STEP_TYPE_META[step.type];
-  const Icon = getStepIcon(meta?.icon || "git-branch");
+  const Icon = STEP_ICONS[meta?.icon || "git-branch"] || GitBranch;
 
   const borderColor = meta?.color?.replace("text-", "") || "purple-500";
   const borderColorMap: Record<string, string> = {
@@ -159,6 +159,7 @@ function StepEditorDialog({
 
   useEffect(() => {
     if (step) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setType(step.type);
       setLabel(step.label || "");
       setConfigStr(JSON.stringify(step.config, null, 2));

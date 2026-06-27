@@ -15,6 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Search } from "lucide-react";
 import { NotificationPanel } from "@/components/notification-panel";
+import { UserMenu } from "@/components/user-menu";
 
 const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: string; target: ViewKey } }> = {
   dashboard: { title: "Panel", sub: "Vista general de tu operación" },
@@ -88,6 +89,8 @@ export default function Home() {
               </Button>
               {/* Notifications */}
               <NotificationPanel />
+              {/* User menu / logout */}
+              <UserMenu />
             </div>
           </div>
         </header>

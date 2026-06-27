@@ -16,6 +16,16 @@ import { executeWorkflow } from "./workflow-engine";
 import { createWorkflowFromText, generateWorkflowCreatedResponse } from "./workflow-from-text";
 import { queryRAG } from "./agent-rag";
 import { detectPatterns, generatePredictiveResponse, createWorkflowFromSuggestion } from "./agent-predictive";
+import {
+  savePendingDelete,
+  getPendingDelete,
+  clearPendingDelete,
+  saveUndoSnapshot,
+  executeUndo,
+  findUndoSnapshot,
+  isConfirmation,
+  isCancellation,
+} from "./agent-memory";
 
 // ─── Helpers locales ───
 
@@ -505,9 +515,6 @@ export async function handleDeleteTask(parsed: ParsedCommand, rawText: string): 
     details: `Título: ${task.title}${task.project?.code ? ` | Obra: ${task.project.code}` : ""}${task.dueDate ? ` | Vence: ${formatDate(task.dueDate)}` : ""}`,
     timestamp: Date.now(),
     snapshot: snapshotData,
-    execute: async () => {
-      await db.task.delete({ where: { id: task.id } });
-    },
   });
 
   return {
@@ -553,10 +560,6 @@ export async function handleDeleteMaterial(parsed: ParsedCommand, rawText: strin
     details: `Stock: ${formatNumber(match.stock)} ${match.unit} | SKU: ${match.sku}`,
     timestamp: Date.now(),
     snapshot: snapshotData,
-    execute: async () => {
-      await db.stockMovement.deleteMany({ where: { materialId: match.id } });
-      await db.material.delete({ where: { id: match.id } });
-    },
   });
 
   return {
@@ -601,9 +604,6 @@ export async function handleDeleteTransaction(parsed: ParsedCommand, rawText: st
     details: `${formatDate(tx.date)} | ${tx.description}${tx.project ? ` | ${tx.project.code}` : ""} | ${formatCurrency(tx.amount)}`,
     timestamp: Date.now(),
     snapshot: snapshotData,
-    execute: async () => {
-      await db.transaction.delete({ where: { id: tx.id } });
-    },
   });
 
   return {
@@ -922,202 +922,9 @@ export async function handleListWorkflows(): Promise<AgentResponse> {
 }
 
 // ─── Sistema de confirmación para acciones destructivas (DB-backed) ───
-
-interface PendingDelete {
-  type: "task" | "material" | "transaction";
-  id: string;
-  label: string;
-  details: string;
-  timestamp: number;
-  // Datos necesarios para ejecutar la eliminación
-  snapshot: Record<string, any>; // datos guardados antes de eliminar (para undo)
-  execute: () => Promise<void>;
-}
-
-async function savePendingDelete(pd: PendingDelete): Promise<void> {
-  try {
-    const lastAgentMsg = await db.agentMessage.findFirst({
-      where: { role: "agent" },
-      orderBy: { createdAt: "desc" },
-    });
-    if (lastAgentMsg) {
-      const meta = lastAgentMsg.meta ? JSON.parse(lastAgentMsg.meta) : {};
-      meta._pendingDelete = { ...pd, execute: undefined, timestamp: Date.now() };
-      await db.agentMessage.update({
-        where: { id: lastAgentMsg.id },
-        data: { meta: JSON.stringify(meta).slice(0, 4000) },
-      });
-    }
-  } catch {}
-}
-
-async function getPendingDelete(): Promise<PendingDelete | null> {
-  try {
-    const recentMsgs = await db.agentMessage.findMany({
-      where: { role: "agent" },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    });
-
-    for (const msg of recentMsgs) {
-      if (!msg.meta) continue;
-      try {
-        const meta = JSON.parse(msg.meta);
-        if (meta._pendingDelete) {
-          // Verificar expiración (2 minutos)
-          if (Date.now() - (meta._pendingDelete.timestamp || 0) < 120000) {
-            return meta._pendingDelete as PendingDelete;
-          }
-        }
-      } catch {}
-    }
-  } catch {}
-  return null;
-}
-
-async function clearPendingDeleteFromDb(): Promise<void> {
-  try {
-    const recentMsgs = await db.agentMessage.findMany({
-      where: { role: "agent" },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    });
-
-    for (const msg of recentMsgs) {
-      if (!msg.meta) continue;
-      try {
-        const meta = JSON.parse(msg.meta);
-        if (meta._pendingDelete) {
-          delete meta._pendingDelete;
-          await db.agentMessage.update({
-            where: { id: msg.id },
-            data: { meta: JSON.stringify(meta).slice(0, 4000) || null },
-          });
-          break;
-        }
-      } catch {}
-    }
-  } catch {}
-}
-
-// ─── Undo stack (snapshots en DB) ───
-
-interface UndoSnapshot {
-  model: string;
-  recordId: string;
-  data: Record<string, any>;
-  action: string; // "delete_task" | "delete_material" | "delete_transaction"
-  timestamp: number;
-}
-
-async function saveUndoSnapshot(model: string, recordId: string, data: Record<string, any>, action: string): Promise<void> {
-  try {
-    // Guardar snapshot como AgentAction para que aparezca en notificaciones
-    await db.agentAction.create({
-      data: {
-        type: "highlight",
-        severity: "info",
-        title: `↩️ Deshacer: ${action.replace(/_/g, " ")}`,
-        description: `Podés deshacer esta acción. Vence en 5 minutos.`,
-        status: "active",
-        payload: JSON.stringify({
-          type: "undo",
-          model,
-          recordId,
-          data,
-          action,
-          timestamp: Date.now(),
-        }),
-      },
-    });
-
-    // También guardar en agentMessage meta como referencia rápida
-    const lastAgentMsg = await db.agentMessage.findFirst({
-      where: { role: "agent" },
-      orderBy: { createdAt: "desc" },
-    });
-    if (lastAgentMsg) {
-      const meta = lastAgentMsg.meta ? JSON.parse(lastAgentMsg.meta) : {};
-      meta._lastUndo = { model, recordId, data, action, timestamp: Date.now() };
-      await db.agentMessage.update({
-        where: { id: lastAgentMsg.id },
-        data: { meta: JSON.stringify(meta).slice(0, 4000) },
-      });
-    }
-  } catch {}
-}
-
-async function executeUndo(meta: { model: string; recordId: string; data: Record<string, any> }): Promise<boolean> {
-  try {
-    // Stripear campos auto-generados para evitar conflictos con Prisma
-    const { id, createdAt, updatedAt, ...cleanData } = meta.data;
-
-    switch (meta.model) {
-      case "task": {
-        await db.task.create({
-          data: cleanData as any,
-        });
-        return true;
-      }
-      case "material": {
-        await db.material.create({
-          data: cleanData as any,
-        });
-        return true;
-      }
-      case "transaction": {
-        await db.transaction.create({
-          data: cleanData as any,
-        });
-        return true;
-      }
-      default:
-        return false;
-    }
-  } catch {
-    return false;
-  }
-}
-
-async function findUndoSnapshot(): Promise<{ model: string; recordId: string; data: Record<string, any>; action: string } | null> {
-  try {
-    // Buscar primero en agentAction (undo snapshots activos)
-    const recentActions = await db.agentAction.findMany({
-      where: { status: "active" },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    });
-
-    for (const a of recentActions) {
-      if (a.payload) {
-        try {
-          const payload = JSON.parse(a.payload);
-          if (payload.type === "undo" && Date.now() - payload.timestamp < 300000) {
-            return payload;
-          }
-        } catch {}
-      }
-    }
-
-    // Fallback: buscar en agentMessage meta
-    const recentMsgs = await db.agentMessage.findMany({
-      where: { role: "agent" },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    });
-
-    for (const msg of recentMsgs) {
-      if (!msg.meta) continue;
-      try {
-        const meta = JSON.parse(msg.meta);
-        if (meta._lastUndo && Date.now() - meta._lastUndo.timestamp < 300000) {
-          return meta._lastUndo;
-        }
-      } catch {}
-    }
-  } catch {}
-  return null;
-}
+// Las funciones savePendingDelete / getPendingDelete / clearPendingDelete,
+// saveUndoSnapshot / findUndoSnapshot / executeUndo y
+// isConfirmation / isCancellation vienen unificadas desde `agent-memory`.
 
 // ─── Predictive suggestions (DB-backed) ───
 
@@ -1187,19 +994,6 @@ async function clearPredictiveSuggestions(): Promise<void> {
   } catch {}
 }
 
-const CONFIRM_PATTERNS = [/^(si|sí|dale|ok|okey|okay|confirmo|confirma|adelante|vamos|hazlo|hacelo|seguro|listo|de una|procede|procedé)/i];
-const CANCEL_PATTERNS = [/^(no|nop|nada|cancela|cancelar|para|mejor no|dejalo|descartar|olvida|no gracias)/i];
-
-function isConfirmation(text: string): boolean {
-  const norm = normalize(text);
-  return CONFIRM_PATTERNS.some(r => r.test(norm));
-}
-
-function isCancellation(text: string): boolean {
-  const norm = normalize(text);
-  return CANCEL_PATTERNS.some(r => r.test(norm));
-}
-
 // ─── Multi-intent response ───
 
 export function generateMultiIntentResponse(intents: ParsedCommand[], responses: AgentResponse[]): AgentResponse {
@@ -1213,14 +1007,7 @@ export function generateMultiIntentResponse(intents: ParsedCommand[], responses:
   };
 }
 
-// ─── Export handlers para uso desde dispatchByIntent ───
-// Estos handlers se llaman desde agent.ts cuando Groq o el NLU local
-// identifican un intent de editar, eliminar, workflow, exportar, etc.
-
-export { handleEditProject, handleEditTask, handleEditMaterial };
-export { handleDeleteTask, handleDeleteMaterial, handleDeleteTransaction };
-export { handleTriggerWorkflow, handleListWorkflows };
-export { handleSupplierCompare, handlePurchasePlan, handleExpenseTrend, handleExportData };
+// Los handlers edit/delete/workflow/export ya están exportados arriba.
 
 // ─── Punto de entrada extendido ───
 
@@ -1236,10 +1023,10 @@ export async function processExtendedMessage(
   if (pd) {
     // Verificar expiración (2 minutos)
     if (Date.now() - (pd.timestamp || 0) > 120000) {
-      await clearPendingDeleteFromDb();
+      await clearPendingDelete();
     } else if (isConfirmation(norm)) {
       // ✅ Confirmó la eliminación
-      await clearPendingDeleteFromDb();
+      await clearPendingDelete();
       try {
         // Ejecutar con el id guardado
         const targetId = pd.id;
@@ -1255,10 +1042,9 @@ export async function processExtendedMessage(
 
         // Guardar snapshot para undo
         if (pd.snapshot && Object.keys(pd.snapshot).length > 0) {
-          const modelMap: Record<string, string> = { task: "task", material: "material", transaction: "transaction" };
           const actionMap: Record<string, string> = { task: "delete_task", material: "delete_material", transaction: "delete_transaction" };
           await saveUndoSnapshot(
-            modelMap[pd.type] || pd.type,
+            pd.type,
             targetId,
             pd.snapshot,
             actionMap[pd.type] || "delete"
@@ -1286,7 +1072,7 @@ export async function processExtendedMessage(
       }
     } else if (isCancellation(norm)) {
       // ❌ Canceló
-      await clearPendingDeleteFromDb();
+      await clearPendingDelete();
       return {
         response: {
           text: `❌ **Acción cancelada.** No se eliminó nada.`,

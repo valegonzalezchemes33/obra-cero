@@ -18,7 +18,7 @@ export interface ActionPromptConfig {
   executionGuide: string; // Guía sobre cómo se ejecutará
 }
 
-export const ACTION_PROMPTS: Record<Intent, ActionPromptConfig> = {
+export const ACTION_PROMPTS: Partial<Record<Intent, ActionPromptConfig>> = {
   // ─── OBRAS ───
   action_create_project_direct: {
     section: "📋 OBRAS",
@@ -522,8 +522,19 @@ export const ACTION_PROMPTS: Record<Intent, ActionPromptConfig> = {
 /**
  * Obtener la configuración de prompt para una intención específica
  */
+const FALLBACK_PROMPT: ActionPromptConfig = {
+  section: "💬 CHAT",
+  description: "Acción del agente",
+  requiredFields: [],
+  optionalFields: [],
+  fieldLabels: {},
+  fieldHints: {},
+  actionPrompt: "Procesando tu solicitud.",
+  executionGuide: "✅ Operación completada.",
+};
+
 export function getActionPromptConfig(intent: Intent): ActionPromptConfig {
-  return ACTION_PROMPTS[intent] || ACTION_PROMPTS.unknown;
+  return ACTION_PROMPTS[intent] || FALLBACK_PROMPT;
 }
 
 /**

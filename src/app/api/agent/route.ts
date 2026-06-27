@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { processAgentMessage, runAutomations, parseIntent } from "@/lib/agent";
-import type { Intent } from "@/lib/agent";
+import { processAgentMessage, runAutomations, parseIntent, dispatchByIntent } from "@/lib/agent";
+import type { Intent, ParsedCommand } from "@/lib/agent";
 import { processExtendedMessage, findClosestIntent, generateSmartUnknownResponse } from "@/lib/agent-extended";
 import {
   getConversationContext,
@@ -18,12 +18,18 @@ import {
 } from "@/lib/agent-memory";
 import { normalizeMessage } from "@/lib/agent-nlu";
 import { tryGroqCompoundIntent } from "@/lib/groq-integration";
-import { 
-  getActionPromptConfig, 
+import {
+  getActionPromptConfig,
   getActionSection,
   generateContextualWarning,
-  generateExecutionGuide 
+  generateExecutionGuide
 } from "@/lib/agent-action-prompts";
+import {
+  intentToTool,
+  toolToIntent,
+  validateToolArgs,
+  getRiskLevel,
+} from "@/lib/tool-registry";
 
 // ─── Helper: Obtener labels amigables para campos faltantes ───
 
@@ -79,8 +85,6 @@ function reconstructMessageForNLU(intent: Intent, entities: Record<string, any>)
       return entities.originalText || `ejecutar ${intent}`;
   }
 }
-
-// ─── Helper: Generar texto de preview sin ejecutar la acción ───
 
 // ─── Helper: Generar texto de preview sin ejecutar la acción ───
 
@@ -302,6 +306,25 @@ export async function POST(req: NextRequest) {
 
         // Si es un único intent, procesarlo
         const singleIntent = compoundResult.intents[0];
+
+        // Validación temprana con tool-registry: si los args Groq son inválidos,
+        // avisamos antes de ejecutar y devolvemos el error tipado.
+        const toolName = intentToTool[singleIntent.intent as Intent];
+        if (toolName) {
+          const validation = validateToolArgs(toolName, singleIntent.entities || {});
+          if (!validation.ok) {
+            return NextResponse.json({
+              text: `❌ Parámetros inválidos para **${toolName}**:\n\n${validation.errors.map((e) => `• ${e}`).join("\n")}`,
+              intent: singleIntent.intent,
+              _tool: toolName,
+              _riskLevel: getRiskLevel(toolName),
+              _validationErrors: validation.errors,
+              _groqEnhanced: true,
+              suggestions: ["Ayuda"],
+            });
+          }
+        }
+
         if (singleIntent.intent.startsWith("action_")) {
           const { processMessageWithIntent } = await import("@/lib/agent-dispatcher");
           const response = await processMessageWithIntent(
@@ -364,6 +387,25 @@ export async function POST(req: NextRequest) {
     const missingFields = requiredFields.filter(
       (field) => entities[field] === undefined || entities[field] === "" || entities[field] === null
     );
+
+    // 7a. Validación de tool: si el intent es una tool conocida, validamos los
+    // args con Zod antes de continuar, y enriquecemos la respuesta con riskLevel.
+    const toolName = intentToTool[parsed.intent];
+    if (toolName) {
+      const validation = validateToolArgs(toolName, entities);
+      const riskLevel = getRiskLevel(toolName);
+
+      if (!validation.ok) {
+        return NextResponse.json({
+          text: `❌ Parámetros inválidos para **${toolName}**:\n\n${validation.errors.map((e) => `• ${e}`).join("\n")}`,
+          intent: parsed.intent,
+          _tool: toolName,
+          _riskLevel: riskLevel,
+          _validationErrors: validation.errors,
+          suggestions: ["Ayuda"],
+        });
+      }
+    }
 
     if (missingFields.length > 0) {
       const pending: PendingAction = {

@@ -44,26 +44,8 @@ export interface ConfirmationRequest {
 }
 
 // ─── Detectar afirmación/negación ───
-
-const CONFIRM_PATTERNS = [
-  /^(si|sí|dale|ok|okey|okay|confirmo|confirma|adelante|vamos|hazlo|hacelo|crealo|seguro|listo|de una|obvio|por supuesto|si claro|simon|venga|adelante|procede|procedé)/i,
-  /^(confirmo|confirmar|dale nomas|hacelo asi|está bien|esta bien|de acuerdo|claro que si)/i,
-];
-
-const CANCEL_PATTERNS = [
-  /^(no|nop|nada|cancela|cancelar|para|detente|no hagas|mejor no|dejalo|descartar|olvida|no gracias|para todo|ni ahi|ni ahí)/i,
-  /^(para la mano|no quiero|mejor no|descartado|olvidalo|no, gracias)/i,
-];
-
-export function isConfirmation(text: string): boolean {
-  const normalized = text.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  return CONFIRM_PATTERNS.some((r) => r.test(normalized));
-}
-
-export function isCancellation(text: string): boolean {
-  const normalized = text.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  return CANCEL_PATTERNS.some((r) => r.test(normalized));
-}
+// (Las funciones isConfirmation/isCancellation están definidas más abajo,
+//  en la sección "Patrones compartidos de confirmación/cancelación".)
 
 // ─── Cargar contexto de conversación ───
 
@@ -277,7 +259,7 @@ export async function saveContextMetadata(response: AgentResponse, entities: Rec
 
 // ─── Verificar si un intent requiere confirmación ───
 
-const CONFIRMATION_INTENTS: string[] = [
+export const CONFIRMATION_INTENTS: string[] = [
   "action_create_expense",
   "action_create_income",
   "action_create_project_direct",
@@ -300,6 +282,28 @@ const CONFIRMATION_INTENTS: string[] = [
 
 export function requiresConfirmation(intent: Intent): boolean {
   return CONFIRMATION_INTENTS.includes(intent);
+}
+
+// ─── Patrones compartidos de confirmación/cancelación ───
+
+const CONFIRM_PATTERNS = [
+  /^(si|sí|dale|ok|okey|okay|confirmo|confirma|adelante|vamos|hazlo|hacelo|crealo|seguro|listo|de una|obvio|por supuesto|si claro|simon|venga|procede|procedé|deshacer|undo)/i,
+  /^(confirmo|confirmar|dale nomas|hacelo asi|está bien|esta bien|de acuerdo|claro que si)/i,
+];
+
+const CANCEL_PATTERNS = [
+  /^(no|nop|nada|cancela|cancelar|para|detente|no hagas|mejor no|dejalo|descartar|olvida|no gracias|para todo|ni ahi|ni ahí)/i,
+  /^(para la mano|no quiero|mejor no|descartado|olvidalo|no, gracias)/i,
+];
+
+export function isConfirmation(text: string): boolean {
+  const normalized = text.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return CONFIRM_PATTERNS.some((r) => r.test(normalized));
+}
+
+export function isCancellation(text: string): boolean {
+  const normalized = text.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return CANCEL_PATTERNS.some((r) => r.test(normalized));
 }
 
 // ─── Generar resumen de acción para confirmación ───
@@ -344,5 +348,201 @@ export function generateActionSummary(intent: string, entities: Record<string, a
       return `Ejecutar workflow`;
     default:
       return "Ejecutar acción";
+  }
+}
+
+// ============================================================
+// DELETED-ACTIONS / UNDO STACK — Multi-turno para acciones
+// destructivas (task, material, transaction)
+// ============================================================
+// Estas funciones se usan desde agent-extended (handlers de delete)
+// y desde el endpoint /api/agent. Vivir centralizadas acá evita
+// duplicación y mantiene la consistencia con el patrón confirm/cancel.
+// ============================================================
+
+export interface PendingDelete {
+  type: "task" | "material" | "transaction";
+  id: string;
+  label: string;
+  details: string;
+  timestamp: number;
+  snapshot: Record<string, any>;
+}
+
+const PENDING_DELETE_TTL_MS = 120_000; // 2 minutos
+
+export async function savePendingDelete(pd: Omit<PendingDelete, "timestamp"> & { timestamp?: number }): Promise<void> {
+  try {
+    const data: PendingDelete = { ...pd, timestamp: pd.timestamp || Date.now() } as PendingDelete;
+    const lastAgentMsg = await db.agentMessage.findFirst({
+      where: { role: "agent" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (lastAgentMsg) {
+      const meta = lastAgentMsg.meta ? JSON.parse(lastAgentMsg.meta) : {};
+      meta._pendingDelete = data;
+      await db.agentMessage.update({
+        where: { id: lastAgentMsg.id },
+        data: { meta: JSON.stringify(meta).slice(0, 4000) },
+      });
+    }
+  } catch {}
+}
+
+export async function getPendingDelete(): Promise<PendingDelete | null> {
+  try {
+    const recentMsgs = await db.agentMessage.findMany({
+      where: { role: "agent" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    for (const msg of recentMsgs) {
+      if (!msg.meta) continue;
+      try {
+        const meta = JSON.parse(msg.meta);
+        if (meta._pendingDelete) {
+          if (Date.now() - (meta._pendingDelete.timestamp || 0) < PENDING_DELETE_TTL_MS) {
+            return meta._pendingDelete as PendingDelete;
+          }
+        }
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
+export async function clearPendingDelete(): Promise<void> {
+  try {
+    const recentMsgs = await db.agentMessage.findMany({
+      where: { role: "agent" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    for (const msg of recentMsgs) {
+      if (!msg.meta) continue;
+      try {
+        const meta = JSON.parse(msg.meta);
+        if (meta._pendingDelete) {
+          delete meta._pendingDelete;
+          await db.agentMessage.update({
+            where: { id: msg.id },
+            data: { meta: JSON.stringify(meta).slice(0, 4000) || null },
+          });
+          break;
+        }
+      } catch {}
+    }
+  } catch {}
+}
+
+export interface UndoSnapshot {
+  model: "task" | "material" | "transaction";
+  recordId: string;
+  data: Record<string, any>;
+  action: string;
+  timestamp: number;
+}
+
+const PENDING_UNDO_TTL_MS = 300_000; // 5 minutos
+
+export async function saveUndoSnapshot(
+  model: UndoSnapshot["model"],
+  recordId: string,
+  data: Record<string, any>,
+  action: string
+): Promise<void> {
+  try {
+    await db.agentAction.create({
+      data: {
+        type: "highlight",
+        severity: "info",
+        title: `↩️ Deshacer: ${action.replace(/_/g, " ")}`,
+        description: `Podés deshacer esta acción. Vence en 5 minutos.`,
+        status: "active",
+        payload: JSON.stringify({
+          type: "undo",
+          model,
+          recordId,
+          data,
+          action,
+          timestamp: Date.now(),
+        }),
+      },
+    });
+
+    const lastAgentMsg = await db.agentMessage.findFirst({
+      where: { role: "agent" },
+      orderBy: { createdAt: "desc" },
+    });
+    if (lastAgentMsg) {
+      const meta = lastAgentMsg.meta ? JSON.parse(lastAgentMsg.meta) : {};
+      meta._lastUndo = { model, recordId, data, action, timestamp: Date.now() };
+      await db.agentMessage.update({
+        where: { id: lastAgentMsg.id },
+        data: { meta: JSON.stringify(meta).slice(0, 4000) },
+      });
+    }
+  } catch {}
+}
+
+export async function findUndoSnapshot(): Promise<UndoSnapshot | null> {
+  try {
+    const recentActions = await db.agentAction.findMany({
+      where: { status: "active" },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    for (const a of recentActions) {
+      if (a.payload) {
+        try {
+          const payload = JSON.parse(a.payload);
+          if (payload.type === "undo" && Date.now() - payload.timestamp < PENDING_UNDO_TTL_MS) {
+            return payload as UndoSnapshot;
+          }
+        } catch {}
+      }
+    }
+
+    const recentMsgs = await db.agentMessage.findMany({
+      where: { role: "agent" },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    });
+
+    for (const msg of recentMsgs) {
+      if (!msg.meta) continue;
+      try {
+        const meta = JSON.parse(msg.meta);
+        if (meta._lastUndo && Date.now() - meta._lastUndo.timestamp < PENDING_UNDO_TTL_MS) {
+          return meta._lastUndo as UndoSnapshot;
+        }
+      } catch {}
+    }
+  } catch {}
+  return null;
+}
+
+export async function executeUndo(snapshot: UndoSnapshot): Promise<boolean> {
+  try {
+    const { id, createdAt, updatedAt, ...cleanData } = snapshot.data;
+
+    switch (snapshot.model) {
+      case "task":
+        await db.task.create({ data: cleanData as any });
+        return true;
+      case "material":
+        await db.material.create({ data: cleanData as any });
+        return true;
+      case "transaction":
+        await db.transaction.create({ data: cleanData as any });
+        return true;
+      default:
+        return false;
+    }
+  } catch {
+    return false;
   }
 }
