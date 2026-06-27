@@ -303,63 +303,6 @@ Ejemplo de salida compuesta:
   }
 }
 
-  "intent": "nombre_del_intent",
-  "confidence": 0.95,
-  "entities": { "key": "value" },
-  "explanation": "Por qué crees que esta es la intención",
-  "isCompound": false
-}
-
-Para mensajes compuestos (2 intenciones):
-{
-  "intent": "compound",
-  "confidence": 0.9,
-  "entities": {},
-  "explanation": "El mensaje contiene dos acciones",
-  "isCompound": true,
-  "compoundIntents": [
-    { "intent": "action_create_project_direct", "entities": { "name": "amarras center" } },
-    { "intent": "action_add_materials", "entities": { "items": [{ "qty": 2, "unit": "bolsas", "name": "clavos 22mm" }] } }
-  ]
-}`;
-
-  try {
-    let contextMessages: GroqMessage[] = [];
-
-    // Agregar mensajes recientes como contexto si existen
-    if (context?.recentMessages && context.recentMessages.length > 0) {
-      contextMessages = context.recentMessages.slice(-4).map((msg) => ({
-        role: "user" as const,
-        content: msg,
-      }));
-    }
-
-    const result = await chatWithGroq(userMessage, {
-      systemPrompt,
-      model: "llama-3.1-8b-instant", // Modelo rápido para parsing
-      temperature: 0.1,
-      maxTokens: 512,
-      messages: contextMessages.length > 0 ? contextMessages : undefined,
-    });
-
-    if (!result.success) return null;
-
-    // Extraer JSON de la respuesta
-    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return null;
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    return {
-      intent: parsed.intent || "unknown",
-      confidence: parsed.confidence || 0,
-      entities: parsed.entities || {},
-      explanation: parsed.explanation || "",
-    };
-  } catch {
-    return null;
-  }
-}
-
 // ─── Generar respuesta natural con contexto del sistema ───
 
 export async function generateAgentResponseWithGroq(
