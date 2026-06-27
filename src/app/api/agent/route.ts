@@ -18,6 +18,29 @@ import {
 } from "@/lib/agent-memory";
 import { normalizeMessage } from "@/lib/agent-nlu";
 import { tryGroqCompoundIntent } from "@/lib/groq-integration";
+import { 
+  getActionPromptConfig, 
+  getActionSection,
+  generateContextualWarning,
+  generateExecutionGuide 
+} from "@/lib/agent-action-prompts";
+
+// ─── Helper: Obtener labels amigables para campos faltantes ───
+
+function getFieldLabels(intent: Intent, fields: string[]): string {
+  const config = getActionPromptConfig(intent);
+  
+  return fields
+    .map((field) => config.fieldLabels[field] || field)
+    .join(", ");
+}
+
+// ─── Helper: Obtener pista de un campo ───
+
+function getFieldHint(intent: Intent, field: string): string {
+  const config = getActionPromptConfig(intent);
+  return config.fieldHints[field] || "";
+}
 
 // ─── Helper: Reconstruir mensaje en lenguaje natural para el NLU ───
 
@@ -59,73 +82,58 @@ function reconstructMessageForNLU(intent: Intent, entities: Record<string, any>)
 
 // ─── Helper: Generar texto de preview sin ejecutar la acción ───
 
+// ─── Helper: Generar texto de preview sin ejecutar la acción ───
+
 function getRequiredActionFields(intent: Intent): string[] {
-  switch (intent) {
-    case "action_create_expense":
-      return ["amount", "category"];
-    case "action_create_income":
-      return ["amount"];
-    case "action_create_project_direct":
-      return ["name"];
-    case "action_create_supplier":
-      return ["name"];
-    case "action_close_project":
-      return ["projectRef"];
-    case "action_add_materials":
-      return ["items"];
-    case "action_complete_task":
-      return ["taskTitle"];
-    case "action_add_stock_movement":
-      return ["type", "materialName", "quantity"];
-    case "action_update_project_status":
-      return ["projectRef", "status"];
-    case "action_update_project_progress":
-      return ["projectRef", "progress"];
-    case "action_edit_project":
-      return ["projectRef"];
-    case "action_edit_task":
-      return ["taskTitle"];
-    case "action_edit_material":
-      return ["materialName"];
-    case "action_delete_task":
-      return ["taskTitle"];
-    case "action_delete_material":
-      return ["materialName"];
-    case "action_delete_transaction":
-      return ["amount"];
-    case "action_trigger_workflow":
-      return ["workflowName"];
-    default:
-      return [];
-  }
+  const config = getActionPromptConfig(intent);
+  return config.requiredFields;
 }
 
 function generatePreviewText(intent: Intent, entities: Record<string, any>): string {
+  const config = getActionPromptConfig(intent);
+  const section = config.section;
+  
   switch (intent) {
     case "action_create_expense":
-      return `📝 Se **registrará un gasto** de **$${entities.amount}** en la categoría **${entities.category || "general"}**${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
+      return `${section}\n📝 Se **registrará un gasto** de **$${entities.amount}** en la categoría **${entities.category || "general"}**${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
     case "action_create_income":
-      return `📝 Se **registrará un ingreso** de **$${entities.amount}**${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
+      return `${section}\n📝 Se **registrará un ingreso** de **$${entities.amount}**${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
     case "action_create_project_direct":
-      return `📝 Se **creará una obra** con nombre **"${entities.name}"**${entities.budget ? `, presupuesto **$${entities.budget}**` : ""}${entities.clientName ? `, cliente **${entities.clientName}**` : ""}.`;
+      return `${section}\n📝 Se **creará una obra nueva** con nombre **"${entities.name}"**${entities.budget ? `, presupuesto **$${entities.budget}**` : ""}${entities.clientName ? `, cliente **${entities.clientName}**` : ""}.\n\nSe asignará automáticamente un código único **OB-XXX**.`;
     case "action_create_supplier":
-      return `📝 Se **creará un proveedor** con nombre **"${entities.name}"**.`;
+      return `${section}\n📝 Se **creará un proveedor** con nombre **"${entities.name}"**.`;
     case "action_close_project":
-      return `📝 Se **cerrará la obra** OB-**${entities.projectRef}**. Se marcará como finalizada con 100% de avance.`;
+      return `${section}\n📝 Se **cerrará la obra** **OB-${entities.projectRef}**. Se marcará como **FINALIZADA** con **100%** de avance.`;
     case "action_add_materials":
-      return `📝 Se **agregarán materiales** al inventario${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
+      return `${section}\n📝 Se **agregarán materiales** al inventario${entities.projectRef ? ` para la obra **OB-${entities.projectRef}**` : ""}.`;
     case "action_complete_task":
-      return `📝 Se **marcará como completada** la tarea **"${entities.taskTitle || "(pendiente)"}"**.`;
+      return `${section}\n📝 Se **marcará como completada** la tarea **"${entities.taskTitle || "(pendiente)"}"**.`;
     case "action_add_stock_movement":
-      return `📝 Se **registrará un movimiento de stock** de ${entities.quantity || "cierta"} ${entities.unit || "unidades"}.`;
+      return `${section}\n📝 Se **registrará un movimiento de stock** de ${entities.quantity || "cierta"} ${entities.unit || "unidades"} del material **${entities.materialName || "(pendiente)"}**.`;
     case "action_update_project_status":
-      return `📝 Se **cambiará el estado** de la obra OB-**${entities.projectRef}** a **${entities.status || "nuevo estado"}**.`;
+      return `${section}\n📝 Se **cambiará el estado** de la obra **OB-${entities.projectRef}** a **${entities.status || "nuevo estado"}**.`;
     case "action_update_project_progress":
-      return `📝 Se **actualizará el avance** de la obra OB-**${entities.projectRef}** al **${entities.progress}%**.`;
+      return `${section}\n📝 Se **actualizará el avance** de la obra **OB-${entities.projectRef}** al **${entities.progress}%**.`;
     case "action_reorder":
-      return `📝 Se **generará un pedido de compra** con los materiales que están por debajo del mínimo.`;
+      return `${section}\n📝 Se **generará un pedido de compra** con los materiales que están por debajo del stock mínimo.`;
+    case "action_edit_project":
+      return `${section}\n📝 Se **editará la obra** **OB-${entities.projectRef}**${entities.name ? ` con nuevo nombre **"${entities.name}"**` : ""}.`;
+    case "action_edit_task":
+      return `${section}\n📝 Se **editará la tarea** **"${entities.taskTitle}"**.`;
+    case "action_edit_material":
+      return `${section}\n📝 Se **editará el material** **"${entities.materialName}"**.`;
+    case "action_delete_task":
+      return `${section}\n⚠️ Se **ELIMINARÁ la tarea** **"${entities.taskTitle}"**. Esta acción NO se puede deshacer.`;
+    case "action_delete_material":
+      return `${section}\n⚠️ Se **ELIMINARÁ el material** **"${entities.materialName}"**. Esta acción NO se puede deshacer.`;
+    case "action_delete_transaction":
+      return `${section}\n⚠️ Se **ELIMINARÁ la transacción** de **$${entities.amount}**. Esta acción NO se puede deshacer.`;
+    case "action_trigger_workflow":
+      return `${section}\n⚙️ Se **ejecutará el workflow** **"${entities.workflowName}"**.`;
+    case "action_create_task":
+      return `${section}\n📝 Se **creará una nueva tarea** con descripción **"${entities.title || "(pendiente)"}"**.`;
     default:
-      return `📝 Se ejecutará la acción solicitada.`;
+      return `${section}\n📝 Se ejecutará la acción solicitada.`;
   }
 }
 
@@ -247,26 +255,14 @@ export async function POST(req: NextRequest) {
               timestamp: Date.now(),
             };
             await savePendingAction(updatedAction);
-            const fieldsList = newMissing
-              .map((f) => {
-                const labels: Record<string, string> = {
-                  amount: "el monto ($)",
-                  name: "el nombre",
-                  category: "la categoría (materiales, mano de obra, servicios)",
-                  projectRef: "la referencia de la obra",
-                  title: "el título de la tarea",
-                  budget: "el presupuesto",
-                  clientName: "el nombre del cliente",
-                  phone: "el teléfono",
-                  email: "el email",
-                  taskTitle: "el título de la tarea",
-                  description: "la descripción",
-                };
-                return labels[f] || f;
-              })
-              .join(", ");
+            
+            const config = getActionPromptConfig(pendingAction.intent);
+            const fieldsList = getFieldLabels(pendingAction.intent, newMissing);
+            const firstMissingField = newMissing[0];
+            const hint = getFieldHint(pendingAction.intent, firstMissingField);
+            
             return NextResponse.json({
-              text: `Necesito que me digas **${fieldsList}** para completar la acción.`,
+              text: `Necesito que me digas **${fieldsList}** para completar la acción.\n\n${hint ? `💡 Ejemplo: **${hint}**` : ""}`,
               intent: pendingAction.intent,
               _pendingAction: updatedAction,
               suggestions: ["Cancelar"],
@@ -381,28 +377,12 @@ export async function POST(req: NextRequest) {
       };
 
       await savePendingAction(pending);
-      const fieldsList = missingFields
-        .map((field) => {
-          const labels: Record<string, string> = {
-            amount: "el monto ($)",
-            category: "la categoría (materiales, mano de obra, servicios)",
-            name: "el nombre",
-            projectRef: "la referencia de la obra",
-            items: "los materiales o items que querés agregar",
-            taskTitle: "el título de la tarea",
-            type: "si es entrada o salida",
-            materialName: "el nombre del material",
-            quantity: "la cantidad",
-            status: "el nuevo estado",
-            progress: "el porcentaje de avance",
-            workflowName: "el nombre del workflow",
-          };
-          return labels[field] || field;
-        })
-        .join(", ");
+      const fieldsList = getFieldLabels(parsed.intent, missingFields);
+      const firstMissingField = missingFields[0];
+      const hint = getFieldHint(parsed.intent, firstMissingField);
 
       return NextResponse.json({
-        text: `Necesito que me digas **${fieldsList}** para completar la acción.`,
+        text: `Necesito que me digas **${fieldsList}** para completar la acción.\n\n${hint ? `💡 Ejemplo: **${hint}**` : ""}`,
         intent: parsed.intent,
         _pendingAction: pending,
         suggestions: ["Cancelar"],

@@ -177,8 +177,8 @@ const INTENT_PATTERNS: IntentPattern[] = [
   {
     intent: "action_create_project",
     patterns: [
-      /(crear|alta|nueva|nuevo)\s+(obra|proyecto)/i,
-      /empezar\s+(una\s+)?(obra|proyecto)/i,
+      /(crear|alta|nueva|nuevo)\s+(obra|proyecto)(?!\s+(?:material|item|producto|cemento|arena|clavo|pintura|madera))/i,
+      /empezar\s+(una\s+)?(obra|proyecto)(?!\s+(?:material|item|producto))/i,
     ],
     priority: 10,
   },
@@ -223,19 +223,26 @@ const INTENT_PATTERNS: IntentPattern[] = [
   {
     intent: "action_add_materials",
     patterns: [
-      /(crear|agregar|cargar|añadir|alta\s+de)\s+(materiales?|items?|productos?)/i,
-      /(crea|agrega|carga|añade)\s+(materiales?|items?)/i,
-      /(en\s+(la\s+)?obra|para\s+la\s+obra|obra)\s+\w[\w\s]+,?\s*(crea|agreg|carg|añad)\s+(materiales?|items?)/i,
-      /dar\s+de\s+alta\s+(materiales?|items?)/i,
+      // Patrón 1: "crear/agregar/cargar materiales" - SIN mencionar obra
+      /(?<!\w(?:obra|proyecto)[\s,]*)((?:crear|agregar|cargar|añadir|crea|agrega|carga|añade|dar\s+de\s+alta)\s+(?:materiales|items|productos|cemento|arena|ladrillos|madera|hierro|cable|pintura))/i,
+      // Patrón 2: "en la obra XYZ, agregar materiales"
+      /(?:en\s+(?:la\s+)?obra\s+([A-Za-z0-9-]+)|OB[-\s]?(\d+))[\s,]*(?:crea|agrega|carga|añade|agreg|cargas?|agrega?)\s+(?:materiales?|items?|productos?)/i,
+      // Patrón 3: "para obra XYZ: materiales"
+      /(?:para\s+(?:la\s+)?obra|en\s+proyecto)\s+([A-Za-z0-9\sÀ-ÿ]+?)[\s,:]+(?:crea|agrega|carga|añade)\s+(?:materiales?|items?)/i,
+      // Patrón 4: Específico de materiales con unidades
+      /(?:cargar|agregar|crear|añadir)?\s*(\d+)\s+(?:bolsa|bolsas|kg|kilos|m3|metro|metros|unidad|unidades|pieza|piezas|rollos?|tubo|tubos|bar|barra|barras)\s+(?:de\s+)?(cemento|arena|grava|ladrillo|madera|hierro|hormigon|cable|pintura|herramientas?|acero|aluminio)/i,
     ],
     entities: (text: string) => {
-      // Extraer referencia de obra
-      const proyMatch = text.match(/en\s+la\s+obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega|\s+carga|\s+añade|$)/i)
-        || text.match(/para\s+(?:la\s+)?obra\s+([\w\s]+?)(?:,|\s+crea|$)/i)
-        || text.match(/OB[-\s]?(\d+)/i);
-      return { projectRef: proyMatch ? proyMatch[1].trim() : undefined };
+      // Extraer referencia de obra (opcional)
+      let projectRef: string | undefined;
+      const proyMatchDirec = text.match(/(?:en\s+(?:la\s+)?obra\s+|para\s+(?:la\s+)?obra\s+|OB[-\s]?)([A-Za-z0-9\sÀ-ÿ-]+?)(?:,|crea|agrega|carga|$)/i);
+      const obMatch = text.match(/OB[-\s]?(\d+)/i);
+      
+      projectRef = proyMatchDirec ? proyMatchDirec[1].trim() : obMatch ? `OB-${obMatch[1]}` : undefined;
+
+      return { projectRef };
     },
-    priority: 12,
+    priority: 14,  // Priority HIGH para evitar conflicto con create_project
   },
   {
     intent: "action_add_stock_movement",
@@ -289,18 +296,33 @@ const INTENT_PATTERNS: IntentPattern[] = [
   {
     intent: "action_create_project_direct",
     patterns: [
-      /crear\s+obra\s+["']?[\w\sÀ-ÿ]+["']?\s*,?\s*presupuesto/i,
+      // Patrón 1: "crear obra NombreObra presupuesto $XXX" (con presupuesto)
+      /crear\s+obra\s+["']?[\w\sÀ-ÿ]+["']?\s*,?\s*(?:presupuesto|presupuesto\s+de|monto)/i,
+      // Patrón 2: "nueva obra: NombreObra" (con dos puntos)
       /nueva\s+obra\s*:\s*["']?[\w\sÀ-ÿ]+["']?/i,
+      // Patrón 3: "alta de obra: NombreObra"
       /alta\s+de\s+obra\s*:\s*/i,
-      /crear\s+obra\s+["']?[^"']+["']?(?:\s*\.|\s*,|$)/i,
+      // Patrón 4: "crear obra NombreObra" (flexible, sin presupuesto obligatorio)
+      /crear\s+obra\s+(['"¿]?)[\w\sÀ-ÿáéíóú,.-]+\1\s*(?:para|con|cliente|presupuesto|$)/i,
+      // Patrón 5: "crear proyecto..." (sinónimo de obra)
+      /crear\s+proyecto\s+[\w\sÀ-ÿ]+(?:\s+presupuesto)?/i,
     ],
     entities: (text: string) => {
-      const nameMatch = text.match(/(?:crear|nueva|alta\s+de)\s+obra\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?\s*(?:\.|,|presupuesto|cliente|$)/i);
-      const budgetMatch = text.match(/presupuesto\s*:?\s*\$?\s*([\d.,]+)/i);
-      const clientMatch = text.match(/cliente\s*:?\s*([\w\sÀ-ÿ]+?)(?:,|$)/i);
+      // Extraer nombre de la obra
+      let nameMatch = 
+        text.match(/(?:crear|nueva|alta\s+de)\s+(?:obra|proyecto)\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?\s*(?:\.|,|presupuesto|cliente|para|con|$)/i) ||
+        text.match(/(?:crear|nueva|alta)\s+(?:obra|proyecto)\s+(?:llamada|denominada|titulada)?\s*["']?([\w\sÀ-ÿ]+?)["']?/i) ||
+        text.match(/^(?:.*?)(?:crear|nueva|alta)\s+(?:obra|proyecto)\s+([^,.;:]+?)(?:\s+presupuesto|\s+cliente|\s+para|\s+con|,|$)/i);
+      
+      // Extraer presupuesto (OPCIONAL)
+      const budgetMatch = text.match(/(?:presupuesto|monto)\s*:?\s*\$?\s*([\d.,]+)/i);
+      
+      // Extraer cliente (OPCIONAL)
+      const clientMatch = text.match(/(?:cliente|para)\s*:?\s*([\w\sÀ-ÿ]+?)(?:,|presupuesto|$)/i);
+
       return {
         name: nameMatch ? nameMatch[1].trim() : undefined,
-        budget: budgetMatch ? parseFloat(budgetMatch[1].replace(/[.,]/g, '').replace(',', '.')) : undefined,
+        budget: budgetMatch ? parseFloat(budgetMatch[1].replace(/\./g, '').replace(',', '.')) : undefined,
         clientName: clientMatch ? clientMatch[1].trim() : undefined,
       };
     },
