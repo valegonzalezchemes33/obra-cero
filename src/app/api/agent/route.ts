@@ -59,6 +59,47 @@ function reconstructMessageForNLU(intent: Intent, entities: Record<string, any>)
 
 // ─── Helper: Generar texto de preview sin ejecutar la acción ───
 
+function getRequiredActionFields(intent: Intent): string[] {
+  switch (intent) {
+    case "action_create_expense":
+      return ["amount", "category"];
+    case "action_create_income":
+      return ["amount"];
+    case "action_create_project_direct":
+      return ["name"];
+    case "action_create_supplier":
+      return ["name"];
+    case "action_close_project":
+      return ["projectRef"];
+    case "action_add_materials":
+      return ["items"];
+    case "action_complete_task":
+      return ["taskTitle"];
+    case "action_add_stock_movement":
+      return ["type", "materialName", "quantity"];
+    case "action_update_project_status":
+      return ["projectRef", "status"];
+    case "action_update_project_progress":
+      return ["projectRef", "progress"];
+    case "action_edit_project":
+      return ["projectRef"];
+    case "action_edit_task":
+      return ["taskTitle"];
+    case "action_edit_material":
+      return ["materialName"];
+    case "action_delete_task":
+      return ["taskTitle"];
+    case "action_delete_material":
+      return ["materialName"];
+    case "action_delete_transaction":
+      return ["amount"];
+    case "action_trigger_workflow":
+      return ["workflowName"];
+    default:
+      return [];
+  }
+}
+
 function generatePreviewText(intent: Intent, entities: Record<string, any>): string {
   switch (intent) {
     case "action_create_expense":
@@ -321,19 +362,61 @@ export async function POST(req: NextRequest) {
     // 7. Fallback: NLU local si ni Groq ni extended handlers entendieron
     const parsed = parseIntent(message);
 
-    // Verificar si la acción requiere confirmación
-    const requiresConfirm = requiresConfirmation(parsed.intent);
+    // Verificar si la acción requiere confirmación o datos faltantes
+    const entities = resolveReferences(message, parsed.entities, ctx);
+    const requiredFields = getRequiredActionFields(parsed.intent);
+    const missingFields = requiredFields.filter(
+      (field) => entities[field] === undefined || entities[field] === "" || entities[field] === null
+    );
 
-    if (requiresConfirm) {
-      const entities = resolveReferences(message, parsed.entities, ctx);
-      const actionSummary = generateActionSummary(parsed.intent, entities);
-
+    if (missingFields.length > 0) {
       const pending: PendingAction = {
         intent: parsed.intent,
         collectedEntities: entities,
-        requiredFields: Object.keys(entities),
+        requiredFields,
+        missingFields,
+        prompt: generateActionSummary(parsed.intent, entities),
+        originalText: message,
+        timestamp: Date.now(),
+      };
+
+      await savePendingAction(pending);
+      const fieldsList = missingFields
+        .map((field) => {
+          const labels: Record<string, string> = {
+            amount: "el monto ($)",
+            category: "la categoría (materiales, mano de obra, servicios)",
+            name: "el nombre",
+            projectRef: "la referencia de la obra",
+            items: "los materiales o items que querés agregar",
+            taskTitle: "el título de la tarea",
+            type: "si es entrada o salida",
+            materialName: "el nombre del material",
+            quantity: "la cantidad",
+            status: "el nuevo estado",
+            progress: "el porcentaje de avance",
+            workflowName: "el nombre del workflow",
+          };
+          return labels[field] || field;
+        })
+        .join(", ");
+
+      return NextResponse.json({
+        text: `Necesito que me digas **${fieldsList}** para completar la acción.`,
+        intent: parsed.intent,
+        _pendingAction: pending,
+        suggestions: ["Cancelar"],
+      });
+    }
+
+    const requiresConfirm = requiresConfirmation(parsed.intent);
+    if (requiresConfirm) {
+      const pending: PendingAction = {
+        intent: parsed.intent,
+        collectedEntities: entities,
+        requiredFields,
         missingFields: [],
-        prompt: actionSummary,
+        prompt: generateActionSummary(parsed.intent, entities),
         originalText: message,
         timestamp: Date.now(),
       };
@@ -345,7 +428,7 @@ export async function POST(req: NextRequest) {
         text: `⚠️ **¿Confirmás esta acción?**\n\n${previewText}\n\n---\n\nRespondé **"sí"** para confirmar o **"no"** para cancelar.`,
         intent: parsed.intent,
         _requiresConfirmation: {
-          action: actionSummary,
+          action: pending.prompt,
           details: previewText,
           intent: parsed.intent,
           entities,

@@ -189,18 +189,29 @@ export async function getPendingAction(): Promise<PendingAction | null> {
 
 export async function savePendingAction(action: PendingAction): Promise<void> {
   try {
+    const metaData = { pendingAction: { ...action, timestamp: Date.now() } };
     const lastAgentMsg = await db.agentMessage.findFirst({
       where: { role: "agent" },
       orderBy: { createdAt: "desc" },
     });
+
     if (lastAgentMsg) {
       const meta = lastAgentMsg.meta ? JSON.parse(lastAgentMsg.meta) : {};
-      meta.pendingAction = { ...action, timestamp: Date.now() };
       await db.agentMessage.update({
         where: { id: lastAgentMsg.id },
-        data: { meta: JSON.stringify(meta).slice(0, 4000) },
+        data: { meta: JSON.stringify({ ...meta, ...metaData }).slice(0, 4000) },
       });
+      return;
     }
+
+    await db.agentMessage.create({
+      data: {
+        role: "agent",
+        content: action.prompt || "Acción pendiente",
+        intent: action.intent,
+        meta: JSON.stringify(metaData).slice(0, 4000),
+      },
+    });
   } catch {}
 }
 

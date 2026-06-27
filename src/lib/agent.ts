@@ -13,6 +13,8 @@
 // ============================================================
 
 import { db } from "@/lib/db";
+import { normalizeMessage } from "@/lib/agent-nlu";
+import { saveContextMetadata } from "@/lib/agent-memory";
 
 // ---------- Tipos ----------
 
@@ -100,6 +102,11 @@ export interface AgentResponse {
   data?: any;
   actions?: AgentActionItem[];
   suggestions?: string[];
+}
+
+export interface AgentResponseWithEntities {
+  response: AgentResponse;
+  entities: Record<string, any>;
 }
 
 export interface AgentActionItem {
@@ -2602,26 +2609,110 @@ export async function dispatchByIntent(parsed: ParsedCommand, rawText?: string):
 
 // ---------- Dispatcher principal ----------
 
-export async function processAgentMessage(text: string): Promise<AgentResponse> {
-  const parsed = parseIntent(text);
-
-  // Guardar mensaje
+async function tryGroqDispatch(rawText: string): Promise<AgentResponseWithEntities | null> {
   try {
-    await db.agentMessage.create({ data: { role: "user", content: text, intent: parsed.intent } });
+    const { tryGroqCompoundIntent } = await import("./groq-integration");
+    const compoundResult = await tryGroqCompoundIntent(rawText, []);
+    if (!compoundResult.success || !compoundResult.intents || compoundResult.intents.length === 0) {
+      return null;
+    }
+
+    const { processCompoundMessage, processMessageWithIntent, enrichQueryWithGroq } = await import("./agent-dispatcher");
+    if (compoundResult.intents.length > 1) {
+      const response = await processCompoundMessage(
+        compoundResult.intents.map((intent) => ({ intent: intent.intent as Intent, entities: intent.entities || {} })),
+        rawText
+      );
+      const combinedEntities = compoundResult.intents.reduce((acc, intent) => ({ ...acc, ...(intent.entities || {}) }), {});
+      return { response, entities: combinedEntities };
+    }
+
+    const singleIntent = compoundResult.intents[0];
+    if (singleIntent.intent.startsWith("action_")) {
+      const response = await processMessageWithIntent(
+        singleIntent.intent as Intent,
+        singleIntent.entities || {},
+        rawText,
+        singleIntent.confidence || 0.85
+      );
+      return { response, entities: singleIntent.entities || {} };
+    }
+
+    const response = await enrichQueryWithGroq(
+      singleIntent.intent as Intent,
+      singleIntent.entities || {},
+      rawText,
+      singleIntent.confidence || 0.85,
+      []
+    );
+    return { response, entities: singleIntent.entities || {} };
+  } catch {
+    return null;
+  }
+}
+
+export async function processAgentMessage(text: string): Promise<AgentResponse> {
+  const originalText = text.trim();
+  const normalized = normalizeMessage(originalText);
+  const parsed = parseIntent(normalized.normalized || originalText);
+
+  // Guardar mensaje del usuario
+  try {
+    await db.agentMessage.create({ data: { role: "user", content: originalText, intent: parsed.intent } });
   } catch {}
 
-  const response = await dispatchByIntent(parsed, text);
+  let response: AgentResponse | null = null;
+  let groqEntities: Record<string, any> = {};
 
-  // Guardar respuesta
+  if (parsed.intent === "unknown" || parsed.confidence < 0.45) {
+    try {
+      const { processExtendedMessage } = await import("./agent-extended");
+      const extended = await processExtendedMessage(normalized.normalized, originalText);
+      if (extended.wasExtended && extended.response) {
+        response = extended.response;
+      }
+    } catch {}
+  }
+
+  if (!response) {
+    response = await dispatchByIntent(parsed, originalText);
+  }
+
+  const shouldFallbackToGroq =
+    response.intent === "unknown" || parsed.intent === "unknown" || parsed.confidence < 0.45;
+
+  if (shouldFallbackToGroq) {
+    const groqResult = await tryGroqDispatch(originalText);
+    if (groqResult) {
+      response = groqResult.response;
+      groqEntities = groqResult.entities || {};
+      parsed.entities = { ...parsed.entities, ...groqEntities };
+      parsed.intent = response.intent;
+    }
+  }
+
+  if (response.intent === "unknown") {
+    try {
+      const { findClosestIntent, generateSmartUnknownResponse } = await import("./agent-extended");
+      const closest = findClosestIntent(originalText);
+      response = generateSmartUnknownResponse(originalText, closest);
+    } catch {}
+  }
+
+  // Guardar respuesta del agente
   try {
     await db.agentMessage.create({
       data: {
         role: "agent",
         content: response.text,
-        intent: parsed.intent,
+        intent: response.intent,
         meta: response.data ? JSON.stringify(response.data).slice(0, 4000) : null,
       },
     });
+  } catch {}
+
+  try {
+    await saveContextMetadata(response, parsed.entities);
   } catch {}
 
   return response;

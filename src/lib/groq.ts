@@ -169,95 +169,140 @@ export async function parseIntentWithGroq(
     availableIntents?: string[];
   }
 ): Promise<GroqIntentResult | null> {
-  const systemPrompt = `Eres un sistema de comprensión de lenguaje natural para una constructora.
-Analiza el mensaje del usuario y determina:
-1. La intención (intent) más probable
-2. Las entidades relevantes (montos, nombres, referencias)
-3. Un nivel de confianza (0-1)
-4. Una breve explicación
+  const intentsList = context?.availableIntents || [
+    "greeting",
+    "query_profit",
+    "query_expenses",
+    "query_income",
+    "query_cashflow",
+    "query_kpis",
+    "query_top_expense",
+    "query_margin_by_project",
+    "query_compare_period",
+    "query_anomalies",
+    "query_stock",
+    "query_low_stock",
+    "query_stock_value",
+    "query_material_history",
+    "query_dead_stock",
+    "query_project_status",
+    "query_project_detail",
+    "query_project_profitability",
+    "predict_budget",
+    "predict_project_eta",
+    "query_supplier",
+    "query_best_supplier",
+    "query_tasks",
+    "query_overdue_tasks",
+    "alert_check",
+    "recommend",
+    "summarize",
+    "help",
+    "action_create_expense",
+    "action_create_income",
+    "action_create_task",
+    "action_reorder",
+    "action_create_project_direct",
+    "action_add_materials",
+    "action_add_stock_movement",
+    "action_update_project_progress",
+    "action_update_project_status",
+    "action_complete_task",
+    "action_close_project",
+    "action_create_supplier",
+    "action_edit_project",
+    "action_edit_task",
+    "action_edit_material",
+    "action_delete_task",
+    "action_delete_material",
+    "action_delete_transaction",
+    "action_trigger_workflow",
+    "action_list_workflows",
+    "action_export_data",
+  ];
 
-IMPORTANTE: El mensaje del usuario puede contener MULTIPLES intenciones separadas (ej: "crea una obra y agrega materiales"). Si detectas más de una intención, devuelve hasta 2 intents en el array "intents".
-
-INTENCIONES DISPONIBLES:
-
-== CONSULTAS ==
-- greeting: Saludo inicial
-- query_profit: Consultar ganancias/rentabilidad
-- query_expenses: Consultar gastos
-- query_income: Consultar ingresos
-- query_cashflow: Consultar flujo de caja
-- query_kpis: Ver indicadores/KPIs
-- query_top_expense: Ver principales gastos
-- query_margin_by_project: Margen por obra
-- query_compare_period: Comparar períodos
-- query_anomalies: Detectar anomalías en gastos
-- query_stock: Consultar inventario/stock
-- query_low_stock: Consultar stock bajo
-- query_stock_value: Valor del inventario
-- query_material_history: Historial de un material
-- query_dead_stock: Stock muerto/ sin rotación
-- query_project_status: Estado de las obras
-- query_project_detail: Detalle de una obra específica
-- query_project_profitability: Rentabilidad por obra
-- predict_budget: Proyección de presupuesto
-- predict_project_eta: ETA de finalización de obra
-- query_supplier: Consultar proveedores
-- query_best_supplier: Mejor proveedor
-- query_tasks: Consultar tareas pendientes
-- query_overdue_tasks: Tareas atrasadas/vencidas
-- alert_check: Verificar alertas/novedades
-- recommend: Recomendaciones/sugerencias
-- summarize: Resumen general del negocio
-- help: Ayuda / qué puedo hacer
-
-== ACCIONES ==
-- action_create_expense: Registrar un gasto
-  Entidades: amount (número), category (texto: materiales|mano_obra|servicios|equipos|alquiler|transporte|otros), projectRef (código o nombre de obra, opcional)
-- action_create_income: Registrar un ingreso
-  Entidades: amount (número), projectRef (opcional)
-- action_create_task: Crear una tarea
-  Entidades: title (texto), projectRef (opcional), priority (baja|media|alta, opcional)
-- action_reorder: Generar pedido de reposición
-- action_create_project_direct: Crear una obra nueva
-  Entidades: name (texto, nombre de la obra), budget (número, opcional), clientName (texto, opcional)
-- action_add_materials: Agregar materiales al inventario (crear o actualizar stock)
-  Entidades: items (array de objetos con qty, unit, name), projectRef (código o nombre de obra, opcional)
-- action_add_stock_movement: Registrar entrada/salida de stock
-  Entidades: type (incoming|outgoing), materialName (texto), quantity (número), unit (texto, opcional)
-- action_update_project_progress: Actualizar avance de obra
-  Entidades: projectRef (código o nombre), progress (número, 0-100)
-- action_update_project_status: Cambiar estado de obra
-  Entidades: projectRef (código o nombre), status (in_progress|paused|finished|planning)
-- action_complete_task: Marcar tarea como completada
-  Entidades: taskTitle (texto)
-- action_close_project: Cerrar/finalizar una obra
-  Entidades: projectRef (código o nombre)
-- action_create_supplier: Dar de alta un proveedor
-  Entidades: name (texto), phone (texto, opcional), email (texto, opcional), category (texto, opcional)
-- action_edit_project: Editar datos de una obra
-  Entidades: projectRef, name (texto, opcional), budget (número, opcional), clientName (texto, opcional)
-- action_edit_task: Editar una tarea
-  Entidades: taskTitle, title (opcional), priority (opcional), status (opcional)
-- action_edit_material: Editar un material
-  Entidades: materialName (texto), unitCost (número, opcional), stock (número, opcional), minStock (número, opcional)
-- action_delete_task: Eliminar una tarea
-  Entidades: taskTitle (texto)
-- action_delete_material: Eliminar un material
-  Entidades: materialName (texto)
-- action_delete_transaction: Eliminar un gasto/ingreso
-  Entidades: amount (número, opcional)
-- action_trigger_workflow: Ejecutar un workflow
-  Entidades: workflowName (texto)
-- action_list_workflows: Listar workflows disponibles
-- action_export_data: Exportar datos del sistema
-  Entidades: type (gastos|materiales|obras|tareas|proveedores, opcional)
-
-EJEMPLOS DE MENSAJES COMPUESTOS:
-- "crea una obra llamada amarras center y agregale 2 bolsas de clavos, 4 bolsas de cemento" → intents: [{intent:"action_create_project_direct",entities:{name:"amarras center"}},{intent:"action_add_materials",entities:{items:[{qty:2,unit:"bolsas",name:"clavos 22mm"},{qty:4,unit:"bolsas",name:"cemento 20kg"}]}}]
-- "crea la obra Casa Garcia con presupuesto 2000000 para Juan Garcia" → intent único
-
-Responde SOLO con JSON. Para intent único:
+  const systemPrompt = `Sos un sistema de comprensión de lenguaje natural para una constructora.
+Analizá el mensaje del usuario y devolvé SOLO un JSON válido con esta estructura:
 {
+  "intent": "nombre_del_intent",
+  "confidence": 0.0,
+  "entities": { ... },
+  "explanation": "breve explicación",
+  "isCompound": false,
+  "compoundIntents": []
+}
+
+- Si detectás más de una intención, usá "isCompound": true y completá "compoundIntents".
+- Si solo hay una intención, "compoundIntents" debe ser un array vacío.
+- Usá solo los intents en la lista de intents disponibles.
+- Si no entendés bien, devolvé intent "unknown" con confidence 0.0.
+- No devolvá ningún otro texto fuera del JSON.
+
+Intenciones disponibles: ${intentsList.join(", ")}.
+
+IMPORTANTE: No agregues explicaciones fuera del JSON. Respondé estrictamente con JSON.
+
+Ejemplo de salida única:
+{
+  "intent": "action_create_project_direct",
+  "confidence": 0.92,
+  "entities": { "name": "Casa García", "budget": 2000000, "clientName": "Juan García" },
+  "explanation": "El usuario quiere crear una obra nueva con nombre, presupuesto y cliente.",
+  "isCompound": false,
+  "compoundIntents": []
+}
+
+Ejemplo de salida compuesta:
+{
+  "intent": "compound",
+  "confidence": 0.80,
+  "entities": {},
+  "explanation": "El mensaje contiene dos intenciones separadas.",
+  "isCompound": true,
+  "compoundIntents": [
+    { "intent": "action_create_project_direct", "entities": { "name": "Amarras Center" } },
+    { "intent": "action_add_materials", "entities": { "items": [{ "qty": 2, "unit": "bolsas", "name": "clavos" }, { "qty": 4, "unit": "bolsas", "name": "cemento" }] } }
+  ]
+}
+`;
+
+  try {
+    let contextMessages: GroqMessage[] = [];
+
+    if (context?.recentMessages && context.recentMessages.length > 0) {
+      contextMessages = context.recentMessages.slice(-4).map((msg) => ({
+        role: "user",
+        content: msg,
+      }));
+    }
+
+    const result = await chatWithGroq(userMessage, {
+      systemPrompt,
+      model: "llama-3.1-8b-instant",
+      temperature: 0.0,
+      maxTokens: 512,
+      messages: contextMessages.length > 0 ? contextMessages : undefined,
+    });
+
+    if (!result.success) return null;
+
+    const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return null;
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      intent: parsed.intent || "unknown",
+      confidence: parsed.confidence || 0,
+      entities: parsed.entities || {},
+      explanation: parsed.explanation || "",
+      isCompound: parsed.isCompound || false,
+      compoundIntents: parsed.compoundIntents || [],
+    } as GroqIntentResult;
+  } catch {
+    return null;
+  }
+}
+
   "intent": "nombre_del_intent",
   "confidence": 0.95,
   "entities": { "key": "value" },
