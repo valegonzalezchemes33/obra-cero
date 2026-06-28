@@ -1969,10 +1969,26 @@ async function respondActionUpdateStock(): Promise<AgentResponse> {
 // ─── Nuevos handlers de acción ───
 
 async function respondActionAddMaterials(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
-  // Extraer la sección de materiales del texto (después de ":" o "materiales:" o "items:")
-  const colonPart = rawText.match(/(?:materiales?|items?|productos?)\s*:\s*(.+)$/i);
-  const listText = colonPart ? colonPart[1] : rawText;
-  const items = parseItemList(listText);
+  // PRIORIDAD 1: Usar items que vienen de Groq (ya parseados correctamente)
+  // Esto cubre tanto mensajes compuestos como follow-ups con contexto resuelto
+  const groqItems = (parsed.entities as any).items;
+  let items: ParsedItem[];
+
+  if (groqItems && Array.isArray(groqItems) && groqItems.length > 0) {
+    // Groq ya extrajo los items — convertir al formato ParsedItem
+    items = groqItems.map((item: any) => ({
+      qty: Number(item.qty) || 1,
+      unit: item.unit || 'unidad',
+      name: item.name || 'material',
+      price: Number(item.price) || 0,
+      rawText: `${item.qty} ${item.unit} de ${item.name}`,
+    }));
+  } else {
+    // PRIORIDAD 2: Parsear desde texto crudo (fallback para NLU local)
+    const colonPart = rawText.match(/(?:materiales?|items?|productos?)\s*:\s*(.+)$/i);
+    const listText = colonPart ? colonPart[1] : rawText;
+    items = parseItemList(listText);
+  }
 
   if (items.length === 0) {
     return {
@@ -1982,12 +1998,14 @@ async function respondActionAddMaterials(parsed: ParsedCommand, rawText: string)
     };
   }
 
-  // Resolver obra si se menciona
-  let projectRef: string | undefined;
-  const projMatch = rawText.match(/en\s+la\s+obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega|\s+carg)/i)
-    || rawText.match(/para\s+(?:la\s+)?obra\s+([\w\s]+?)(?:,|\s+crea)/i)
-    || rawText.match(/obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega)/i);
-  if (projMatch) projectRef = projMatch[1].trim();
+  // Resolver obra: primero desde entities de Groq, luego desde texto
+  let projectRef: string | undefined = (parsed.entities as any).projectRef || (parsed.entities as any).projectName;
+  if (!projectRef) {
+    const projMatch = rawText.match(/en\s+la\s+obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega|\s+carg)/i)
+      || rawText.match(/para\s+(?:la\s+)?obra\s+([\w\s]+?)(?:,|\s+crea)/i)
+      || rawText.match(/obra\s+([\w\s]+?)(?:,|\s+crea|\s+agrega)/i);
+    if (projMatch) projectRef = projMatch[1].trim();
+  }
   const project = projectRef ? await resolveProject(projectRef) : null;
 
   const created: string[] = [];
@@ -2005,12 +2023,11 @@ async function respondActionAddMaterials(parsed: ParsedCommand, rawText: string)
         where: { id: existing.id },
         data: { stock: { increment: item.qty } },
       });
-      // Registrar movimiento de stock
       await db.stockMovement.create({
         data: {
           type: 'incoming',
           quantity: item.qty,
-          unitCost: existing.unitCost,
+          unitCost: (item as any).price || existing.unitCost,
           reason: 'compra',
           note: `Cargado por asistente${project ? ` para obra ${project.code}` : ''}`,
           materialId: existing.id,
@@ -2027,21 +2044,21 @@ async function respondActionAddMaterials(parsed: ParsedCommand, rawText: string)
           category: 'materiales',
           unit: item.unit,
           stock: item.qty,
+          unitCost: (item as any).price || 0,
           minStock: 0,
         },
       });
-      // Registrar movimiento inicial
       await db.stockMovement.create({
         data: {
           type: 'incoming',
           quantity: item.qty,
-          unitCost: 0,
+          unitCost: (item as any).price || 0,
           reason: 'compra',
           note: `Stock inicial cargado por asistente${project ? ` para obra ${project.code}` : ''}`,
           materialId: mat.id,
         },
       });
-      created.push(`• ${item.qty} ${item.unit} de ${mat.name} (nuevo)`);
+      created.push(`• ${item.qty} ${item.unit} de ${mat.name}${(item as any).price ? ` a $${(item as any).price} c/u` : ''} (nuevo)`);
     }
   }
 
@@ -2049,8 +2066,9 @@ async function respondActionAddMaterials(parsed: ParsedCommand, rawText: string)
   const lines = [...created, ...updated].join('\n');
 
   return {
-    text: `Listo, procesé ${total} ${total === 1 ? 'material' : 'materiales'}${project ? ` para la obra **${project.code} ${project.name}**` : ''}:\n\n${lines}\n\n${created.length > 0 ? `${created.length} creados nuevos. ` : ''}${updated.length > 0 ? `${updated.length} con stock actualizado.` : ''}`,
+    text: `Listo, agregué ${total} ${total === 1 ? 'material' : 'materiales'}${project ? ` a la obra **${project.code} ${project.name}**` : ' al inventario'}:\n\n${lines}\n\n${created.length > 0 ? `${created.length} creados nuevos. ` : ''}${updated.length > 0 ? `${updated.length} con stock actualizado.` : ''}`,
     intent: "action_add_materials",
+    data: { materials: items, project: project || undefined },
     suggestions: ["Ver inventario", "¿Qué stock tengo?"],
   };
 }

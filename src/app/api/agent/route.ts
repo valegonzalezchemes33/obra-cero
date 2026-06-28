@@ -280,6 +280,31 @@ export async function POST(req: NextRequest) {
     const recentCtx = await getConversationContext();
     const recentMessages = recentCtx.recentMessages?.map(m => m.content) || [];
 
+    // 4.5 Interceptor de follow-ups con pronombres/referencias
+    // Si el usuario dice "agrega eso", "solo eso", "agrégalos", "ponlos", etc.
+    // y hay materiales en el contexto previo → ejecutar directamente con esos items
+    const isFollowUpReference = /^(?:solo\s+)?(?:agrega(?:los?|les?)?|ponlos?|carga(?:los?)?|agreg[áa](?:los?)?|s[íi],?\s+(?:agrega(?:los?)?)?|ese[s]?|eso[s]?\s+(?:por\s+ahora)?|nada\s+m[áa]s|est[áa]\s+todo|agregalos?|ok\s+agrega|listo\s+agrega|s[íi]\s+(?:eso[s]?|los?|ese[s]?)?\s+por\s+ahora|solo\s+eso|eso\s+por\s+ahora|agrega\s+eso[s]?)\s*(?:por\s+ahora|nada\s+m[áa]s|as[íi])?\s*[.!]?$/i.test(rawMessage.trim());
+
+    if (isFollowUpReference && recentCtx.lastEntities?.items && Array.isArray(recentCtx.lastEntities.items) && recentCtx.lastEntities.items.length > 0) {
+      const { processMessageWithIntent } = await import("@/lib/agent-dispatcher");
+      const followUpEntities = {
+        items: recentCtx.lastEntities.items,
+        projectRef: recentCtx.lastProjectRef || recentCtx.lastEntities?.projectRef,
+        projectName: recentCtx.lastProjectName || recentCtx.lastEntities?.projectName,
+      };
+      const followUpResponse = await processMessageWithIntent(
+        "action_add_materials" as Intent,
+        followUpEntities,
+        rawMessage,
+        0.95
+      );
+      await saveContextMetadata(followUpResponse, followUpEntities);
+      return NextResponse.json({
+        ...followUpResponse,
+        _followUpResolved: true,
+      });
+    }
+
     // 5. Groq como NLU PRINCIPAL — intentar entender el mensaje con IA primero
     // Se pasa el contexto de memoria para que Groq pueda resolver referencias
     // como "esa obra" o "esos materiales" usando el historial de conversación.
