@@ -92,14 +92,21 @@ export async function tryGroqIntentRecognition(
   }
 }
 
-
 // ─── Intentar entender mensajes COMPUESTOS con Groq ───
 // Para mensajes que contienen múltiples acciones (ej: "crear obra + agregar materiales")
 // Devuelve un array de intents con sus entidades para ejecutar secuencialmente
+// conversationContext: contexto de memoria (lastProjectRef, lastProjectName, lastEntities)
+// para que Groq pueda resolver referencias como "esa obra" o "esos materiales"
 
 export async function tryGroqCompoundIntent(
   message: string,
-  recentMessages?: string[]
+  recentMessages?: string[],
+  conversationContext?: {
+    lastProjectRef?: string;
+    lastProjectName?: string;
+    lastMaterialName?: string;
+    lastEntities?: Record<string, any>;
+  }
 ): Promise<{
   success: boolean;
   intents?: Array<{ intent: string; entities: Record<string, any>; confidence: number }>;
@@ -108,9 +115,22 @@ export async function tryGroqCompoundIntent(
     const available = await isGroqAvailable();
     if (!available) return { success: false };
 
-    // Primero intentar con el nuevo prompt compuesto
+    // Enriquecer los mensajes recientes con el contexto de memoria
+    // para que Groq entienda referencias como "la nueva obra" o "esos materiales"
+    const enrichedRecent = [...(recentMessages || [])];
+    if (conversationContext) {
+      const ctxLines: string[] = [];
+      if (conversationContext.lastProjectRef)
+        ctxLines.push(`[CONTEXTO] Proyecto activo: ${conversationContext.lastProjectRef}${conversationContext.lastProjectName ? ` (${conversationContext.lastProjectName})` : ""}`);
+      if (conversationContext.lastMaterialName)
+        ctxLines.push(`[CONTEXTO] Último material referenciado: ${conversationContext.lastMaterialName}`);
+      if (conversationContext.lastEntities && Object.keys(conversationContext.lastEntities).length > 0)
+        ctxLines.push(`[CONTEXTO] Entidades de la acción anterior: ${JSON.stringify(conversationContext.lastEntities)}`);
+      if (ctxLines.length > 0) enrichedRecent.unshift(...ctxLines);
+    }
+
     const result = await parseIntentWithGroq(message, {
-      recentMessages,
+      recentMessages: enrichedRecent,
       availableIntents: undefined,
     });
 
@@ -130,13 +150,7 @@ export async function tryGroqCompoundIntent(
     if (result.intent !== "unknown" && result.confidence >= 0.4) {
       return {
         success: true,
-        intents: [
-          {
-            intent: result.intent,
-            entities: result.entities,
-            confidence: result.confidence,
-          },
-        ],
+        intents: [{ intent: result.intent, entities: result.entities, confidence: result.confidence }],
       };
     }
 
@@ -145,6 +159,8 @@ export async function tryGroqCompoundIntent(
     return { success: false };
   }
 }
+
+
 
 // ─── Generar respuesta mejorada con Groq ───
 // Envía datos del sistema + contexto conversacional para

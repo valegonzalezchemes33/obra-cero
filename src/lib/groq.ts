@@ -59,6 +59,8 @@ export interface GroqIntentResult {
   confidence: number;
   entities: Record<string, any>;
   explanation: string;
+  isCompound?: boolean;
+  compoundIntents?: Array<{ intent: string; entities: Record<string, any> }>;
 }
 
 // ─── Chat con Groq (u otro provider activo) ───
@@ -183,57 +185,73 @@ export async function parseIntentWithGroq(
     "action_export_data",
   ];
 
-  const systemPrompt = `Sos un sistema de comprensión de lenguaje natural para una constructora.
-Analizá el mensaje del usuario y devolvé SOLO un JSON válido con esta estructura:
-{
-  "intent": "nombre_del_intent",
-  "confidence": 0.0,
-  "entities": { ... },
-  "explanation": "breve explicación",
-  "isCompound": false,
-  "compoundIntents": []
-}
+  // Bloque de contexto conversacional para resolver referencias
+  const recentBlock =
+    context?.recentMessages && context.recentMessages.length > 0
+      ? `\nULTIMOS MENSAJES DE LA CONVERSACION (para resolver referencias como "esos", "la nueva obra", "esos materiales"):\n${context.recentMessages.slice(-6).join("\n")}\n`
+      : "";
 
-- Si detectás más de una intención, usá "isCompound": true y completá "compoundIntents".
-- Si solo hay una intención, "compoundIntents" debe ser un array vacío.
-- Usá solo los intents en la lista de intents disponibles.
-- Si no entendés bien, devolvé intent "unknown" con confidence 0.0.
-- No devolvá ningún otro texto fuera del JSON.
+  const systemPrompt = `Sos un sistema experto de comprension de lenguaje natural para una constructora argentina llamada ObraCero. Tu unica tarea es analizar el mensaje del usuario y devolver SOLO un JSON valido, sin ningun otro texto.
+${recentBlock}
+INTENCIONES DISPONIBLES: ${intentsList.join(", ")}.
 
-Intenciones disponibles: ${intentsList.join(", ")}.
+FORMATO DE RESPUESTA OBLIGATORIO:
+{"intent":"nombre","confidence":0.9,"entities":{},"explanation":"breve","isCompound":false,"compoundIntents":[]}
 
-IMPORTANTE: No agregues explicaciones fuera del JSON. Respondé estrictamente con JSON.
+REGLAS CRITICAS:
+1. Si el mensaje contiene MULTIPLES ACCIONES, usar "isCompound":true y completar "compoundIntents" con TODOS los intents detectados.
+2. Si el mensaje hace referencia a "esos materiales", "la nueva obra", "esa obra", "los mismos", etc., resolver la referencia usando los ULTIMOS MENSAJES de arriba.
+3. NUNCA agregar texto fuera del JSON. Solo JSON puro.
+4. Si no entendes, devolver intent "unknown" con confidence 0.0.
 
-Ejemplo de salida única:
-{
-  "intent": "action_create_project_direct",
-  "confidence": 0.92,
-  "entities": { "name": "Casa García", "budget": 2000000, "clientName": "Juan García" },
-  "explanation": "El usuario quiere crear una obra nueva con nombre, presupuesto y cliente.",
-  "isCompound": false,
-  "compoundIntents": []
-}
+PARSEO DE MATERIALES - MUY IMPORTANTE:
+Para "action_add_materials", el campo "items" es SIEMPRE un array de objetos:
+  {"qty": numero, "unit": "unidad", "name": "nombre del material", "price": numero_opcional}
+Ejemplos de parseo de materiales:
+  "10 bolsas de cremel de 25kg a $2450 la unidad" -> {"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}
+  "5 m3 de arena fina" -> {"qty":5,"unit":"m3","name":"arena fina"}
+  "20 ladrillos comunes a $150 cada uno" -> {"qty":20,"unit":"unidades","name":"ladrillos comunes","price":150}
+  "3 rollos de alambre y 2 bolsas de cal" -> [{"qty":3,"unit":"rollos","name":"alambre"},{"qty":2,"unit":"bolsas","name":"cal"}]
 
-Ejemplo de salida compuesta:
-{
-  "intent": "compound",
-  "confidence": 0.80,
-  "entities": {},
-  "explanation": "El mensaje contiene dos intenciones separadas.",
-  "isCompound": true,
-  "compoundIntents": [
-    { "intent": "action_create_project_direct", "entities": { "name": "Amarras Center" } },
-    { "intent": "action_add_materials", "entities": { "items": [{ "qty": 2, "unit": "bolsas", "name": "clavos" }, { "qty": 4, "unit": "bolsas", "name": "cemento" }] } }
-  ]
-}
-`;
+EJEMPLOS COMPLETOS:
+
+Ej1 - Un material con precio:
+Usuario: "agrega 10 bolsas de cremel de 25kg a $2450 cada una"
+Respuesta: {"intent":"action_add_materials","confidence":0.97,"entities":{"items":[{"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}]},"explanation":"Agregar materiales con precio","isCompound":false,"compoundIntents":[]}
+
+Ej2 - Crear obra + agregar materiales (COMPUESTO):
+Usuario: "crea una nueva obra vistassur. Materiales en inventario de la obra son: 10 bolsas de cremel de 25kg a $2450 la unidad"
+Respuesta: {"intent":"compound","confidence":0.95,"entities":{},"explanation":"Crear obra y agregar materiales","isCompound":true,"compoundIntents":[{"intent":"action_create_project_direct","entities":{"name":"vistassur"}},{"intent":"action_add_materials","entities":{"items":[{"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}]}}]}
+
+Ej3 - Seguimiento con referencia al contexto previo:
+(Contexto: se creo obra "vistassur" OB-009, se mencionaron materiales: 10 bolsas de cremel)
+Usuario: "quiero que agregues esos materiales a la nueva obra"
+Respuesta: {"intent":"action_add_materials","confidence":0.88,"entities":{"projectRef":"OB-009","items":[{"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}]},"explanation":"Referencia a materiales y obra previos resueltos del contexto","isCompound":false,"compoundIntents":[]}
+
+Ej4 - Consulta simple:
+Usuario: "cuanto gaste este mes"
+Respuesta: {"intent":"query_expenses","confidence":0.95,"entities":{"period":"current_month"},"explanation":"Consulta de gastos del mes actual","isCompound":false,"compoundIntents":[]}
+
+Ej5 - Registrar gasto con proyecto:
+Usuario: "registra un gasto de $50000 en materiales para la obra OB-003"
+Respuesta: {"intent":"action_create_expense","confidence":0.96,"entities":{"amount":50000,"category":"materiales","projectRef":"OB-003"},"explanation":"Registrar gasto de materiales en obra especifica","isCompound":false,"compoundIntents":[]}`;
 
   try {
+    // Pasar los mensajes recientes como contexto conversacional adicional
+    let contextMessages: GroqMessage[] = [];
+    if (context?.recentMessages && context.recentMessages.length > 0) {
+      contextMessages = context.recentMessages.slice(-4).map((msg) => ({
+        role: "user" as const,
+        content: msg,
+      }));
+    }
+
     const result = await chatWithGroq(userMessage, {
       systemPrompt,
-      model: FAST_MODEL, // llama-3.1-8b-instant, temperature 0
-      temperature: 0,
-      maxTokens: 512,
+      model: DEFAULT_MODEL, // Modelo más potente para mejor comprensión
+      temperature: 0.0,
+      maxTokens: 800,
+      messages: contextMessages.length > 0 ? contextMessages : undefined,
     });
 
     if (!result.success) return null;
@@ -265,14 +283,18 @@ export async function generateAgentResponseWithGroq(
     recentConversation?: string[];
   }
 ): Promise<string | null> {
-  const systemPrompt = `Eres el asistente virtual de una constructora/inmobiliaria llamada "ObraCero".
+  const recentCtx = systemData.recentConversation && systemData.recentConversation.length > 0
+    ? `\nHistorial reciente de la conversacion:\n${systemData.recentConversation.slice(-6).join("\n")}\n`
+    : "";
+
+  const systemPrompt = `Sos el asistente virtual de una constructora/inmobiliaria argentina llamada "ObraCero".
 Tus respuestas deben ser:
 - En español argentino, natural y conversacional
 - Claras y directas, sin rodeos
 - Profesionales pero cálidas
 - Basadas en los datos del sistema que se te proporcionan
-- Incluir montos en pesos argentinos formateados
-
+- Incluir montos en pesos argentinos formateados (ej: $1.250.000)
+${recentCtx}
 Contexto actual:
 - Intención detectada: ${systemData.intent}
 - Datos del sistema: ${JSON.stringify(systemData.dbData || {})}
@@ -281,14 +303,28 @@ IMPORTANTE:
 - No inventes datos que no estén en el contexto
 - Si no hay datos suficientes, decíselo al usuario y sugerí cómo empezar
 - Mantené las respuestas concisas (máximo 3 párrafos)
-- Usa emojis moderadamente para hacer la respuesta más amigable`;
+- Usa emojis moderadamente para hacer la respuesta más amigable
+- Si el usuario hace referencia a algo anterior ("eso", "esa obra"), usá el historial reciente`;
 
   try {
+    let messages: GroqMessage[] = [];
+    if (systemData.recentConversation && systemData.recentConversation.length > 0) {
+      const recentMessages = systemData.recentConversation.slice(-6);
+      for (const msg of recentMessages) {
+        if (msg.startsWith("user:")) {
+          messages.push({ role: "user", content: msg.slice(5).trim() });
+        } else if (msg.startsWith("agent:")) {
+          messages.push({ role: "assistant", content: msg.slice(6).trim() });
+        }
+      }
+    }
+
     const result = await chatWithGroq(userMessage, {
       systemPrompt,
-      model: DEFAULT_MODEL, // llama-3.3-70b-versatile
+      model: DEFAULT_MODEL,
       temperature: 0.7,
       maxTokens: 1024,
+      messages: messages.length > 0 ? messages : undefined,
     });
 
     return result.success ? result.content : null;

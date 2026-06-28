@@ -281,10 +281,16 @@ export async function POST(req: NextRequest) {
     const recentMessages = recentCtx.recentMessages?.map(m => m.content) || [];
 
     // 5. Groq como NLU PRINCIPAL — intentar entender el mensaje con IA primero
-    // Groq puede detectar intents únicos o compuestos múltiples ("crear obra + agregar materiales")
-    // Si Groq tiene éxito, retorna inmediatamente. Si falla, continua con los siguientes pasos.
+    // Se pasa el contexto de memoria para que Groq pueda resolver referencias
+    // como "esa obra" o "esos materiales" usando el historial de conversación.
     try {
-      const compoundResult = await tryGroqCompoundIntent(rawMessage, recentMessages);
+      const conversationContext = {
+        lastProjectRef: recentCtx.lastProjectRef,
+        lastProjectName: recentCtx.lastProjectName,
+        lastMaterialName: recentCtx.lastMaterialRef,
+        lastEntities: recentCtx.lastEntities,
+      };
+      const compoundResult = await tryGroqCompoundIntent(rawMessage, recentMessages, conversationContext);
 
       if (compoundResult.success && compoundResult.intents && compoundResult.intents.length > 0) {
         const { processCompoundMessage, enrichActionResponseWithGroq } = await import("@/lib/agent-dispatcher");

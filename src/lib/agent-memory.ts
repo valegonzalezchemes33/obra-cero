@@ -220,7 +220,6 @@ export async function clearPendingAction(): Promise<void> {
 
 export async function saveContextMetadata(response: AgentResponse, entities: Record<string, any>): Promise<void> {
   try {
-    if (!response.data) return;
     const meta: Record<string, any> = {};
 
     // Extraer referencias de proyecto de la respuesta
@@ -240,6 +239,25 @@ export async function saveContextMetadata(response: AgentResponse, entities: Rec
     }
     if (entities.projectRef) meta.lastProjectRef = entities.projectRef as string;
     if (entities.projectName) meta.lastProjectName = entities.projectName as string;
+
+    // Guardar entidades relevantes para resolución de referencias en el siguiente turno
+    // (ej: "esos materiales", "la misma cantidad", etc.)
+    const relevantEntities: Record<string, any> = {};
+    if (entities.items && Array.isArray(entities.items)) relevantEntities.items = entities.items;
+    if (entities.amount) relevantEntities.amount = entities.amount;
+    if (entities.name) relevantEntities.name = entities.name;
+    if (entities.projectRef) relevantEntities.projectRef = entities.projectRef;
+    if (Object.keys(relevantEntities).length > 0) meta.lastEntities = relevantEntities;
+
+    // Para respuestas compuestas, extraer datos de sub-respuestas
+    if (response.data?.compound && Array.isArray(response.data?.individualResponses)) {
+      for (const sub of response.data.individualResponses) {
+        if (sub.data?.project?.code) {
+          meta.lastProjectRef = sub.data.project.code.replace("OB-", "");
+          meta.lastProjectName = sub.data.project.name;
+        }
+      }
+    }
 
     if (Object.keys(meta).length > 0) {
       const lastAgentMsg = await db.agentMessage.findFirst({

@@ -155,15 +155,13 @@ export async function enrichQueryWithGroq(
 // Ejecuta varios handlers en secuencia y combina las respuestas
 // Útil para: "crear obra X + agregar materiales" en un solo mensaje
 
+
 export async function processCompoundMessage(
   intents: Array<{ intent: Intent; entities: Record<string, any> }>,
   rawText: string,
 ): Promise<AgentResponse> {
   if (intents.length === 0) {
-    return {
-      text: "No entendí qué acciones realizar.",
-      intent: "unknown" as Intent,
-    };
+    return { text: "No entendí qué acciones realizar.", intent: "unknown" as Intent };
   }
 
   if (intents.length === 1) {
@@ -172,46 +170,61 @@ export async function processCompoundMessage(
 
   const responses: AgentResponse[] = [];
   let lastResponse: AgentResponse | null = null;
+  // Acumular entidades de todos los intents anteriores para referencias cruzadas
+  let accumulatedEntities: Record<string, any> = {};
 
   for (let i = 0; i < intents.length; i++) {
     const { intent, entities } = intents[i];
-    
+    const mergedEntities = { ...entities };
+
     // Si el intent anterior creó un proyecto, pasar su código al siguiente intent
     if (lastResponse?.data?.project?.code) {
-      if (intent === "action_add_materials" ||
-          intent === "action_add_expense_to_project" ||
-          intent === "action_update_project_progress" ||
-          intent === "action_update_project_status") {
-        entities.projectRef = lastResponse.data.project.code;
+      if (
+        intent === "action_add_materials" ||
+        intent === "action_add_stock_movement" ||
+        intent === "action_create_expense" ||
+        intent === "action_create_income" ||
+        intent === "action_create_task" ||
+        intent === "action_update_project_progress" ||
+        intent === "action_update_project_status"
+      ) {
+        mergedEntities.projectRef = lastResponse.data.project.code;
+        mergedEntities.projectName = lastResponse.data.project.name;
       }
     }
 
-    const response = await processMessageWithIntent(intent, entities, rawText, 0.9);
+    // Si el intent actual es agregar materiales y no tiene items propios,
+    // buscar items en los intents anteriores (para mensajes como "crear obra X. Materiales: ...")
+    if (intent === "action_add_materials" && (!mergedEntities.items || mergedEntities.items.length === 0)) {
+      const prevMaterials = intents.slice(0, i).find(
+        (pi) => pi.entities?.items && pi.entities.items.length > 0
+      );
+      if (prevMaterials?.entities?.items) {
+        mergedEntities.items = prevMaterials.entities.items;
+      }
+    }
+
+    // Acumular entidades para referencias futuras
+    accumulatedEntities = { ...accumulatedEntities, ...mergedEntities };
+
+    const response = await processMessageWithIntent(intent, mergedEntities, rawText, 0.9);
     responses.push(response);
     lastResponse = response;
   }
 
   // Combinar todas las respuestas en una sola
   const combinedText = responses
-    .map((r, i) => {
-      if (i === 0) return r.text;
-      return `---\n${r.text}`;
-    })
+    .map((r, i) => (i === 0 ? r.text : `---\n${r.text}`))
     .join("\n\n");
 
-  const allSuggestions = [
-    ...new Set(responses.flatMap((r) => r.suggestions || [])),
-  ].slice(0, 4);
+  const allSuggestions = [...new Set(responses.flatMap((r) => r.suggestions || []))].slice(0, 4);
 
   return {
     text: combinedText,
     intent: intents[0].intent,
     data: {
       compound: true,
-      individualResponses: responses.map((r) => ({
-        intent: r.intent,
-        data: r.data,
-      })),
+      individualResponses: responses.map((r) => ({ intent: r.intent, data: r.data })),
     },
     suggestions: allSuggestions.length > 0 ? allSuggestions : ["¿Cómo vamos?", "Ver obras"],
   };
