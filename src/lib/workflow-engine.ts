@@ -565,10 +565,7 @@ export async function executeWorkflow(
     logs: [],
   };
 
-  const steps = await db.workflowStep.findMany({
-    where: { workflowId },
-    orderBy: { order: "asc" },
-  });
+  const steps = workflow.steps;
 
   let success = true;
 

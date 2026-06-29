@@ -32,6 +32,7 @@ export function ProjectsView() {
       if (!r.ok) throw new Error("Error al cargar obras");
       return r.json();
     },
+    staleTime: 5 * 60_000,
   });
 
   const [open, setOpen] = useState(false);

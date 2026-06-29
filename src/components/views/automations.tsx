@@ -105,7 +105,8 @@ export function AutomationsView() {
       if (!r.ok) throw new Error("Error al cargar workflows");
       return r.json();
     },
-    refetchInterval: 30000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 
   const { data: executions } = useQuery({
@@ -115,7 +116,8 @@ export function AutomationsView() {
       if (!r.ok) throw new Error("Error al cargar ejecuciones");
       return r.json();
     },
-    refetchInterval: 15000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 
   const { data: schedules } = useQuery({
@@ -125,7 +127,8 @@ export function AutomationsView() {
       if (!r.ok) return [];
       return r.json();
     },
-    refetchInterval: 30000,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
   });
 
   // Mutations

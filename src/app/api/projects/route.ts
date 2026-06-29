@@ -6,7 +6,6 @@ import { parseBody, ProjectCreateSchema } from "@/lib/validation";
 export async function GET() {
   try {
     const projects = await db.project.findMany({
-      include: { transactions: true, tasks: true },
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(projects);
@@ -22,15 +21,10 @@ export async function POST(req: NextRequest) {
     const parsed = await parseBody(req, ProjectCreateSchema);
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
-    const allProjects = await db.project.findMany({ select: { code: true } });
-    let maxNum = 0;
-    for (const p of allProjects) {
-      const m = p.code?.match(/OB-(\d+)/i);
-      if (m) {
-        const n = parseInt(m[1], 10);
-        if (n > maxNum) maxNum = n;
-      }
-    }
+    const maxResult = await db.$queryRaw<[{ maxNum: number | null }]>`
+      SELECT MAX(CAST(SUBSTRING(code, 4) AS INTEGER)) as "maxNum" FROM "Project"
+    `;
+    const maxNum = maxResult[0]?.maxNum ?? 0;
     const code = `OB-${String(maxNum + 1).padStart(3, "0")}`;
     const project = await db.project.create({
       data: {

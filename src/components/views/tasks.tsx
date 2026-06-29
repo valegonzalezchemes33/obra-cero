@@ -22,6 +22,7 @@ export function TasksView() {
       if (!r.ok) throw new Error("Error al cargar tareas");
       return r.json();
     },
+    staleTime: 60_000,
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
@@ -30,6 +31,7 @@ export function TasksView() {
       if (!r.ok) throw new Error("Error al cargar obras");
       return r.json();
     },
+    staleTime: 5 * 60_000,
   });
 
   const createMutation = useMutation({

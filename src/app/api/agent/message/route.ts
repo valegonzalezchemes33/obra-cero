@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const plan = await route(rawMessage, { sessionId });
 
     // Audit: plan created
-    await auditLog({
+    auditLog({
       type: "plan_created",
       intent: plan.intent as string,
       source: plan.source,
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
     // 3. Si el plan tiene pasos que requieren confirmación, devolver el plan
     if (plan.requiresConfirmation && plan.stepsPlanned.length > 0) {
       // Audit: confirmation requested
-      await auditLog({
+      auditLog({
         type: "confirmation_requested",
         intent: plan.intent as string,
         sessionId,
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
     // 5. Ejecutar el plan
     // Audit: plan execution started
-    await auditLog({
+    auditLog({
       type: "plan_executed",
       intent: plan.intent as string,
       sessionId,
@@ -149,9 +149,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 8. Persistir mensajes
-    await recordTurn({ role: "user", content: rawMessage, intent: plan.intent as string }, sessionId);
-    await recordTurn({ role: "agent", content: finalResponse.text, intent: plan.intent as string }, sessionId);
+    // 8. Persistir mensajes en paralelo
+    await Promise.all([
+      recordTurn({ role: "user", content: rawMessage, intent: plan.intent as string }, sessionId),
+      recordTurn({ role: "agent", content: finalResponse.text, intent: plan.intent as string }, sessionId),
+    ]);
 
     return NextResponse.json({
       ...finalResponse,

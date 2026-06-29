@@ -38,6 +38,19 @@ function isAuthDisabled(): boolean {
   return process.env.AUTH_DISABLED === "1";
 }
 
+const isProd = process.env.NODE_ENV === "production";
+
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://api.groq.com",
+  "frame-ancestors 'none'",
+  "base-uri 'self'",
+].join("; ");
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
@@ -47,19 +60,6 @@ export default withAuth(
     }
 
     const res = NextResponse.next();
-
-    const isProd = process.env.NODE_ENV === "production";
-
-    const csp = [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self' data:",
-      "connect-src 'self' https://api.groq.com",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-    ];
 
     res.headers.set("X-Content-Type-Options", "nosniff");
     res.headers.set("X-Frame-Options", "DENY");
@@ -71,7 +71,7 @@ export default withAuth(
       res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
     }
 
-    res.headers.set("Content-Security-Policy", csp.join("; "));
+    res.headers.set("Content-Security-Policy", CSP);
 
     return res;
   },

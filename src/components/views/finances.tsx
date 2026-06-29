@@ -33,6 +33,7 @@ export function FinancesView() {
       if (!r.ok) throw new Error("Error al cargar movimientos");
       return r.json();
     },
+    staleTime: 60_000,
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
@@ -41,6 +42,8 @@ export function FinancesView() {
       if (!r.ok) throw new Error("Error al cargar obras");
       return r.json();
     },
+    enabled: open,
+    staleTime: 5 * 60_000,
   });
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
@@ -49,6 +52,8 @@ export function FinancesView() {
       if (!r.ok) throw new Error("Error al cargar proveedores");
       return r.json();
     },
+    enabled: open,
+    staleTime: 5 * 60_000,
   });
   const { data: dash } = useQuery({
     queryKey: ["dashboard"],
@@ -57,6 +62,7 @@ export function FinancesView() {
       if (!r.ok) throw new Error("Error al cargar dashboard");
       return r.json();
     },
+    staleTime: 5 * 60_000,
   });
 
   const createMutation = useMutation({

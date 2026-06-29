@@ -1,19 +1,37 @@
 // Utilidades de formato y tokens semánticos compartidos
 
+const currencyFormatter = new Intl.NumberFormat("es-AR", {
+  style: "currency",
+  currency: "ARS",
+  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+});
+
 export function formatCurrency(value: number, opts?: { decimals?: number }) {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: opts?.decimals ?? 0,
-    minimumFractionDigits: opts?.decimals ?? 0,
-  }).format(value);
+  if (opts?.decimals !== undefined) {
+    return new Intl.NumberFormat("es-AR", {
+      style: "currency",
+      currency: "ARS",
+      maximumFractionDigits: opts.decimals,
+      minimumFractionDigits: opts.decimals,
+    }).format(value);
+  }
+  return currencyFormatter.format(value);
 }
 
+const numberFormatter = new Intl.NumberFormat("es-AR", {
+  maximumFractionDigits: 0,
+  minimumFractionDigits: 0,
+});
+
 export function formatNumber(value: number, decimals = 0) {
-  return new Intl.NumberFormat("es-AR", {
-    maximumFractionDigits: decimals,
-    minimumFractionDigits: decimals,
-  }).format(value);
+  if (decimals > 0) {
+    return new Intl.NumberFormat("es-AR", {
+      maximumFractionDigits: decimals,
+      minimumFractionDigits: decimals,
+    }).format(value);
+  }
+  return numberFormatter.format(value);
 }
 
 export function formatPct(value: number, decimals = 1) {

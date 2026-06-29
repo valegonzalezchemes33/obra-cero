@@ -6,7 +6,6 @@ import { parseBody, SupplierCreateSchema } from "@/lib/validation";
 export async function GET() {
   try {
     const suppliers = await db.supplier.findMany({
-      include: { transactions: true, materials: true },
       orderBy: { name: "asc" },
     });
     return NextResponse.json(suppliers);

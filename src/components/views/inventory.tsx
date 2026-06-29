@@ -32,6 +32,7 @@ export function InventoryView() {
       if (!r.ok) throw new Error("Error al cargar materiales");
       return r.json();
     },
+    staleTime: 2 * 60_000,
   });
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
@@ -40,6 +41,8 @@ export function InventoryView() {
       if (!r.ok) throw new Error("Error al cargar proveedores");
       return r.json();
     },
+    enabled: open || !!movementMaterial,
+    staleTime: 5 * 60_000,
   });
   const { data: projects } = useQuery({
     queryKey: ["projects"],
@@ -48,6 +51,8 @@ export function InventoryView() {
       if (!r.ok) throw new Error("Error al cargar obras");
       return r.json();
     },
+    enabled: !!movementMaterial,
+    staleTime: 5 * 60_000,
   });
 
   const createMutation = useMutation({

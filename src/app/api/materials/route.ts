@@ -6,7 +6,7 @@ import { parseBody, MaterialCreateSchema } from "@/lib/validation";
 export async function GET() {
   try {
     const materials = await db.material.findMany({
-      include: { supplier: true, stockMovements: true },
+      include: { supplier: true },
       orderBy: { name: "asc" },
     });
     return NextResponse.json(materials);

@@ -26,6 +26,7 @@ export function SuppliersView() {
       if (!r.ok) throw new Error("Error al cargar proveedores");
       return r.json();
     },
+    staleTime: 5 * 60_000,
   });
 
   const createMutation = useMutation({

@@ -4,149 +4,140 @@ import { getCached } from "@/lib/cache";
 
 export async function GET() {
   try {
-    // Usar caché en servidor para evitar consultas repetitivas costosas
     const data = await getCached("dashboard:full", async () => {
-      const [transactions, materials, projects, tasks, suppliers] = await Promise.all([
-        db.transaction.findMany({ include: { project: true } }),
-        db.material.findMany({ include: { supplier: true } }),
-        db.project.findMany({ include: { transactions: true, tasks: true } }),
-        db.task.findMany(),
-        db.supplier.findMany(),
+      const now = new Date();
+
+      const [incomeAgg, expenseAgg] = await Promise.all([
+        db.transaction.aggregate({ where: { type: "income" }, _sum: { amount: true } }),
+        db.transaction.aggregate({ where: { type: "expense" }, _sum: { amount: true } }),
       ]);
-      return { transactions, materials, projects, tasks, suppliers };
-    }, 15000); // Cache 15 segundos
+      const totalIncome = incomeAgg._sum.amount ?? 0;
+      const totalExpenses = expenseAgg._sum.amount ?? 0;
+      const profit = totalIncome - totalExpenses;
+      const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
 
-    const { transactions, materials, projects, tasks, suppliers } = data;
+      const [expenseByCategory, incomeByCategory, stockAgg, counts] = await Promise.all([
+        db.transaction.groupBy({ by: ["category"], where: { type: "expense" }, _sum: { amount: true } }),
+        db.transaction.groupBy({ by: ["category"], where: { type: "income" }, _sum: { amount: true } }),
+        db.material.aggregate({ _sum: { stock: true, unitCost: true } }),
+        Promise.all([
+          db.material.count(),
+          db.supplier.count(),
+          db.project.count(),
+          db.project.count({ where: { status: "in_progress" } }),
+          db.task.count({ where: { status: { in: ["pending", "in_progress"] } } }),
+          db.task.count({ where: { dueDate: { lt: now }, status: { in: ["pending", "in_progress"] } } }),
+        ]),
+      ]);
+      const [totalMaterials, totalSuppliers, totalProjects, activeProjects, pendingTasks, overdueTasks] = counts;
 
-  const income = transactions.filter((t) => t.type === "income");
-  const expenses = transactions.filter((t) => t.type === "expense");
-  const totalIncome = income.reduce((s, t) => s + t.amount, 0);
-  const totalExpenses = expenses.reduce((s, t) => s + t.amount, 0);
-  const profit = totalIncome - totalExpenses;
-  const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
+      const expenseByCategoryMap: Record<string, number> = {};
+      for (const g of expenseByCategory) expenseByCategoryMap[g.category] = g._sum.amount ?? 0;
+      const incomeByCategoryMap: Record<string, number> = {};
+      for (const g of incomeByCategory) incomeByCategoryMap[g.category] = g._sum.amount ?? 0;
 
-  // Por categoría
-  const expenseByCategory: Record<string, number> = {};
-  for (const t of expenses) {
-    expenseByCategory[t.category] = (expenseByCategory[t.category] || 0) + t.amount;
-  }
-  const incomeByCategory: Record<string, number> = {};
-  for (const t of income) {
-    incomeByCategory[t.category] = (incomeByCategory[t.category] || 0) + t.amount;
-  }
+      const stockValue = stockAgg._sum.stock && stockAgg._sum.unitCost
+        ? stockAgg._sum.stock * stockAgg._sum.unitCost : 0;
 
-  // Flujo de caja por mes (últimos 6)
-  const now = new Date();
-  const cashflow: { month: string; income: number; expense: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const label = d.toLocaleDateString("es-AR", { month: "short", year: "2-digit" });
-    const monthTx = transactions.filter((t) => {
-      const tk = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, "0")}`;
-      return tk === key;
-    });
-    cashflow.push({
-      month: label,
-      income: monthTx.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-      expense: monthTx.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-    });
-  }
+      const [budgetAgg, spentAgg] = await Promise.all([
+        db.project.aggregate({ _sum: { budget: true, progress: true } }),
+        db.transaction.aggregate({ where: { type: "expense", projectId: { not: null } }, _sum: { amount: true } }),
+      ]);
+      const totalBudget = budgetAgg._sum.budget ?? 0;
+      const totalSpentOnProjects = spentAgg._sum.amount ?? 0;
+      const avgProgress = totalProjects > 0 ? (budgetAgg._sum.progress ?? 0) / totalProjects : 0;
 
-  // Stock
-  const stockValue = materials.reduce((s, m) => s + m.stock * m.unitCost, 0);
-  const lowStock = materials.filter((m) => m.stock <= m.minStock && m.minStock > 0);
-  const outOfStock = materials.filter((m) => m.stock <= 0);
+      const [materials, projectRows, tasks, suppliers] = await Promise.all([
+        db.material.findMany({ select: { id: true, name: true, sku: true, stock: true, minStock: true, unit: true, unitCost: true, category: true }, orderBy: { name: "asc" } }),
+        db.project.findMany({ select: { id: true, code: true, name: true, budget: true, progress: true, status: true, type: true, address: true, clientName: true, startDate: true, endDate: true }, orderBy: { code: "asc" } }),
+        db.task.findMany({ select: { id: true, title: true, status: true, priority: true, dueDate: true, projectId: true, createdAt: true }, orderBy: { createdAt: "desc" } }),
+        db.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+      ]);
 
-  // Proyectos
-  const activeProjects = projects.filter((p) => p.status === "in_progress");
-  const totalBudget = projects.reduce((s, p) => s + p.budget, 0);
-  const totalSpentOnProjects = projects.reduce(
-    (s, p) => s + p.transactions.filter((t) => t.type === "expense").reduce((ss, t) => ss + t.amount, 0),
-    0
-  );
-  const avgProgress =
-    projects.length > 0 ? projects.reduce((s, p) => s + p.progress, 0) / projects.length : 0;
+      const lowStock = materials.filter((m) => m.stock <= m.minStock && m.minStock > 0);
+      const outOfStock = materials.filter((m) => m.stock <= 0);
 
-  // Gastos por proyecto
-  const projectExpenses = projects
-    .map((p) => ({
-      id: p.id,
-      code: p.code,
-      name: p.name,
-      budget: p.budget,
-      spent: p.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-      income: p.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-      progress: p.progress,
-      status: p.status,
-    }))
-    .sort((a, b) => b.spent - a.spent);
+      const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+      const cashflowTx = await db.transaction.findMany({
+        where: { date: { gte: sixMonthsAgo } },
+        select: { type: true, amount: true, date: true },
+        orderBy: { date: "asc" },
+      });
+      const cashflowByMonth: Record<string, { income: number; expense: number }> = {};
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        cashflowByMonth[key] = { income: 0, expense: 0 };
+      }
+      for (const t of cashflowTx) {
+        const key = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, "0")}`;
+        if (cashflowByMonth[key]) cashflowByMonth[key][t.type === "income" ? "income" : "expense"] += t.amount;
+      }
+      const cashflow = Object.entries(cashflowByMonth).map(([key, val]) => {
+        const [y, m] = key.split("-");
+        const d = new Date(parseInt(y), parseInt(m) - 1);
+        return { month: d.toLocaleDateString("es-AR", { month: "short", year: "2-digit" }), ...val };
+      });
 
-  // Top 5 gastos recientes
-  const recentExpenses = expenses
-    .sort((a, b) => b.date.getTime() - a.date.getTime())
-    .slice(0, 5)
-    .map((t) => ({
-      id: t.id,
-      description: t.description,
-      amount: t.amount,
-      category: t.category,
-      date: t.date,
-      project: t.project?.code,
-    }));
+      const projectExpensesData = await db.transaction.groupBy({
+        by: ["projectId"],
+        where: { type: "expense", projectId: { not: null } },
+        _sum: { amount: true },
+      });
+      const projectIncomeData = await db.transaction.groupBy({
+        by: ["projectId"],
+        where: { type: "income", projectId: { not: null } },
+        _sum: { amount: true },
+      });
+      const projectExpenseMap = new Map(projectExpensesData.map((p) => [p.projectId, p._sum.amount ?? 0]));
+      const projectIncomeMap = new Map(projectIncomeData.map((p) => [p.projectId, p._sum.amount ?? 0]));
+      const projectExpenses = projectRows
+        .map((p) => ({
+          id: p.id, code: p.code, name: p.name,
+          budget: p.budget,
+          spent: projectExpenseMap.get(p.id) ?? 0,
+          income: projectIncomeMap.get(p.id) ?? 0,
+          progress: p.progress, status: p.status,
+        }))
+        .sort((a, b) => b.spent - a.spent);
 
-  // Tareas
-  const pendingTasks = tasks.filter((t) => t.status === "pending" || t.status === "in_progress");
-  const overdueTasks = tasks.filter(
-    (t) => t.dueDate && t.dueDate < now && (t.status === "pending" || t.status === "in_progress")
-  );
+      const recentTx = await db.transaction.findMany({
+        where: { type: "expense" },
+        select: { id: true, description: true, amount: true, category: true, date: true, projectId: true },
+        orderBy: { date: "desc" },
+        take: 5,
+      });
+      const projectCodeMap = new Map(projectRows.map((p) => [p.id, p.code]));
+      const recentExpenses = recentTx.map((t) => ({
+        id: t.id, description: t.description, amount: t.amount, category: t.category, date: t.date,
+        project: projectCodeMap.get(t.projectId ?? "") ?? null,
+      }));
 
-  return NextResponse.json({
-      kpis: {
-        totalIncome,
-        totalExpenses,
-        profit,
-        margin,
-        stockValue,
-        lowStockCount: lowStock.length,
-        outOfStockCount: outOfStock.length,
-        activeProjects: activeProjects.length,
-        totalProjects: projects.length,
-        totalBudget,
-        totalSpentOnProjects,
-        avgProgress,
-        pendingTasks: pendingTasks.length,
-        overdueTasks: overdueTasks.length,
-        totalSuppliers: suppliers.length,
-        totalMaterials: materials.length,
-      },
-      cashflow,
-      expenseByCategory,
-      incomeByCategory,
-      lowStock,
-      outOfStock,
-      projectExpenses,
-      recentExpenses,
-      projects: projects.map((p) => ({
-        id: p.id,
-        code: p.code,
-        name: p.name,
-        status: p.status,
-        type: p.type,
-        address: p.address,
-        clientName: p.clientName,
-        budget: p.budget,
-        progress: p.progress,
-        startDate: p.startDate,
-        endDate: p.endDate,
-        spent: p.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0),
-        income: p.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0),
-      })),
-      tasks: tasks.map((t) => ({
+      const projectCodeMapFull = new Map(projectRows.map((p) => [p.id, p.code]));
+      const taskList = tasks.map((t) => ({
         ...t,
-        projectCode: t.projectId ? projects.find((p) => p.id === t.projectId)?.code : null,
-      })),
-    });
+        projectCode: t.projectId ? projectCodeMapFull.get(t.projectId) ?? null : null,
+      }));
+
+      return {
+        kpis: {
+          totalIncome, totalExpenses, profit, margin, stockValue,
+          lowStockCount: lowStock.length, outOfStockCount: outOfStock.length,
+          activeProjects, totalProjects, totalBudget, totalSpentOnProjects, avgProgress,
+          pendingTasks, overdueTasks, totalSuppliers, totalMaterials,
+        },
+        cashflow, expenseByCategory: expenseByCategoryMap, incomeByCategory: incomeByCategoryMap,
+        lowStock, outOfStock, projectExpenses, recentExpenses,
+        projects: projectRows.map((p) => ({
+          ...p,
+          spent: projectExpenseMap.get(p.id) ?? 0,
+          income: projectIncomeMap.get(p.id) ?? 0,
+        })),
+        tasks: taskList,
+      };
+    }, 15000);
+
+    return NextResponse.json(data);
   } catch (error: any) {
     console.error("[API] GET /api/dashboard:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
