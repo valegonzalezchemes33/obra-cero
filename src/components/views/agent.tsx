@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History, Code, Copy } from "lucide-react";
+import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History, Code, Copy, Paperclip, FileText, Image, Loader2 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -54,6 +54,8 @@ export function AgentView({ initialQuery }: AgentViewProps) {
   const [isThinking, setIsThinking] = useState(false);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const initialQueryConsumed = useRef<string | null>(null);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -214,6 +216,57 @@ export function AgentView({ initialQuery }: AgentViewProps) {
     const msg = (text ?? input).trim();
     if (!msg || isThinking) return;
     sendMutation.mutate(msg);
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (isThinking || uploading) return;
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/csv"];
+    const isPdf = file.name.toLowerCase().endsWith(".pdf");
+    if (!allowedTypes.includes(file.type) && !isPdf) {
+      toast.error(`Formato no soportado: ${file.type || file.name}. Permitidos: imágenes, PDFs, TXT, CSV`);
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error(`El archivo excede 10MB (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
+      return;
+    }
+
+    setUploading(true);
+    setMessages((prev) => [...prev, {
+      role: "user",
+      content: `📎 **${file.name}** (${(file.size / 1024).toFixed(1)}KB)`,
+      timestamp: new Date(),
+    }]);
+
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const r = await fetch("/api/agent/upload", { method: "POST", body: fd });
+      if (!r.ok) {
+        const err = await r.json();
+        throw new Error(err.error || "Error al procesar archivo");
+      }
+      const data = await r.json();
+
+      setMessages((prev) => [...prev, {
+        role: "agent",
+        content: data.agentResponse,
+        suggestions: ["Crear registros con estos datos", "¿Qué contiene?", "Resumí la información"],
+        timestamp: new Date(),
+      }]);
+      queryClient.invalidateQueries({ queryKey: ["agent-history"] });
+    } catch (err: any) {
+      toast.error(err.message);
+      setMessages((prev) => [...prev, {
+        role: "agent",
+        content: `❌ Error al procesar el archivo: ${err.message}`,
+        timestamp: new Date(),
+      }]);
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Cargar conversación del historial
@@ -494,6 +547,27 @@ export function AgentView({ initialQuery }: AgentViewProps) {
           {/* Input */}
           <div className="border-t p-3">
             <div className="flex gap-2">
+              <input
+                type="file"
+                ref={fileInputRef}
+                className="hidden"
+                accept="image/*,.pdf,.txt,.csv"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileUpload(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isThinking || uploading}
+                size="icon"
+                variant="outline"
+                className="h-9 w-9 shrink-0"
+                title="Subir archivo (imagen, PDF, TXT, CSV)"
+              >
+                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              </Button>
               <Input
                 placeholder="Preguntá sobre tu operación…"
                 value={input}
@@ -504,19 +578,22 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                     handleSend();
                   }
                 }}
-                disabled={isThinking}
+                disabled={isThinking || uploading}
                 className="flex-1 h-9"
               />
-              <Button onClick={() => handleSend()} disabled={isThinking || !input.trim()} size="icon" className="h-9 w-9">
+              <Button onClick={() => handleSend()} disabled={isThinking || uploading || !input.trim()} size="icon" className="h-9 w-9">
                 <Send className="h-3.5 w-3.5" />
               </Button>
             </div>
             <div className="flex items-center justify-between mt-2 px-1">
               <span className="text-[10px] text-muted-foreground">
                 <kbd className="font-mono px-1 py-0.5 rounded bg-muted text-muted-foreground">⏎</kbd> enviar ·{" "}
-                <kbd className="font-mono px-1 py-0.5 rounded bg-muted text-muted-foreground">Shift+⏎</kbd> nueva línea
+                <kbd className="font-mono px-1 py-0.5 rounded bg-muted text-muted-foreground">Shift+⏎</kbd> nueva línea ·{" "}
+                <kbd className="font-mono px-1 py-0.5 rounded bg-muted text-muted-foreground">📎</kbd> archivos
               </span>
-              <span className="text-[10px] text-muted-foreground">100% local</span>
+              <span className="text-[10px] text-muted-foreground">
+                {uploading ? "Analizando..." : isThinking ? "Procesando..." : "100% local"}
+              </span>
             </div>
           </div>
         </Card>

@@ -23,6 +23,7 @@ import type { AgentPlan, PlanStep } from "@/lib/agent/types";
 import { v4 as uuid } from "uuid";
 import { checkRateLimit, auditLog, sanitizeForGroq } from "@/lib/agent/audit";
 import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
+import { db } from "@/lib/db";
 
 const SESSION_HEADER = "x-session-id";
 
@@ -133,14 +134,18 @@ export async function POST(req: NextRequest) {
     // 7. Enriquecer con Groq si es query (datos reales + Groq response)
     if (isQueryIntent(plan.intent as string) && executedPlan.steps.some(s => s.status === "success")) {
       const { enrichQueryWithGroq: enrichQ } = await import("@/lib/agent-dispatcher");
-      const history = []; // TODO: pasar history real
+      const recentMessages = (await db.agentMessage.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { content: true },
+      })).map(m => m.content).reverse();
       try {
         const enriched = await enrichQ(
           plan.intent as Intent,
           plan.entities,
           rawMessage,
           plan.confidence,
-          history
+          recentMessages
         );
         finalResponse.text = enriched.text;
         finalResponse._groqEnhanced = true;
