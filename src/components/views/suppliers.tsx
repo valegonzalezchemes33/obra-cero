@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,12 +10,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Truck, Plus, Phone, Mail, User, Star, Building } from "lucide-react";
+import { Truck, Plus, Phone, Mail, User, Star, Building, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 
 export function SuppliersView() {
   const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+
   const { data: suppliers } = useQuery({
     queryKey: ["suppliers"],
     queryFn: async () => {
@@ -34,16 +38,42 @@ export function SuppliersView() {
       toast.success("Proveedor creado");
       queryClient.invalidateQueries({ queryKey: ["suppliers"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setOpen(false);
+      setEditing(null);
     },
-    onError: () => {
-      toast.error("Error al crear el proveedor");
+    onError: () => toast.error("Error al crear el proveedor"),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      const r = await fetch(`/api/suppliers/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+      if (!r.ok) throw new Error("Error");
+      return r.json();
     },
+    onSuccess: () => {
+      toast.success("Cambios guardados");
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      setOpen(false);
+      setEditing(null);
+    },
+    onError: () => toast.error("Error al guardar los cambios"),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => { await fetch(`/api/suppliers/${id}`, { method: "DELETE" }); },
+    onSuccess: () => {
+      toast.success("Proveedor eliminado");
+      queryClient.invalidateQueries({ queryKey: ["suppliers"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+    onError: () => toast.error("Error al eliminar el proveedor"),
   });
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
-    createMutation.mutate({
+    const data: any = {
       name: fd.get("name"),
       contact: fd.get("contact"),
       phone: fd.get("phone"),
@@ -52,7 +82,9 @@ export function SuppliersView() {
       category: fd.get("category"),
       rating: fd.get("rating"),
       notes: fd.get("notes"),
-    });
+    };
+    if (editing) updateMutation.mutate({ id: editing.id, data });
+    else createMutation.mutate(data);
   };
 
   const isEmpty = (suppliers?.length || 0) === 0;
@@ -63,21 +95,21 @@ export function SuppliersView() {
         <p className="text-[13px] text-muted-foreground">
           {isEmpty ? "Todavía no cargaste proveedores." : `${suppliers.length} ${suppliers.length === 1 ? "proveedor" : "proveedores"} en tu red de compra`}
         </p>
-        <Dialog>
+        <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditing(null); }}>
           <DialogTrigger asChild>
             <Button size="sm"><Plus className="h-3.5 w-3.5 mr-1.5" /> Nuevo proveedor</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Nuevo proveedor</DialogTitle>
+              <DialogTitle>{editing ? "Editar proveedor" : "Nuevo proveedor"}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label>Nombre / Razón social *</Label><Input name="name" required /></div>
-                <div><Label>Contacto</Label><Input name="contact" /></div>
+                <div className="col-span-2"><Label>Nombre / Razón social *</Label><Input name="name" defaultValue={editing?.name} required /></div>
+                <div><Label>Contacto</Label><Input name="contact" defaultValue={editing?.contact || ""} /></div>
                 <div>
                   <Label>Categoría</Label>
-                  <Select name="category" defaultValue="materiales">
+                  <Select name="category" defaultValue={editing?.category || "materiales"}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="materiales">Materiales</SelectItem>
@@ -87,13 +119,18 @@ export function SuppliersView() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label>Teléfono</Label><Input name="phone" /></div>
-                <div><Label>Email</Label><Input name="email" type="email" /></div>
-                <div><Label>CUIL/CUIT</Label><Input name="taxId" /></div>
-                <div><Label>Rating (1-5)</Label><Input name="rating" type="number" min="1" max="5" step="0.1" defaultValue="3" /></div>
-                <div className="col-span-2"><Label>Notas</Label><Textarea name="notes" rows={2} /></div>
+                <div><Label>Teléfono</Label><Input name="phone" defaultValue={editing?.phone || ""} /></div>
+                <div><Label>Email</Label><Input name="email" type="email" defaultValue={editing?.email || ""} /></div>
+                <div><Label>CUIL/CUIT</Label><Input name="taxId" defaultValue={editing?.taxId || ""} /></div>
+                <div><Label>Rating (1-5)</Label><Input name="rating" type="number" min="1" max="5" step="0.1" defaultValue={editing?.rating || 3} /></div>
+                <div className="col-span-2"><Label>Notas</Label><Textarea name="notes" rows={2} defaultValue={editing?.notes || ""} /></div>
               </div>
-              <DialogFooter><Button type="submit" disabled={createMutation.isPending}>Crear</Button></DialogFooter>
+              <DialogFooter>
+                <Button type="button" variant="ghost" onClick={() => { setOpen(false); setEditing(null); }}>Cancelar</Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {editing ? "Guardar cambios" : "Crear"}
+                </Button>
+              </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
@@ -164,6 +201,17 @@ export function SuppliersView() {
 
                   <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Building className="h-3 w-3" /> {s.materials?.length || 0} {s.materials?.length === 1 ? "material asociado" : "materiales asociados"}
+                  </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={() => { setEditing(s); setOpen(true); }}>
+                      <Pencil className="h-3 w-3 mr-1" /> Editar
+                    </Button>
+                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/5" onClick={() => {
+                      if (confirm(`¿Eliminar a ${s.name}? Esta acción no se puede deshacer.`)) deleteMutation.mutate(s.id);
+                    }}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </CardContent>
               </Card>

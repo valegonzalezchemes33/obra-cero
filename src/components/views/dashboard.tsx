@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { KpiCard, SkeletonKpi } from "@/components/kpi-card";
+import { KpiDetailModal, type Quadrant } from "@/components/kpi-detail-modal";
 import { ChartTooltip, chartAxisProps, chartGridProps } from "@/components/chart-utils";
 import { chartColor } from "@/lib/format";
 import { formatCurrency, formatPct, formatDate, STATUS_DOT, STATUS_LABELS } from "@/lib/format";
@@ -24,12 +25,14 @@ import {
 import { ArrowUpRight, ArrowDownRight, Sparkles, Building2, AlertTriangle, Clock, CheckCircle2, ChevronRight, TrendingUp, Lightbulb, Zap, BarChart3 } from "lucide-react";
 import { ViewKey } from "@/components/sidebar-nav";
 import type { ReactNode } from "react";
+import { useState } from "react";
 
 interface DashboardProps {
   onNavigate: (v: ViewKey) => void;
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const [detailQuadrant, setDetailQuadrant] = useState<Quadrant | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: async () => {
@@ -157,7 +160,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           delta={incomeDelta !== 0 ? { value: incomeDelta, label: "vs mes anterior" } : undefined}
           sparkline={sparkIncome}
           accent="success"
-          onClick={() => onNavigate("finances")}
+          onClick={() => setDetailQuadrant("income")}
         />
         <KpiCard
           label="Gastos"
@@ -165,19 +168,19 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           delta={expenseDelta !== 0 ? { value: -expenseDelta, label: "vs mes anterior" } : undefined}
           sparkline={sparkExpense}
           accent="destructive"
-          onClick={() => onNavigate("finances")}
+          onClick={() => setDetailQuadrant("expenses")}
         />
         <KpiCard
           label="Inventario"
           value={formatCurrency(k.stockValue)}
           accent="primary"
-          onClick={() => onNavigate("inventory")}
+          onClick={() => setDetailQuadrant("inventory")}
         />
         <KpiCard
           label="Presupuesto obras"
           value={formatCurrency(k.totalBudget)}
           accent="primary"
-          onClick={() => onNavigate("projects")}
+          onClick={() => setDetailQuadrant("budget")}
         />
       </div>
 
@@ -539,6 +542,14 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </Button>
         </CardContent>
       </Card>
+
+      <KpiDetailModal
+        open={detailQuadrant !== null}
+        quadrant={detailQuadrant}
+        data={data}
+        onOpenChange={(open) => { if (!open) setDetailQuadrant(null); }}
+        onNavigate={onNavigate}
+      />
     </div>
   );
 }

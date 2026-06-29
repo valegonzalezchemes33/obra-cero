@@ -66,6 +66,8 @@ export const SupplierCreateSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const SupplierUpdateSchema = SupplierCreateSchema.partial();
+
 export const AutomationCreateSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),

@@ -18,8 +18,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Plus, MapPin, User, Calendar, DollarSign, Pencil, Trash2 } from "lucide-react";
+import { Building2, Plus, MapPin, User, Calendar, DollarSign, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { formatCurrency, formatDate, formatPct, STATUS_LABELS, STATUS_BADGE, STATUS_DOT } from "@/lib/format";
+import { ProjectDetailModal } from "@/components/project-detail-modal";
 import { toast } from "sonner";
 
 export function ProjectsView() {
@@ -36,6 +37,7 @@ export function ProjectsView() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any>(null);
   const [filter, setFilter] = useState<string>("all");
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -226,7 +228,7 @@ export function ProjectsView() {
             const income = p.transactions?.filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + t.amount, 0) || 0;
             const pct = p.budget > 0 ? (spent / p.budget) * 100 : 0;
             return (
-              <Card key={p.id} className="hover:border-border hover:shadow-xs hover:-translate-y-px transition-all">
+              <Card key={p.id} className="hover:border-border hover:shadow-xs hover:-translate-y-px transition-all cursor-pointer" onClick={() => setDetailId(p.id)}>
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
@@ -292,12 +294,16 @@ export function ProjectsView() {
                   </div>
 
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={() => { setEditing(p); setOpen(true); }}>
-                      <Pencil className="h-3 w-3 mr-1" /> Editar
-                    </Button>
-                    <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/5" onClick={() => {
-                      if (confirm(`¿Eliminar la obra ${p.code}? Esta acción no se puede deshacer.`)) deleteMutation.mutate(p.id);
-                    }}>
+                    <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={(e) => { e.stopPropagation(); setEditing(p); setOpen(true); }}>
+                          <Pencil className="h-3 w-3 mr-1" /> Editar
+                        </Button>
+                        <Button size="sm" variant="outline" className="flex-1 h-7 text-xs" onClick={(e) => { e.stopPropagation(); setDetailId(p.id); }}>
+                          <ExternalLink className="h-3 w-3 mr-1" /> Ver
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-7 text-xs text-destructive hover:bg-destructive/5" onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`¿Eliminar la obra ${p.code}? Esta acción no se puede deshacer.`)) deleteMutation.mutate(p.id);
+                        }}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
@@ -311,6 +317,12 @@ export function ProjectsView() {
       {!isLoading && filtered.length === 0 && (projects?.length || 0) > 0 && (
         <Card><CardContent className="py-10 text-center text-[13px] text-muted-foreground">No hay obras con ese filtro.</CardContent></Card>
       )}
+
+      <ProjectDetailModal
+        open={detailId !== null}
+        projectId={detailId}
+        onOpenChange={(o) => { if (!o) setDetailId(null); }}
+      />
     </div>
   );
 }
