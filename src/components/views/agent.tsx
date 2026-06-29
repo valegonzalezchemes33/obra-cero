@@ -120,6 +120,7 @@ export function AgentView({ initialQuery }: AgentViewProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text }),
+        credentials: "include",
       });
       if (!r.ok) throw new Error("Error al procesar el mensaje");
       return r.json();
@@ -243,12 +244,15 @@ export function AgentView({ initialQuery }: AgentViewProps) {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const r = await fetch("/api/agent/upload", { method: "POST", body: fd });
-      if (!r.ok) {
-        const err = await r.json();
-        throw new Error(err.error || "Error al procesar archivo");
+      const r = await fetch("/api/agent/upload", { method: "POST", body: fd, credentials: "include" });
+      const body = await r.text();
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        throw new Error(`El servidor respondió con HTML (status ${r.status}). ${body.slice(0, 200)}`);
       }
-      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || "Error al procesar archivo");
 
       setMessages((prev) => [...prev, {
         role: "agent",
