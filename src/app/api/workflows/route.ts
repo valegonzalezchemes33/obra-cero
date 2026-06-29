@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { parseBody, WorkflowCreateSchema } from "@/lib/validation";
 
-// GET /api/workflows - Listar todos los workflows
 export async function GET() {
   try {
     const workflows = await db.workflow.findMany({
@@ -18,10 +19,12 @@ export async function GET() {
   }
 }
 
-// POST /api/workflows - Crear un nuevo workflow
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    await requireSession();
+    const parsed = await parseBody(req, WorkflowCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const workflow = await db.workflow.create({
       data: {
         name: body.name,
@@ -32,7 +35,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Crear pasos si se enviaron
     if (body.steps && Array.isArray(body.steps)) {
       for (let i = 0; i < body.steps.length; i++) {
         const step = body.steps[i];
@@ -56,14 +58,15 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(full, { status: 201 });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] POST /api/workflows:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
 }
 
-// PATCH /api/workflows - Actualizar workflow completo (con pasos)
 export async function PATCH(req: NextRequest) {
   try {
+    await requireSession();
     const body = await req.json();
     const { id, ...data } = body;
 
@@ -71,7 +74,6 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
 
-    // Actualizar workflow
     await db.workflow.update({
       where: { id },
       data: {
@@ -83,7 +85,6 @@ export async function PATCH(req: NextRequest) {
       },
     });
 
-    // Reemplazar pasos si se enviaron
     if (data.steps && Array.isArray(data.steps)) {
       await db.workflowStep.deleteMany({ where: { workflowId: id } });
       for (let i = 0; i < data.steps.length; i++) {
@@ -108,14 +109,15 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(full);
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] PATCH /api/workflows:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
 }
 
-// DELETE /api/workflows - Eliminar workflow (por query param ?id=xxx)
 export async function DELETE(req: NextRequest) {
   try {
+    await requireSession();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
@@ -126,6 +128,7 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] DELETE /api/workflows:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

@@ -32,6 +32,10 @@ model Project {
 
   transactions Transaction[]
   tasks        Task[]
+
+  @@index([status])
+  @@index([clientName])
+  @@index([createdAt])
 }
 
 // ─── TRANSACCIONES FINANCIERAS ───────────────────────────────
@@ -51,6 +55,11 @@ model Transaction {
 
   project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([type, date])
+  @@index([projectId, date])
+  @@index([supplierId])
+  @@index([category])
 }
 
 // ─── TAREAS ───────────────────────────────────────────────────
@@ -69,6 +78,11 @@ model Task {
   updatedAt   DateTime  @updatedAt
 
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([status, dueDate])
+  @@index([projectId])
+  @@index([assignee])
+  @@index([createdBy])
 }
 
 // ─── PROVEEDORES ─────────────────────────────────────────────
@@ -89,6 +103,9 @@ model Supplier {
   transactions  Transaction[]
   materials     Material[]
   stockMovements StockMovement[]
+
+  @@index([name])
+  @@index([category])
 }
 
 // ─── MATERIALES / INVENTARIO ─────────────────────────────────
@@ -111,6 +128,10 @@ model Material {
 
   supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   stockMovements StockMovement[]
+
+  @@index([supplierId])
+  @@index([category])
+  @@index([stock])
 }
 
 // ─── MOVIMIENTOS DE STOCK ─────────────────────────────────────
@@ -128,6 +149,9 @@ model StockMovement {
 
   material Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([materialId, date])
+  @@index([type])
 }
 
 // ─── REGLAS DE AUTOMATIZACIÓN (legacy) ─────────────────────────
@@ -142,6 +166,8 @@ model AutomationRule {
   enabled     Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([trigger, enabled])
 }
 
 // ─── WORKFLOWS / FLUJOS DE AUTOMATIZACIÓN ────────────────────
@@ -158,6 +184,8 @@ model Workflow {
 
   steps      WorkflowStep[]
   executions WorkflowExecution[]
+
+  @@index([trigger, enabled])
 }
 
 model WorkflowStep {
@@ -171,6 +199,8 @@ model WorkflowStep {
   createdAt  DateTime @default(now())
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, order])
 }
 
 model WorkflowExecution {
@@ -184,6 +214,9 @@ model WorkflowExecution {
   triggeredBy String?   // "manual" | "schedule" | "event" | "webhook"
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId, startedAt])
+  @@index([status])
 }
 
 // ─── AGENDA / SCHEDULER DEL AGENTE AUTÓNOMO ───────────────────
@@ -199,19 +232,25 @@ model AgentSchedule {
   enabled     Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([nextRun])
+  @@index([enabled, nextRun])
 }
 
 // ─── ACCIONES DEL AGENTE IA ───────────────────────────────────
 
 model AgentAction {
   id          String   @id @default(cuid())
-  type        String   // alert | task | reorder | highlight
+  type        String   // alert | task | reorder | highlight | audit
   severity    String   @default("info") // info | warning | critical
   title       String
   description String
   payload     String?  // JSON serializado
   status      String   @default("active") // active | resolved | dismissed
   createdAt   DateTime @default(now())
+
+  @@index([type, status])
+  @@index([createdAt])
 }
 
 // ─── HISTORIAL DE CONVERSACIÓN DEL AGENTE ────────────────────
@@ -223,4 +262,6 @@ model AgentMessage {
   intent    String?
   meta      String?  @db.Text // JSON con datos adicionales
   createdAt DateTime @default(now())
+
+  @@index([createdAt])
 }

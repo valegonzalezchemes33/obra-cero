@@ -36,6 +36,31 @@ import {
   handleExpenseTrend,
   handleExportData,
 } from "../agent-extended";
+import {
+  rememberPreference,
+  recallPreference,
+  forgetPreference,
+  listAllPreferences,
+} from "@/lib/agent/capabilities/memory-tools";
+import {
+  scheduleEvent,
+  listEvents,
+  completeEvent,
+  cancelEvent,
+} from "@/lib/agent/capabilities/calendar";
+import {
+  sendNotification,
+  listNotifications,
+  resolveNotification,
+  dismissAllNotifications,
+} from "@/lib/agent/capabilities/notifications";
+import {
+  searchProjects,
+  searchClients,
+  searchBudgets,
+  listBudgetRanges,
+} from "@/lib/agent/capabilities/search-tools";
+import { generateDocument } from "@/lib/agent/capabilities/documents";
 
 // ─── Tipo de la firma ejecutora (args ya viene validado) ───
 
@@ -584,6 +609,166 @@ const tools: Record<ToolName, ExecutableTool> = {
         suggestions: ["¿Cómo vamos?", "Ver financiero", "Ver inventario"],
       };
     },
+  },
+
+  // ─────────── CAPABILITIES (FASE 4-5) ───────────
+
+  // ── Memoria ──
+  remember_preference: {
+    name: "remember_preference",
+    intent: "capability_remember_preference",
+    description: "Guarda una preferencia del usuario (ej: idioma, formato, alias).",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => rememberPreference(args),
+  },
+
+  recall_preference: {
+    name: "recall_preference",
+    intent: "capability_recall_preference",
+    description: "Recupera una preferencia guardada.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => recallPreference(args),
+  },
+
+  forget_preference: {
+    name: "forget_preference",
+    intent: "capability_forget_preference",
+    description: "Olvida una preferencia guardada.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => forgetPreference(args),
+  },
+
+  list_preferences: {
+    name: "list_preferences",
+    intent: "capability_list_preferences",
+    description: "Lista todas las preferencias guardadas del usuario.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async () => listAllPreferences(),
+  },
+
+  // ── Calendario ──
+  schedule_event: {
+    name: "schedule_event",
+    intent: "capability_schedule_event",
+    description: "Agenda un evento o recordatorio en el calendario del proyecto.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => scheduleEvent(args),
+  },
+
+  list_events: {
+    name: "list_events",
+    intent: "capability_list_events",
+    description: "Lista los eventos del calendario con filtros.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => listEvents(args),
+  },
+
+  complete_event: {
+    name: "complete_event",
+    intent: "capability_complete_event",
+    description: "Marca un evento del calendario como completado.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => completeEvent(args),
+  },
+
+  cancel_event: {
+    name: "cancel_event",
+    intent: "capability_cancel_event",
+    description: "Cancela un evento del calendario.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => cancelEvent(args),
+  },
+
+  // ── Notificaciones ──
+  send_notification: {
+    name: "send_notification",
+    intent: "capability_send_notification",
+    description: "Envía una notificación interna al usuario (alerta, recordatorio).",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => sendNotification(args),
+  },
+
+  list_notifications: {
+    name: "list_notifications",
+    intent: "capability_list_notifications",
+    description: "Lista las notificaciones activas.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => listNotifications(args),
+  },
+
+  resolve_notification: {
+    name: "resolve_notification",
+    intent: "capability_resolve_notification",
+    description: "Resuelve una notificación activa.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => resolveNotification(args),
+  },
+
+  dismiss_all_notifications: {
+    name: "dismiss_all_notifications",
+    intent: "capability_dismiss_all_notifications",
+    description: "Descarta todas las notificaciones activas.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async () => dismissAllNotifications(),
+  },
+
+  // ── Búsquedas ──
+  search_projects: {
+    name: "search_projects",
+    intent: "capability_search_projects",
+    description: "Busca obras/proyectos por nombre, cliente, estado o presupuesto.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => searchProjects(args),
+  },
+
+  search_clients: {
+    name: "search_clients",
+    intent: "capability_search_clients",
+    description: "Busca clientes/proyectos por nombre o contacto.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => searchClients(args),
+  },
+
+  search_budgets: {
+    name: "search_budgets",
+    intent: "capability_search_budgets",
+    description: "Busca obras por rango de presupuesto.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => searchBudgets(args),
+  },
+
+  list_budget_ranges: {
+    name: "list_budget_ranges",
+    intent: "capability_list_budget_ranges",
+    description: "Lista los rangos de presupuesto predefinidos con cantidad de obras.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async () => listBudgetRanges(),
+  },
+
+  // ── Documentos ──
+  generate_document: {
+    name: "generate_document",
+    intent: "capability_generate_document",
+    description: "Genera un documento (informe de obra, financiero, presupuesto, inventario) en markdown.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => generateDocument(args),
   },
 };
 

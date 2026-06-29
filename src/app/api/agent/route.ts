@@ -30,6 +30,7 @@ import {
   validateToolArgs,
   getRiskLevel,
 } from "@/lib/tool-registry";
+import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
 
 // ─── Helper: Obtener labels amigables para campos faltantes ───
 
@@ -143,6 +144,7 @@ function generatePreviewText(intent: Intent, entities: Record<string, any>): str
 
 // POST /api/agent - Enviar mensaje al agente (con memoria y confirmación)
 export async function POST(req: NextRequest) {
+  if (!requireAgentApiKey(req)) return agentApiKeyRequiredResponse();
   try {
     const body = await req.json();
     const rawMessage: string = body.message || "";

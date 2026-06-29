@@ -47,7 +47,25 @@ export type ToolName =
   | "list_project_tasks"
   | "list_automations"
   // Utilidades
-  | "export_data";
+  | "export_data"
+  // Capabilities del agente (FASE 4-5)
+  | "remember_preference"
+  | "recall_preference"
+  | "forget_preference"
+  | "list_preferences"
+  | "schedule_event"
+  | "list_events"
+  | "complete_event"
+  | "cancel_event"
+  | "send_notification"
+  | "list_notifications"
+  | "resolve_notification"
+  | "dismiss_all_notifications"
+  | "search_projects"
+  | "search_clients"
+  | "search_budgets"
+  | "list_budget_ranges"
+  | "generate_document";
 
 export interface ToolCall<TArgs = Record<string, any>> {
   tool: ToolName;
@@ -252,6 +270,104 @@ const exportDataSchema = z.object({
     .describe("Tipo de datos a exportar. Si se omite, devuelve resumen general."),
 });
 
+// ─── SCHEMAS: Capabilities (FASE 4-5) ────────────────────────
+
+const rememberPreferenceSchema = z.object({
+  key: z.string().min(1).max(60),
+  value: z.any(),
+  category: z.enum(["communication", "finance", "project", "ui", "general"]).default("general"),
+});
+
+const recallPreferenceSchema = z.object({
+  key: z.string().min(1),
+});
+
+const forgetPreferenceSchema = z.object({
+  key: z.string().min(1),
+});
+
+const listPreferencesSchema = z.object({});
+
+const scheduleEventSchema = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(1000).optional(),
+  date: z.string(),
+  duration: z.number().int().min(15).max(480).optional(),
+  projectRef: projectRefSchema,
+  taskId: z.string().optional(),
+  reminders: z.array(z.number()).optional(),
+  priority: z.enum(["low", "medium", "high", "critical"]).default("medium"),
+});
+
+const listEventsSchema = z.object({
+  from: z.string().optional(),
+  to: z.string().optional(),
+  projectRef: projectRefSchema,
+  status: z.enum(["active", "completed", "cancelled"]).default("active"),
+  limit: z.number().int().min(1).max(100).default(20),
+});
+
+const completeEventSchema = z.object({
+  eventId: z.string(),
+});
+
+const cancelEventSchema = z.object({
+  eventId: z.string(),
+});
+
+const sendNotificationSchema = z.object({
+  title: z.string().min(1).max(120),
+  description: z.string().max(500).optional(),
+  severity: z.enum(["info", "warning", "critical"]).default("info"),
+  type: z.enum(["alert", "task", "reminder", "info"]).default("alert"),
+  projectRef: projectRefSchema,
+  link: z.string().url().optional(),
+});
+
+const listNotificationsSchema = z.object({
+  unreadOnly: z.boolean().default(false),
+  severity: z.enum(["info", "warning", "critical"]).optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+});
+
+const resolveNotificationSchema = z.object({
+  notificationId: z.string(),
+});
+
+const dismissAllNotificationsSchema = z.object({});
+
+const searchProjectsSchema = z.object({
+  query: z.string().optional(),
+  status: z.enum(["planning", "in_progress", "paused", "completed", "cancelled"]).optional(),
+  minBudget: z.number().optional(),
+  maxBudget: z.number().optional(),
+  clientName: z.string().optional(),
+  limit: z.number().int().min(1).max(50).default(20),
+});
+
+const searchClientsSchema = z.object({
+  query: z.string().optional(),
+  projectStatus: z.enum(["planning", "in_progress", "paused", "completed", "cancelled"]).optional(),
+  limit: z.number().int().min(1).max(50).default(10),
+});
+
+const searchBudgetsSchema = z.object({
+  minAmount: z.number().optional(),
+  maxAmount: z.number().optional(),
+  projectStatus: z.enum(["planning", "in_progress", "paused", "completed", "cancelled"]).optional(),
+  limit: z.number().int().min(1).max(50).default(10),
+});
+
+const listBudgetRangesSchema = z.object({});
+
+const generateDocumentSchema = z.object({
+  type: z.enum(["project_report", "budget_summary", "financial_report", "task_summary", "inventory_report", "client_summary", "purchase_plan", "custom"]),
+  projectRef: projectRefSchema,
+  format: z.enum(["markdown", "text"]).default("markdown"),
+  title: z.string().optional(),
+  description: z.string().optional(),
+});
+
 // ─── MAPA DE SCHEMAS POR TOOL ───
 
 export const toolSchemas: Record<ToolName, z.ZodTypeAny> = {
@@ -279,6 +395,24 @@ export const toolSchemas: Record<ToolName, z.ZodTypeAny> = {
   list_project_tasks: listProjectTasksSchema,
   list_automations: listAutomationsSchema,
   export_data: exportDataSchema,
+  // Capabilities
+  remember_preference: rememberPreferenceSchema,
+  recall_preference: recallPreferenceSchema,
+  forget_preference: forgetPreferenceSchema,
+  list_preferences: listPreferencesSchema,
+  schedule_event: scheduleEventSchema,
+  list_events: listEventsSchema,
+  complete_event: completeEventSchema,
+  cancel_event: cancelEventSchema,
+  send_notification: sendNotificationSchema,
+  list_notifications: listNotificationsSchema,
+  resolve_notification: resolveNotificationSchema,
+  dismiss_all_notifications: dismissAllNotificationsSchema,
+  search_projects: searchProjectsSchema,
+  search_clients: searchClientsSchema,
+  search_budgets: searchBudgetsSchema,
+  list_budget_ranges: listBudgetRangesSchema,
+  generate_document: generateDocumentSchema,
 };
 
 // ─── Mapeo entre ToolName e Intent del agente ───
@@ -308,6 +442,24 @@ export const toolToIntent: Record<ToolName, Intent> = {
   list_project_tasks: "action_list_project_tasks",
   list_automations: "config_list_automations",
   export_data: "action_export_data",
+  // ─── Capabilities (FASE 4-5) ────────────────────────────────
+  remember_preference: "capability_remember_preference",
+  recall_preference: "capability_recall_preference",
+  forget_preference: "capability_forget_preference",
+  list_preferences: "capability_list_preferences",
+  schedule_event: "capability_schedule_event",
+  list_events: "capability_list_events",
+  complete_event: "capability_complete_event",
+  cancel_event: "capability_cancel_event",
+  send_notification: "capability_send_notification",
+  list_notifications: "capability_list_notifications",
+  resolve_notification: "capability_resolve_notification",
+  dismiss_all_notifications: "capability_dismiss_all_notifications",
+  search_projects: "capability_search_projects",
+  search_clients: "capability_search_clients",
+  search_budgets: "capability_search_budgets",
+  list_budget_ranges: "capability_list_budget_ranges",
+  generate_document: "capability_generate_document",
 };
 
 // Mapeo inverso: Intent -> ToolName (para que el router elija tool según intent)
@@ -345,6 +497,16 @@ const moderateTools: ToolName[] = [
   "reorder",
   "create_supplier",
   "trigger_workflow",
+  // Capabilities moderadas
+  "remember_preference",
+  "forget_preference",
+  "schedule_event",
+  "complete_event",
+  "cancel_event",
+  "send_notification",
+  "resolve_notification",
+  "dismiss_all_notifications",
+  "generate_document",
 ];
 
 export function getRiskLevel(tool: ToolName): RiskLevel {

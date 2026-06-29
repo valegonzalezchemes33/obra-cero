@@ -86,6 +86,24 @@ export type Intent =
   | "action_list_workflows"
   // Análisis extendido
   | "action_export_data"
+  // Capabilities (FASE 4-5) — ejecutadas via tool-registry + executeToolCall
+  | "capability_remember_preference" | "remember_preference"
+  | "capability_recall_preference" | "recall_preference"
+  | "capability_forget_preference" | "forget_preference"
+  | "capability_list_preferences" | "list_preferences"
+  | "capability_schedule_event" | "schedule_event"
+  | "capability_list_events" | "list_events"
+  | "capability_complete_event" | "complete_event"
+  | "capability_cancel_event" | "cancel_event"
+  | "capability_send_notification" | "send_notification"
+  | "capability_list_notifications" | "list_notifications"
+  | "capability_resolve_notification" | "resolve_notification"
+  | "capability_dismiss_all_notifications" | "dismiss_all_notifications"
+  | "capability_search_projects" | "search_projects"
+  | "capability_search_clients" | "search_clients"
+  | "capability_search_budgets" | "search_budgets"
+  | "capability_list_budget_ranges" | "list_budget_ranges"
+  | "capability_generate_document" | "generate_document"
   | "unknown";
 
 export interface ParsedCommand {

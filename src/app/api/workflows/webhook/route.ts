@@ -1,141 +1,197 @@
 import { NextRequest, NextResponse } from "next/server";
+import { timingSafeEqual } from "crypto";
 import { db } from "@/lib/db";
 import { executeWorkflow } from "@/lib/workflow-engine";
+import { webhookRateLimiter } from "@/lib/rate-limit";
+import { withErrorHandler } from "@/lib/api-utils";
+import { webhookLogger } from "@/lib/logger";
 
-// POST /api/workflows/webhook - Disparar un workflow desde un webhook externo
-// Se autentica via API key o via secret compartido en el webhook
-//
-// Uso:
-//   POST /api/workflows/webhook
-//   Headers: { "x-api-key": "tu-api-key" }
-//   Body: { workflowId?: string, trigger?: string, data?: any }
-//
-//   O con secret en el body:
-//   POST /api/workflows/webhook
-//   Body: { webhookSecret: "tu-secret", workflowId: "...", data: {...} }
-//
-//   Si no se especifica workflowId, se ejecutan TODOS los workflows
-//   cuyo trigger sea "webhook" y estén activos.
+function resolveClientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "0.0.0.0"
+  );
+}
 
-export async function POST(req: NextRequest) {
+function safeStrEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ab.length !== bb.length) {
+    timingSafeEqual(ab, Buffer.alloc(ab.length));
+    return false;
+  }
+  return timingSafeEqual(ab, bb);
+}
+
+function audit(entry: {
+  result: "granted" | "denied" | "rate_limited" | "disabled";
+  ip: string;
+  workflowId?: string;
+}) {
   try {
-    const body = await req.json();
-    const headers = Object.fromEntries(req.headers);
+    db.agentAction
+      .create({
+        data: {
+          type: "audit",
+          severity: entry.result === "denied" ? "warning" : "info",
+          title: `🌐 Webhook ${entry.result}`,
+          description: `IP: ${entry.ip}${entry.workflowId ? ` | workflowId: ${entry.workflowId}` : ""}`,
+          status: "active",
+          payload: JSON.stringify(entry).slice(0, 4000),
+        },
+      })
+      .catch(() => {});
+  } catch {}
+}
 
-    // ─── 1. Autenticación ───
-    const apiKey = (headers["x-api-key"] as string) || body.apiKey;
-    const webhookSecret = body.webhookSecret;
+async function postHandler(req: NextRequest) {
+  const ip = resolveClientIp(req);
 
-    // Verificar contra la API key guardada en las variables de entorno
-    const expectedApiKey = process.env.WEBHOOK_API_KEY;
-    const expectedWebhookSecret = process.env.WEBHOOK_SECRET;
+  const { allowed } = webhookRateLimiter(ip);
+  if (!allowed) {
+    audit({ result: "rate_limited", ip });
+    return NextResponse.json(
+      { error: "Demasiadas peticiones. Reintentá en un minuto." },
+      { status: 429 },
+    );
+  }
 
-    const isAuthenticated =
-      (expectedApiKey && apiKey === expectedApiKey) ||
-      (expectedWebhookSecret && webhookSecret === expectedWebhookSecret);
+  const expectedApiKey = process.env.WEBHOOK_API_KEY || "";
+  const expectedSecret = process.env.WEBHOOK_SECRET || "";
 
-    if (!isAuthenticated) {
+  if (!expectedApiKey && !expectedSecret) {
+    audit({ result: "disabled", ip });
+    return NextResponse.json(
+      {
+        error:
+          "Webhook no configurado. Seteá WEBHOOK_API_KEY o WEBHOOK_SECRET en las variables de entorno.",
+      },
+      { status: 503 },
+    );
+  }
+
+  let body: Record<string, any>;
+  try {
+    body = await req.json();
+  } catch {
+    audit({ result: "denied", ip });
+    return NextResponse.json({ error: "Body JSON inválido." }, { status: 400 });
+  }
+
+  const headers = Object.fromEntries(req.headers);
+  const apiKey = (headers["x-api-key"] as string) || body.apiKey;
+  const webhookSecret = body.webhookSecret;
+
+  let authenticated = false;
+
+  if (expectedApiKey) {
+    authenticated = safeStrEqual(apiKey || "", expectedApiKey);
+  }
+  if (!authenticated && expectedSecret) {
+    authenticated = safeStrEqual(webhookSecret || "", expectedSecret);
+  }
+
+  if (!authenticated) {
+    audit({ result: "denied", ip, workflowId: body.workflowId });
+    return NextResponse.json(
+      { error: "No autorizado. Proporcioná x-api-key o webhookSecret válido." },
+      { status: 401 },
+    );
+  }
+
+  audit({ result: "granted", ip, workflowId: body.workflowId });
+
+  const vars: Record<string, any> = {
+    webhook: {
+      headers,
+      body: body.data || body,
+      receivedAt: new Date().toISOString(),
+      source: req.headers.get("user-agent") || "unknown",
+    },
+  };
+
+  if (body.workflowId) {
+    const workflow = await db.workflow.findUnique({
+      where: { id: body.workflowId },
+    });
+
+    if (!workflow) {
       return NextResponse.json(
-        { error: "No autorizado. Proporcioná x-api-key o webhookSecret válido." },
-        { status: 401 }
+        { error: `Workflow ${body.workflowId} no encontrado` },
+        { status: 404 },
       );
     }
 
-    // ─── 2. Preparar variables de contexto ───
-    const vars: Record<string, any> = {
-      webhook: {
-        headers,
-        body: body.data || body,
-        receivedAt: new Date().toISOString(),
-        source: req.headers.get("user-agent") || "unknown",
-      },
-    };
-
-    // Si se especifica un workflowId, ejecutar solo ese workflow
-    if (body.workflowId) {
-      const workflow = await db.workflow.findUnique({
-        where: { id: body.workflowId },
-      });
-
-      if (!workflow) {
-        return NextResponse.json(
-          { error: `Workflow ${body.workflowId} no encontrado` },
-          { status: 404 }
-        );
-      }
-
-      if (!workflow.enabled) {
-        return NextResponse.json(
-          { error: `Workflow ${workflow.name} está deshabilitado` },
-          { status: 403 }
-        );
-      }
-
-      // Pasar data del webhook como variables
-      if (body.data) {
-        Object.assign(vars, { payload: body.data });
-      }
-
-      const result = await executeWorkflow(workflow.id, "webhook", vars);
-
-      return NextResponse.json({
-        success: result.success,
-        workflowId: workflow.id,
-        workflowName: workflow.name,
-        logs: result.logs.map(l => ({
-          step: l.stepLabel || l.stepType,
-          status: l.status,
-          error: l.error,
-        })),
-        executionId: result.execution?.id,
-      });
+    if (!workflow.enabled) {
+      return NextResponse.json(
+        { error: `Workflow ${workflow.name} está deshabilitado` },
+        { status: 403 },
+      );
     }
 
-    // ─── 3. Si no hay workflowId, ejecutar todos los workflows con trigger "webhook" ───
-    const webhookWorkflows = await db.workflow.findMany({
-      where: { enabled: true, trigger: "webhook" },
-    });
-
-    if (webhookWorkflows.length === 0) {
-      return NextResponse.json({
-        success: true,
-        message: "No hay workflows con trigger webhook configurados. Los datos se recibieron correctamente.",
-        received: true,
-      });
-    }
-
-    // Pasar data del webhook como variables
     if (body.data) {
       Object.assign(vars, { payload: body.data });
     }
 
-    const results = await Promise.allSettled(
-      webhookWorkflows.map(wf => executeWorkflow(wf.id, "webhook", vars))
-    );
-
-    const executions = webhookWorkflows.map((wf, i) => ({
-      workflowId: wf.id,
-      workflowName: wf.name,
-      status: results[i].status === "fulfilled"
-        ? (results[i] as PromiseFulfilledResult<any>).value.success ? "completed" : "failed"
-        : "error",
-      error: results[i].status === "rejected"
-        ? (results[i] as PromiseRejectedResult).reason?.message
-        : undefined,
-    }));
-
-    const allOk = executions.every(e => e.status === "completed");
+    const result = await executeWorkflow(workflow.id, "webhook", vars);
 
     return NextResponse.json({
-      success: allOk,
-      totalWorkflows: webhookWorkflows.length,
-      executions,
+      success: result.success,
+      workflowId: workflow.id,
+      workflowName: workflow.name,
+      logs: result.logs.map((l) => ({
+        step: l.stepLabel || l.stepType,
+        status: l.status,
+        error: l.error,
+      })),
+      executionId: result.execution?.id,
     });
-  } catch (error: any) {
-    console.error("[API] POST /api/workflows/webhook:", error.message);
-    return NextResponse.json(
-      { error: error.message || "Error interno del servidor" },
-      { status: 500 }
-    );
   }
+
+  const webhookWorkflows = await db.workflow.findMany({
+    where: { enabled: true, trigger: "webhook" },
+  });
+
+  if (webhookWorkflows.length === 0) {
+    return NextResponse.json({
+      success: true,
+      message:
+        "No hay workflows con trigger webhook configurados. Los datos se recibieron correctamente.",
+      received: true,
+    });
+  }
+
+  if (body.data) {
+    Object.assign(vars, { payload: body.data });
+  }
+
+  const results = await Promise.allSettled(
+    webhookWorkflows.map((wf) => executeWorkflow(wf.id, "webhook", vars)),
+  );
+
+  const executions = webhookWorkflows.map((wf, i) => ({
+    workflowId: wf.id,
+    workflowName: wf.name,
+    status:
+      results[i].status === "fulfilled"
+        ? (results[i] as PromiseFulfilledResult<any>).value.success
+          ? "completed"
+          : "failed"
+        : "error",
+    error:
+      results[i].status === "rejected"
+        ? (results[i] as PromiseRejectedResult).reason?.message
+        : undefined,
+  }));
+
+  const allOk = executions.every((e) => e.status === "completed");
+
+  return NextResponse.json({
+    success: allOk,
+    totalWorkflows: webhookWorkflows.length,
+    executions,
+  });
 }
+
+export const POST = withErrorHandler(postHandler);

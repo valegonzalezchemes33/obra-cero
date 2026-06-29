@@ -1,3 +1,5 @@
+import { sanitizeForGroq } from "@/lib/agent/audit";
+
 // ============================================================
 // CAPA DE ABSTRACCIÓN MULTI-PROVIDER LLM
 // Soporta: Groq, OpenAI, Anthropic, Ollama
@@ -110,6 +112,8 @@ export async function chat(
   systemPrompt?: string,
   options: LLMChatOptions & { provider?: LLMProviderType } = {}
 ): Promise<LLMResponse> {
+  userMessage = sanitizeForGroq(userMessage);
+  if (systemPrompt) systemPrompt = sanitizeForGroq(systemPrompt);
   const config = getProviderConfig(options.provider);
   if (!config) {
     const providerName = options.provider || _activeProvider;
@@ -120,6 +124,7 @@ export async function chat(
   const messages: LLMMessage[] = [];
   if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
   messages.push({ role: "user", content: userMessage });
+  for (const m of messages) m.content = sanitizeForGroq(m.content);
 
   try {
     switch (config.type) {
@@ -230,6 +235,8 @@ export async function chatStream(
   onToken: (token: string) => void,
   options: { provider?: LLMProviderType; temperature?: number; maxTokens?: number } = {}
 ): Promise<LLMResponse> {
+  userMessage = sanitizeForGroq(userMessage);
+  if (systemPrompt) systemPrompt = sanitizeForGroq(systemPrompt);
   const config = getProviderConfig(options.provider);
   if (!config) {
     const providerName = options.provider || _activeProvider;
@@ -241,6 +248,7 @@ export async function chatStream(
   const messages: LLMMessage[] = [];
   if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
   messages.push({ role: "user", content: userMessage });
+  for (const m of messages) m.content = sanitizeForGroq(m.content);
   let fullContent = "";
 
   try {

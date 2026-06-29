@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -18,10 +19,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireSession();
     const { id } = await params;
     const body = await req.json();
 
-    // Filtrar campos null/undefined para no pisar valores existentes con NaN
     const safeVal = (v: any) => (v !== undefined && v !== null && v !== '' && !isNaN(Number(v)) ? Number(v) : undefined);
 
     const updateData: any = {};
@@ -31,15 +32,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         if (parsed !== undefined) updateData[key] = parsed;
       }
     }
-    // maxStock permite null (para eliminar el valor máximo)
     if ('maxStock' in body) {
       updateData.maxStock = body.maxStock !== null && body.maxStock !== '' && !isNaN(Number(body.maxStock)) ? Number(body.maxStock) : null;
     }
-    // supplierId: vacío → null
     if ('supplierId' in body) {
       updateData.supplierId = body.supplierId || null;
     }
-    // Campos de texto
     for (const key of ['sku', 'name', 'category', 'unit', 'location']) {
       if (key in body && body[key] !== undefined && body[key] !== null) {
         updateData[key] = body[key];
@@ -52,6 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
     return NextResponse.json(mat);
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] PATCH /api/materials/[id]:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
@@ -59,10 +58,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireSession();
     const { id } = await params;
     await db.material.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] DELETE /api/materials/[id]:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

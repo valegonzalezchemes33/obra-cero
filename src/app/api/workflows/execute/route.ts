@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { executeWorkflow } from "@/lib/workflow-engine";
+import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
 
-// POST /api/workflows/execute - Ejecutar un workflow
 export async function POST(req: NextRequest) {
+  if (!requireAgentApiKey(req)) return agentApiKeyRequiredResponse();
   try {
     const body = await req.json();
     const { workflowId, vars } = body;

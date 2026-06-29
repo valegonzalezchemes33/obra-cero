@@ -20,6 +20,8 @@ import {
   listToolDefinitions,
   type ExecutableTool,
 } from "./tools/registry-definitions";
+import { auditToolExecution } from "@/lib/agent/audit";
+import type { ToolName } from "@/lib/tool-registry";
 
 export interface ToolExecutionResult {
   ok: boolean;
@@ -82,6 +84,14 @@ export async function executeToolCall(
   try {
     const response = await definition.execute(validation.args, context);
 
+    // Audit log (fire-and-forget — no bloquea la respuesta)
+    auditToolExecution(
+      tool as ToolName,
+      validation.args ?? {},
+      { ok: true },
+      { rawText: call.rawText }
+    ).catch(() => {});
+
     return {
       ok: true,
       tool,
@@ -91,6 +101,14 @@ export async function executeToolCall(
       response,
     };
   } catch (error: any) {
+    // Audit log (fire-and-forget — no bloquea la respuesta)
+    auditToolExecution(
+      tool as ToolName,
+      validation.args ?? {},
+      { ok: false, errors: [error.message || "Error desconocido"] },
+      { rawText: call.rawText }
+    ).catch(() => {});
+
     return {
       ok: false,
       tool,

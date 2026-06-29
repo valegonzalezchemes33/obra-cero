@@ -5,41 +5,34 @@ import path from "path";
 
 const execAsync = promisify(exec);
 
-// POST /api/seed — Ejecuta scripts/seed.ts (solo admin, solo dev)
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+// POST /api/seed — Ejecuta scripts/seed.ts (solo dev)
 //
 // ⚠️ IMPORTANTE:
 //  - Esta ruta EXPLOTA la base de datos. Solo debe existir en
-//    desarrollo. En producción debe ser 404 o 401.
-//  - El cwd se resuelve relativo al proyecto (no hardcodeado como
-//    antes, que rompía en Windows).
-//  - Comandos largos (60s timeout).
+//    desarrollo. En producción devolvemos 404 para no exponer
+//    la existencia del endpoint.
+//  - Detrás del middleware de NextAuth: si el mode AUTH_DISABLED
+//    está desactivado va a exigir sesión válida.
+//  - Doble check: incluso sin la sesión, en producción nunca corre.
 export async function POST() {
-  // Solo habilitado en entornos de desarrollo y sin auth activa
   if (process.env.NODE_ENV === "production") {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Seed deshabilitado en producción",
-      },
-      { status: 403 }
-    );
+    // 404 deliberado para no confirmar la existencia de la ruta.
+    return new NextResponse(null, { status: 404 });
   }
 
-  // Solo si auth NO está configurada (modo dev). En caso de auth activa
-  // en desarrollo, loggear warning para que el admin decida restringir.
   if (process.env.AUTH_DISABLED !== "1") {
     console.warn(
-      "[seed] ADVERTENCIA: ejecutando seed con auth activa — considerar restricción."
+      "[seed] ADVERTENCIA: ejecutando seed con auth activa — considerar restricción.",
     );
   }
 
   try {
     const projectRoot = process.cwd();
-
-    // Verificar que scripts/seed.ts exista antes de invocar bun
     const seedPath = path.join(projectRoot, "scripts", "seed.ts");
 
-    // Usar `bun run` si está disponible; fallback a `npx tsx`
     const command = (await isCommandAvailable("bun"))
       ? `bun run scripts/seed.ts`
       : `npx tsx scripts/seed.ts`;
@@ -68,7 +61,7 @@ export async function POST() {
         stdout: e.stdout ? String(e.stdout).slice(0, 5_000) : undefined,
         stderr: e.stderr ? String(e.stderr).slice(0, 5_000) : undefined,
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

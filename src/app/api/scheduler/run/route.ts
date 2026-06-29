@@ -1,8 +1,9 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { runScheduler } from "@/lib/workflow-engine";
+import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
 
-// POST /api/scheduler/run - Ejecutar el scheduler (llamado por cron externo o manualmente)
-export async function POST() {
+export async function POST(req: NextRequest) {
+  if (!requireAgentApiKey(req)) return agentApiKeyRequiredResponse();
   try {
     const results = await runScheduler();
     return NextResponse.json({ triggered: results.length, results });

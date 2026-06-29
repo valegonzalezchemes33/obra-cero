@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { parseBody, MaterialCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -16,24 +18,26 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    await requireSession();
+    const parsed = await parseBody(req, MaterialCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const mat = await db.material.create({
       data: {
-        sku: body.sku,
+        sku: body.sku || "",
         name: body.name,
         category: body.category || "general",
         unit: body.unit || "unidad",
-        unitCost: parseFloat(body.unitCost) || 0,
-        unitPrice: parseFloat(body.unitPrice) || 0,
-        stock: parseFloat(body.stock) || 0,
-        minStock: parseFloat(body.minStock) || 0,
-        maxStock: body.maxStock ? parseFloat(body.maxStock) : null,
+        unitCost: body.unitCost || 0,
+        unitPrice: body.unitPrice || 0,
+        stock: body.stock || 0,
+        minStock: body.minStock || 0,
+        maxStock: body.maxStock ?? null,
         location: body.location,
         supplierId: body.supplierId || null,
       },
     });
 
-    // Si hay stock inicial, registrar movimiento
     if (mat.stock > 0) {
       await db.stockMovement.create({
         data: {
@@ -50,6 +54,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(mat, { status: 201 });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] POST /api/materials:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

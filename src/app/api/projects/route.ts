@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { parseBody, ProjectCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -16,8 +18,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    // Buscar todos los códigos y encontrar el máximo número
+    await requireSession();
+    const parsed = await parseBody(req, ProjectCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const allProjects = await db.project.findMany({ select: { code: true } });
     let maxNum = 0;
     for (const p of allProjects) {
@@ -36,17 +40,18 @@ export async function POST(req: NextRequest) {
         address: body.address,
         status: body.status || "planning",
         type: body.type || "obra",
-        budget: parseFloat(body.budget) || 0,
+        budget: body.budget || 0,
         clientName: body.clientName,
         clientPhone: body.clientPhone,
-        clientEmail: body.clientEmail,
+        clientEmail: body.clientEmail || null,
         startDate: body.startDate ? new Date(body.startDate) : null,
         endDate: body.endDate ? new Date(body.endDate) : null,
-        progress: parseFloat(body.progress) || 0,
+        progress: body.progress || 0,
       },
     });
     return NextResponse.json(project, { status: 201 });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] POST /api/projects:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

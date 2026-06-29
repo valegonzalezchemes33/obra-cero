@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { parseBody, TransactionCreateSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const type = searchParams.get("type"); // income | expense
+    const type = searchParams.get("type");
     const projectId = searchParams.get("projectId");
     const limit = parseInt(searchParams.get("limit") || "100");
 
@@ -27,13 +29,16 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    await requireSession();
+    const parsed = await parseBody(req, TransactionCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const tx = await db.transaction.create({
       data: {
         type: body.type,
         category: body.category,
-        description: body.description,
-        amount: parseFloat(body.amount),
+        description: body.description || "",
+        amount: body.amount,
         projectId: body.projectId || null,
         supplierId: body.supplierId || null,
         method: body.method || "transferencia",
@@ -43,6 +48,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(tx, { status: 201 });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] POST /api/transactions:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

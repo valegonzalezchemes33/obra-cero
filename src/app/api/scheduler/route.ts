@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
 
-// GET /api/scheduler - Listar schedules
 export async function GET() {
   try {
     const schedules = await db.agentSchedule.findMany({
@@ -14,9 +14,9 @@ export async function GET() {
   }
 }
 
-// POST /api/scheduler - Crear schedule
 export async function POST(req: NextRequest) {
   try {
+    await requireSession();
     const body = await req.json();
     const schedule = await db.agentSchedule.create({
       data: {
@@ -30,14 +30,15 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(schedule, { status: 201 });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] POST /api/scheduler:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
 }
 
-// PATCH /api/scheduler - Actualizar schedule
 export async function PATCH(req: NextRequest) {
   try {
+    await requireSession();
     const body = await req.json();
     const { id, ...data } = body;
 
@@ -55,14 +56,15 @@ export async function PATCH(req: NextRequest) {
     });
     return NextResponse.json(schedule);
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] PATCH /api/scheduler:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
 }
 
-// DELETE /api/scheduler - Eliminar schedule
 export async function DELETE(req: NextRequest) {
   try {
+    await requireSession();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
@@ -70,6 +72,7 @@ export async function DELETE(req: NextRequest) {
     await db.agentSchedule.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] DELETE /api/scheduler:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

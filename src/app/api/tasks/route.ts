@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getSession } from "@/lib/api-utils";
+import { parseBody, TaskCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -16,7 +18,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const session = await getSession();
+    const parsed = await parseBody(req, TaskCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const task = await db.task.create({
       data: {
         title: body.title,
@@ -26,7 +31,7 @@ export async function POST(req: NextRequest) {
         assignee: body.assignee,
         dueDate: body.dueDate ? new Date(body.dueDate) : null,
         projectId: body.projectId || null,
-        createdBy: body.createdBy || "user",
+        createdBy: session?.user?.id || "user",
       },
     });
     return NextResponse.json(task, { status: 201 });

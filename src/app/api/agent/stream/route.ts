@@ -10,6 +10,7 @@ import { NextRequest } from "next/server";
 import { tryGroqIntentRecognition, getSystemContext } from "@/lib/groq-integration";
 import { chatStream, getAvailableProviders } from "@/lib/llm-provider";
 import { getConversationContext, getPendingAction, isConfirmation, isCancellation, clearPendingAction } from "@/lib/agent-memory";
+import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ function isMutationMessage(message: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  if (!requireAgentApiKey(req)) return agentApiKeyRequiredResponse();
   try {
     const body = await req.json();
     const rawMessage: string = body.message || "";

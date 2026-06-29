@@ -5,6 +5,7 @@ import {
   listExecutableTools,
 } from "@/lib/tool-execution";
 import type { ToolName, ToolCall } from "@/lib/tool-registry";
+import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
 
 // POST /api/agent/tools/execute — Ejecuta una tool registrada.
 //

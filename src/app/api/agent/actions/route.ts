@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
 
-// GET - listar acciones del agente
 export async function GET() {
   try {
     const actions = await db.agentAction.findMany({
@@ -15,13 +15,12 @@ export async function GET() {
   }
 }
 
-// PATCH - marcar acción(es) como resuelta(s) o descartada(s)
 export async function PATCH(req: NextRequest) {
   try {
+    await requireSession();
     const body = await req.json();
     const { id, ids, status } = body;
 
-    // Soporte para bulk (ids) o individual (id)
     const targetIds = ids || (id ? [id] : []);
     if (targetIds.length === 0) {
       return NextResponse.json({ error: "Se requiere id o ids" }, { status: 400 });
@@ -34,6 +33,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ updated: result.count });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] PATCH /api/agent/actions:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runAutomations } from "@/lib/agent";
+import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
 
-// POST /api/automations/run - ejecutar todas las reglas activas
-export async function POST() {
+export async function POST(req: NextRequest) {
+  if (!requireAgentApiKey(req)) return agentApiKeyRequiredResponse();
   try {
     const triggered = await runAutomations();
     return NextResponse.json({ triggered, count: triggered.length });

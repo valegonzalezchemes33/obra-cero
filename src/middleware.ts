@@ -31,22 +31,55 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(p));
 }
 
+function isAuthDisabled(): boolean {
+  // AUTH_DISABLED solo es válido fuera de producción.
+  // En producción cualquier valor distinto de vacío → auth habilitada de todas formas.
+  if (process.env.NODE_ENV === "production") return false;
+  return process.env.AUTH_DISABLED === "1";
+}
+
 export default withAuth(
   function middleware(req) {
     const { pathname } = req.nextUrl;
 
-    // Si está logueado y va a /login → redirigir al home
     if (req.nextauth.token && pathname === "/login") {
       return NextResponse.redirect(new URL("/", req.url));
     }
 
-    return NextResponse.next();
+    const res = NextResponse.next();
+
+    const isProd = process.env.NODE_ENV === "production";
+
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://api.groq.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+    ];
+
+    res.headers.set("X-Content-Type-Options", "nosniff");
+    res.headers.set("X-Frame-Options", "DENY");
+    res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    res.headers.set("X-XSS-Protection", "0");
+
+    if (isProd) {
+      res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
+    }
+
+    res.headers.set("Content-Security-Policy", csp.join("; "));
+
+    return res;
   },
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // Auth desactivada por env → siempre autorizado
-        if (process.env.AUTH_DISABLED === "1") return true;
+        // Auth desactivada (solo fuera de producción).
+        if (isAuthDisabled()) return true;
 
         const { pathname } = req.nextUrl;
         if (isPublic(pathname)) return true;

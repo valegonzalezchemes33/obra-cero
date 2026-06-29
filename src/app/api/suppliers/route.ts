@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { parseBody, SupplierCreateSchema } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -16,7 +18,10 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    await requireSession();
+    const parsed = await parseBody(req, SupplierCreateSchema);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.data;
     const sup = await db.supplier.create({
       data: {
         name: body.name,
@@ -25,12 +30,13 @@ export async function POST(req: NextRequest) {
         email: body.email,
         taxId: body.taxId,
         category: body.category,
-        rating: parseFloat(body.rating) || 3,
+        rating: body.rating || 3,
         notes: body.notes,
       },
     });
     return NextResponse.json(sup, { status: 201 });
   } catch (error: any) {
+    if (error instanceof AuthRequiredError) return authRequiredResponse();
     console.error("[API] POST /api/suppliers:", error.message);
     return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
   }
