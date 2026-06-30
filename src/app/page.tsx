@@ -13,9 +13,11 @@ import { AutomationsView } from "@/components/views/automations";
 import { CommandPalette } from "@/components/command-palette";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { PanelLeft, Search } from "lucide-react";
 import { NotificationPanel } from "@/components/notification-panel";
 import { UserMenu } from "@/components/user-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { motion, AnimatePresence } from "framer-motion";
 
 const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: string; target: ViewKey } }> = {
   dashboard: { title: "Panel", sub: "Vista general de tu operación" },
@@ -31,6 +33,7 @@ const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: strin
 export default function Home() {
   const [view, setView] = useState<ViewKey>("dashboard");
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [pendingAgentQuery, setPendingAgentQuery] = useState<string | null>(null);
 
   const { data: actions } = useQuery({
@@ -67,10 +70,10 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <Sidebar current={view} onChange={setView} alertsCount={alertsCount} onOpenCommand={() => setCmdOpen(true)} />
+      <Sidebar current={view} onChange={setView} alertsCount={alertsCount} collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} onOpenCommand={() => setCmdOpen(true)} />
       <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border/60">
+        <header className="sticky top-0 z-30 bg-background/70 backdrop-blur-xl border-b border-border/40 supports-[backdrop-filter]:bg-background/60">
           <div className="h-14 px-4 lg:px-8 flex items-center justify-between gap-4">
             <div className="min-w-0 flex-1">
               <div className="lg:hidden flex items-center gap-2 mb-0.5">
@@ -82,6 +85,8 @@ export default function Home() {
               <p className="text-[11px] text-muted-foreground mt-1 hidden sm:block leading-none">{meta.sub}</p>
             </div>
             <div className="flex items-center gap-2">
+              {/* Theme toggle */}
+              <ThemeToggle />
               {/* Mobile search trigger */}
               <Button variant="outline" size="icon" className="lg:hidden"
                 onClick={() => setCmdOpen(true)}>
@@ -97,16 +102,24 @@ export default function Home() {
 
         {/* Content */}
         <div className="flex-1 p-4 lg:p-8 max-w-[1400px] w-full mx-auto">
-          <div className="animate-fade-up">
-            {view === "dashboard" && <Dashboard onNavigate={setView} />}
-            {view === "projects" && <ProjectsView />}
-            {view === "finances" && <FinancesView />}
-            {view === "inventory" && <InventoryView />}
-            {view === "suppliers" && <SuppliersView />}
-            {view === "tasks" && <TasksView />}
-            {view === "agent" && <AgentView initialQuery={pendingAgentQuery} />}
-            {view === "automations" && <AutomationsView />}
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={view}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+            >
+              {view === "dashboard" && <Dashboard onNavigate={setView} />}
+              {view === "projects" && <ProjectsView />}
+              {view === "finances" && <FinancesView />}
+              {view === "inventory" && <InventoryView />}
+              {view === "suppliers" && <SuppliersView />}
+              {view === "tasks" && <TasksView />}
+              {view === "agent" && <AgentView initialQuery={pendingAgentQuery} />}
+              {view === "automations" && <AutomationsView />}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
       <MobileNav current={view} onChange={setView} alertsCount={alertsCount} />

@@ -27,8 +27,6 @@ export const TaskCreateSchema = z.object({
   projectId: z.string().optional(),
 });
 
-export const TaskUpdateSchema = TaskCreateSchema.partial();
-
 export const TransactionCreateSchema = z.object({
   type: z.enum(["income", "expense"]),
   category: z.string().min(1),
@@ -95,15 +93,6 @@ export const WorkflowCreateSchema = z.object({
   triggerConfig: z.any().optional(),
   enabled: z.boolean().optional(),
   steps: z.array(z.any()).optional(),
-});
-
-export const ScheduleCreateSchema = z.object({
-  name: z.string().min(1).max(200),
-  type: z.string().min(1),
-  config: z.any().optional(),
-  cron: z.string().optional(),
-  enabled: z.boolean().optional(),
-  nextRun: z.string().optional(),
 });
 
 export function validateBody<T>(schema: z.ZodSchema<T>, body: unknown):

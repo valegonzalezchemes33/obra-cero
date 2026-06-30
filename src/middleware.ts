@@ -27,15 +27,57 @@ const PUBLIC_PATHS = [
   "/sounds",
 ];
 
+const CSRF_EXEMPT_PATHS = [
+  "/api/auth",
+  "/api/webhooks",
+  "/api/workflows/webhook",
+  "/api/health",
+];
+
+const STATE_CHANGING_METHODS = ["POST", "PUT", "PATCH", "DELETE"];
+
 function isPublic(pathname: string): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`) || pathname.startsWith(p));
 }
 
+function isCsrfExempt(pathname: string): boolean {
+  return CSRF_EXEMPT_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 function isAuthDisabled(): boolean {
-  // AUTH_DISABLED solo es válido fuera de producción.
-  // En producción cualquier valor distinto de vacío → auth habilitada de todas formas.
   if (process.env.NODE_ENV === "production") return false;
   return process.env.AUTH_DISABLED === "1";
+}
+
+function getExpectedOrigin(): string {
+  const url = process.env.NEXTAUTH_URL || process.env.ALLOWED_ORIGIN || "";
+  try {
+    const parsed = new URL(url);
+    return parsed.origin;
+  } catch {
+    return "";
+  }
+}
+
+function checkCsrf(req: { method: string; nextUrl: URL; headers: Headers }): boolean {
+  if (!STATE_CHANGING_METHODS.includes(req.method)) return true;
+  if (isCsrfExempt(req.nextUrl.pathname)) return true;
+
+  const origin = req.headers.get("origin");
+  if (!origin) return true;
+
+  const expected = getExpectedOrigin();
+  if (!expected) return true;
+
+  try {
+    const parsedOrigin = new URL(origin);
+    if (parsedOrigin.origin === expected) return true;
+    if (/^https?:\/\/localhost(:\d+)?$/.test(parsedOrigin.origin)) return true;
+  } catch {
+    return false;
+  }
+
+  return false;
 }
 
 const isProd = process.env.NODE_ENV === "production";
@@ -57,6 +99,13 @@ export default withAuth(
 
     if (req.nextauth.token && pathname === "/login") {
       return NextResponse.redirect(new URL("/", req.url));
+    }
+
+    if (!checkCsrf(req)) {
+      return new NextResponse(JSON.stringify({ error: "CSRF validation failed" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const res = NextResponse.next();

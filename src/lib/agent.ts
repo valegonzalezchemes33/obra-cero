@@ -421,6 +421,42 @@ const INTENT_PATTERNS: IntentPattern[] = [
     priority: 11,
   },
   {
+    intent: "action_delete_task",
+    patterns: [
+      /(eliminar|borrar|remover|sacar)\s+(la\s+)?tarea/i,
+      /tarea\s+["']?[\w\s]+["']?\s+(elimin|borrad)/i,
+    ],
+    entities: (text: string) => {
+      const titleMatch = text.match(/(?:tarea\s+)?["']([\w\s]+)["']/i) || text.match(/(?:eliminar|borrar)\s+(?:la\s+)?tarea\s+(.+?)(?:,|$)/i);
+      return { taskTitle: titleMatch ? titleMatch[1].trim() : undefined };
+    },
+    priority: 11,
+  },
+  {
+    intent: "action_delete_material",
+    patterns: [
+      /(eliminar|borrar|remover|sacar)\s+(el\s+|la\s+|un\s+|una\s+)?(material|insumo|producto)/i,
+      /dar\s+(de\s+)?baja\s+(el\s+|la\s+)?(material|insumo|producto)/i,
+    ],
+    entities: (text: string) => {
+      const nameMatch = text.match(/(?:eliminar|borrar|remover|sacar|dar\s+de\s+baja)\s+(?:el\s+|la\s+|un\s+|una\s+)?(?:material|insumo|producto)\s+(.+?)(?:,|$)/i);
+      return { materialName: nameMatch ? nameMatch[1].trim() : undefined };
+    },
+    priority: 11,
+  },
+  {
+    intent: "action_delete_transaction",
+    patterns: [
+      /(eliminar|borrar|remover|sacar)\s+(el\s+|la\s+|un\s+|una\s+)?(gasto|ingreso|movimiento|transaccion)/i,
+      /anular\s+(el\s+|la\s+|un\s+|una\s+)?(gasto|ingreso|movimiento)/i,
+    ],
+    entities: (text: string) => {
+      const descMatch = text.match(/(?:eliminar|borrar|remover|sacar|anular)\s+(?:el\s+|la\s+|un\s+|una\s+)?(?:gasto|ingreso|movimiento|transaccion)\s+(.+?)(?:,|$)/i);
+      return { transactionRef: descMatch ? descMatch[1].trim() : undefined };
+    },
+    priority: 11,
+  },
+  {
     intent: "action_close_project",
     patterns: [
       /(cerrar|finalizar|terminar)\s+(obra|proyecto)/i,

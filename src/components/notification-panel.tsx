@@ -62,7 +62,7 @@ export function NotificationPanel() {
         esRef.current = es;
 
         es.addEventListener("connected", () => {
-          console.log("[SSE] Conectado a notificaciones en tiempo real");
+          // SSE conectado
         });
 
         es.addEventListener("notifications", (event) => {

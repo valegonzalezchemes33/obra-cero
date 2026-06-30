@@ -56,14 +56,6 @@ export function formatDateTime(date: Date | string | null | undefined) {
   });
 }
 
-export function formatCompact(value: number): string {
-  // 1.2M, 950K, etc.
-  if (Math.abs(value) >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
-  if (Math.abs(value) >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(value) >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
-  return String(value);
-}
-
 export const STATUS_LABELS: Record<string, string> = {
   planning: "Planificación",
   in_progress: "En progreso",
@@ -130,12 +122,4 @@ export function chartColor(idx: number): string {
   // Fallbacks (must match globals.css)
   const fallbacks = ["oklch(0.48 0.135 36)", "oklch(0.50 0.10 160)", "oklch(0.52 0.09 260)", "oklch(0.68 0.12 75)", "oklch(0.50 0.15 16)", "oklch(0.55 0.06 200)"];
   return fallbacks[idx % fallbacks.length];
-}
-
-export function tokenColor(name: string): string {
-  if (typeof window !== "undefined") {
-    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    if (v) return `oklch(${v})`;
-  }
-  return "oklch(0.5 0 0)";
 }

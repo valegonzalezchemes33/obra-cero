@@ -160,6 +160,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           delta={incomeDelta !== 0 ? { value: incomeDelta, label: "vs mes anterior" } : undefined}
           sparkline={sparkIncome}
           accent="success"
+          index={0}
           onClick={() => setDetailQuadrant("income")}
         />
         <KpiCard
@@ -168,18 +169,21 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           delta={expenseDelta !== 0 ? { value: -expenseDelta, label: "vs mes anterior" } : undefined}
           sparkline={sparkExpense}
           accent="destructive"
+          index={1}
           onClick={() => setDetailQuadrant("expenses")}
         />
         <KpiCard
           label="Inventario"
           value={formatCurrency(k.stockValue)}
           accent="primary"
+          index={2}
           onClick={() => setDetailQuadrant("inventory")}
         />
         <KpiCard
           label="Presupuesto obras"
           value={formatCurrency(k.totalBudget)}
           accent="primary"
+          index={3}
           onClick={() => setDetailQuadrant("budget")}
         />
       </div>
@@ -198,8 +202,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                 <XAxis dataKey="month" {...chartAxisProps} />
                 <YAxis {...chartAxisProps} tickFormatter={(v) => `${(v / 1000000).toFixed(0)}M`} />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--color-muted)", opacity: 0.4 }} />
-                <Bar dataKey="income" name="Ingresos" fill={chartColor(1)} radius={[3, 3, 0, 0]} maxBarSize={28} />
-                <Bar dataKey="expense" name="Gastos" fill={chartColor(5)} radius={[3, 3, 0, 0]} maxBarSize={28} />
+                <Bar dataKey="income" name="Ingresos" fill={chartColor(1)} radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive animationDuration={500} animationBegin={0} />
+                <Bar dataKey="expense" name="Gastos" fill={chartColor(5)} radius={[3, 3, 0, 0]} maxBarSize={28} isAnimationActive animationDuration={500} animationBegin={100} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -224,6 +228,9 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     innerRadius={42}
                     paddingAngle={1.5}
                     stroke="none"
+                    isAnimationActive
+                    animationDuration={600}
+                    animationBegin={150}
                   >
                     {expenseByCategory.map((_, i) => (
                       <Cell key={i} fill={chartColor(i)} />

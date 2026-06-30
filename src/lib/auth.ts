@@ -46,7 +46,7 @@ function resolveSecret(): string {
   return secret;
 }
 
-export const AUTH_SECRET = resolveSecret();
+const AUTH_SECRET = resolveSecret();
 
 function safeStringEqual(a: string, b: string): boolean {
   const ab = Buffer.from(a, "utf8");

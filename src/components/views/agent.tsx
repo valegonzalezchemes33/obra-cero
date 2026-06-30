@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History, Code, Copy, Paperclip, FileText, Image, Loader2 } from "lucide-react";
+import { Bot, Send, AlertTriangle, Zap, Trash2, Lightbulb, Clock, Sparkles, ChevronUp, CheckCircle2, XCircle, History, Code, Copy, Paperclip, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
@@ -222,10 +223,12 @@ export function AgentView({ initialQuery }: AgentViewProps) {
   const handleFileUpload = async (file: File) => {
     if (isThinking || uploading) return;
 
-    const allowedTypes = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf", "text/plain", "text/csv"];
+    const isImage = file.type.startsWith("image/");
     const isPdf = file.name.toLowerCase().endsWith(".pdf");
-    if (!allowedTypes.includes(file.type) && !isPdf) {
-      toast.error(`Formato no soportado: ${file.type || file.name}. Permitidos: imágenes, PDFs, TXT, CSV`);
+    const isText = /\.(txt|csv|md|json|xml)$/i.test(file.name);
+
+    if (!isImage && !isPdf && !isText) {
+      toast.error(`Formato no soportado: ${file.name}. Permitidos: imágenes, PDFs, TXT, CSV`);
       return;
     }
 
@@ -242,25 +245,46 @@ export function AgentView({ initialQuery }: AgentViewProps) {
     }]);
 
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const r = await fetch("/api/agent/upload", { method: "POST", body: fd, credentials: "include" });
-      const body = await r.text();
-      let data;
-      try {
-        data = JSON.parse(body);
-      } catch {
-        throw new Error(`El servidor respondió con HTML (status ${r.status}). ${body.slice(0, 200)}`);
+      // Leer archivo como base64 en el cliente
+      const buffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      const base64 = btoa(binary);
+
+      let analysisText = "";
+      let summary = "";
+
+      if (isImage) {
+        const r = await fetch("/api/agent/vision", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: base64, mimeType: file.type, fileName: file.name }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Error al analizar imagen");
+        analysisText = data.text;
+        summary = data.summary;
+      } else {
+        const r = await fetch("/api/agent/analyze-file", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: base64, fileName: file.name }),
+        });
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || "Error al analizar archivo");
+        analysisText = data.text;
+        summary = data.summary;
       }
-      if (!r.ok) throw new Error(data.error || "Error al procesar archivo");
+
+      const agentResponse = `📄 **Archivo analizado: ${file.name}**\n\n**Resumen:** ${summary}\n\n**Contenido extraído:**\n\`\`\`\n${analysisText.slice(0, 3000)}\`\`\`\n\n¿Qué querés hacer con esta información? Puedo crear registros, editar datos existentes o responder consultas.`;
 
       setMessages((prev) => [...prev, {
         role: "agent",
-        content: data.agentResponse,
+        content: agentResponse,
         suggestions: ["Crear registros con estos datos", "¿Qué contiene?", "Resumí la información"],
         timestamp: new Date(),
       }]);
-      queryClient.invalidateQueries({ queryKey: ["agent-history"] });
     } catch (err: any) {
       toast.error(err.message);
       setMessages((prev) => [...prev, {
@@ -371,21 +395,28 @@ export function AgentView({ initialQuery }: AgentViewProps) {
               </div>
             )}
 
-            {messages.map((m, i) => (
-              <div key={i} className="group animate-fade-up">
-                {m.role === "user" ? (
-                  <div className="flex justify-end">
-                    <div className="max-w-[80%] bg-primary text-primary-foreground rounded-lg rounded-br-sm px-3.5 py-2 text-[13px] leading-relaxed">
-                      {m.content}
+            <AnimatePresence initial={false}>
+              {messages.map((m, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="group"
+                >
+                  {m.role === "user" ? (
+                    <div className="flex justify-end">
+                      <div className="max-w-[80%] bg-primary text-primary-foreground rounded-lg rounded-br-sm px-3.5 py-2 text-[13px] leading-relaxed">
+                        {m.content}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-2.5">
-                    <div className="h-7 w-7 rounded-md bg-primary/10 ring-1 ring-primary/15 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] text-muted-foreground mb-1 font-medium">Asistente</div>
+                  ) : (
+                    <div className="flex gap-2.5">
+                      <div className="h-7 w-7 rounded-md bg-primary/10 ring-1 ring-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                        <Bot className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] text-muted-foreground mb-1 font-medium">Asistente</div>
 
                       {/* Badge de confirmación */}
                       {m._confirmed && (
@@ -516,24 +547,45 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                     </div>
                   </div>
                 )}
-              </div>
-            ))}
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
-            {isThinking && (
-              <div className="flex gap-2.5">
-                <div className="h-7 w-7 rounded-md bg-primary/10 ring-1 ring-primary/15 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bot className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <div className="text-[11px] text-muted-foreground mb-1 font-medium">Asistente</div>
-                  <div className="flex gap-1.5 py-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-pulse" />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-pulse" style={{ animationDelay: "150ms" }} />
-                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-pulse" style={{ animationDelay: "300ms" }} />
+            <AnimatePresence>
+              {isThinking && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15 }}
+                  className="flex gap-2.5"
+                >
+                  <div className="h-7 w-7 rounded-md bg-primary/10 ring-1 ring-primary/15 flex items-center justify-center shrink-0 mt-0.5">
+                    <Bot className="h-3.5 w-3.5 text-primary" />
                   </div>
-                </div>
-              </div>
-            )}
+                  <div className="flex-1">
+                    <div className="text-[11px] text-muted-foreground mb-1 font-medium">Asistente</div>
+                    <div className="flex gap-1.5 py-2">
+                      <motion.span
+                        className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0 }}
+                      />
+                      <motion.span
+                        className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0.2 }}
+                      />
+                      <motion.span
+                        className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40"
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: 0.4 }}
+                      />
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {showScrollBtn && (
@@ -555,7 +607,7 @@ export function AgentView({ initialQuery }: AgentViewProps) {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept="image/*,.pdf,.txt,.csv"
+                accept="image/*,.pdf,.txt,.csv,.md,.json,.xml"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleFileUpload(file);

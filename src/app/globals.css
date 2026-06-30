@@ -244,6 +244,27 @@
   animation: fade-up 200ms ease-out both;
 }
 
+/* Skeleton pulse (smoother) */
+@keyframes shimmer-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+.animate-shimmer-pulse {
+  animation: shimmer-pulse 2s ease-in-out infinite;
+}
+
+/* Glass utility */
+.glass {
+  background: oklch(0.998 0.002 75 / 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid oklch(0.91 0.005 75 / 0.3);
+}
+.dark .glass {
+  background: oklch(0.195 0.006 60 / 0.6);
+  border: 1px solid oklch(1 0 0 / 0.06);
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

@@ -13,7 +13,7 @@ export async function GET() {
   // Lista con info de implementación y descripción detallada
   const definiciones = listExecutableTools();
 
-  const tools = Object.keys(toolSchemas).map((name) => {
+  const tools = (Object.keys(toolSchemas) as ToolName[]).map((name) => {
     const schema = toolSchemas[name];
     const def = definiciones.find((d) => d.name === name);
     return {
