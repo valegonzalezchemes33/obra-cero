@@ -63,8 +63,8 @@ function safeStringEqual(a: string, b: string): boolean {
 // ─── Legacy env credentials (backward compat) ────────────────
 
 function getEnvCredentials(): { user: string; password: string } | null {
-  const user = process.env.ADMIN_USER;
-  const password = process.env.ADMIN_PASSWORD;
+  const user = process.env.ADMIN_USER?.trim();
+  const password = process.env.ADMIN_PASSWORD?.trim();
   if (!user || !password) return null;
   return { user, password };
 }
@@ -164,7 +164,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         // El campo "email" puede contener el username legacy
-        const okUser = safeStringEqual(credentials.email, env.user);
+        const okUser = safeStringEqual(credentials.email.trim(), env.user);
         const okPass = safeStringEqual(credentials.password, env.password);
         if (okUser && okPass) {
           return {
