@@ -48,6 +48,10 @@ export async function processMessageWithIntent(
   rawText: string,
   groqConfidence = 0.8
 ): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const tenantCtx = await getTenantSafe();
+  const orgId = tenantCtx?.organizationId ?? "default";
+
   const parsed = createSyntheticParsedCommand(intent, entities, rawText, groqConfidence);
 
   // Guardar mensaje del usuario con intent de Groq
@@ -61,6 +65,7 @@ export async function processMessageWithIntent(
           _groqConfidence: groqConfidence,
           _groqEntities: entities,
         }).slice(0, 4000),
+        organizationId: orgId,
       },
     });
   } catch (e) { agentLogger.warn({ module: "agent-dispatcher" }, "catch swallowed: guardar mensaje del usuario en BD") }
@@ -77,6 +82,7 @@ export async function processMessageWithIntent(
         content: response.text.slice(0, 5000),
         intent,
         meta: response.data ? JSON.stringify(response.data).slice(0, 4000) : null,
+        organizationId: orgId,
       },
     });
   } catch (e) { agentLogger.warn({ module: "agent-dispatcher" }, "catch swallowed: guardar respuesta del agente en BD") }

@@ -345,12 +345,16 @@ export async function setPreference(pref: Omit<AgentPreference, "savedAt">): Pro
 
   // Persistir también como AgentMessage para histórico
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
     await db.agentMessage.create({
       data: {
         role: "agent",
         content: `[preference] ${pref.key} = ${JSON.stringify(pref.value)}`,
         intent: "remember_preference",
         meta: JSON.stringify({ type: "preference", ...pref }),
+        organizationId: orgId,
       },
     });
   } catch {
@@ -364,12 +368,16 @@ export async function deletePreference(key: string): Promise<boolean> {
   const existed = preferencesStore.delete(key);
   if (existed) {
     try {
+      const { getTenantSafe } = await import("@/lib/tenant");
+      const tenantCtx = await getTenantSafe();
+      const orgId = tenantCtx?.organizationId ?? "default";
       await db.agentMessage.create({
         data: {
           role: "agent",
           content: `[preference-forgotten] ${key}`,
           intent: "forget_preference",
           meta: JSON.stringify({ type: "preference-forget", key }),
+          organizationId: orgId,
         },
       });
     } catch {
@@ -480,12 +488,16 @@ export interface RecordTurnInput {
 
 export async function recordTurn(input: RecordTurnInput, sessionId = "default"): Promise<void> {
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
     await db.agentMessage.create({
       data: {
         role: input.role,
         content: input.content,
         intent: input.intent || null,
         meta: input.meta ? JSON.stringify(input.meta) : null,
+        organizationId: orgId,
       },
     });
     invalidarSesion(sessionId);

@@ -130,6 +130,7 @@ async function executeAction(
             dueDate,
             projectId,
             createdBy: "workflow",
+            organizationId: "default",
           },
         });
         ctx.variables.lastTask = task;
@@ -145,6 +146,7 @@ async function executeAction(
             title: interpolate(c.title, vars).slice(0, 200),
             description: interpolate(c.description, vars).slice(0, 500),
             status: "active",
+            organizationId: "default",
           },
         });
         ctx.variables.lastAlert = action;
@@ -174,6 +176,7 @@ async function executeAction(
             projectId,
             supplierId,
             date: new Date(),
+            organizationId: "default",
           },
         });
         ctx.variables.lastTransaction = tx;
@@ -201,6 +204,7 @@ async function executeAction(
             status: "planning",
             type: "obra",
             progress: 0,
+            organizationId: "default",
           },
         });
         ctx.variables.lastProject = project;
@@ -216,6 +220,7 @@ async function executeAction(
             email: c.email || null,
             category: c.category || null,
             rating: 3,
+            organizationId: "default",
           },
         });
         ctx.variables.lastSupplier = supplier;
@@ -282,6 +287,7 @@ async function executeAction(
                 reason: "compra",
                 note: "Workflow automatizado",
                 materialId: existing.id,
+                organizationId: "default",
               },
             });
             created.push({ ...existing, updated: true });
@@ -295,6 +301,7 @@ async function executeAction(
                 unit: item.unit || "unidad",
                 stock: item.qty,
                 minStock: 0,
+                organizationId: "default",
               },
             });
             await db.stockMovement.create({
@@ -305,6 +312,7 @@ async function executeAction(
                 reason: "compra",
                 note: "Workflow automatizado",
                 materialId: mat.id,
+                organizationId: "default",
               },
             });
             created.push(mat);
@@ -391,6 +399,7 @@ async function executeAction(
             title: `📧 Email pendiente: ${interpolate(c.subject, vars).slice(0, 200)}`,
             description: `Para: ${interpolate(c.to, vars).slice(0, 200)}\nAsunto: ${interpolate(c.subject, vars).slice(0, 200)}\nCuerpo: ${interpolate(c.body, vars).slice(0, 250)}`,
             status: "active",
+            organizationId: "default",
           },
         });
         ctx.variables.lastEmail = action;
@@ -461,6 +470,7 @@ async function executeAction(
             reason: movementType === "incoming" ? "compra" : "consumo",
             note: "Workflow automatizado",
             materialId: material.id,
+            organizationId: "default",
           },
         });
 

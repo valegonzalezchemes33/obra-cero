@@ -1817,6 +1817,10 @@ export async function handleObsidianCommand(norm: string, rawText: string): Prom
 
 // ─── CREATE SCHEDULE ───
 export async function handleCreateSchedule(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("./tenant");
+  const tenantCtx = await getTenantSafe();
+  const orgId = tenantCtx?.organizationId ?? "default";
+
   const nameMatch = rawText.match(/(?:nombre|name|llamada?)\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i) ||
     rawText.match(/crear\s+(un\s+)?(schedule|agendamient|tarea\s+programada)\s+["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i);
   const cronMatch = rawText.match(/(?:cron|cada|every)\s*:?\s*["']?([\w\s*/,\-]+?)["']?(?:,|$)/i) ||
@@ -1845,6 +1849,7 @@ export async function handleCreateSchedule(parsed: ParsedCommand, rawText: strin
       config: JSON.stringify({}),
       enabled: true,
       nextRun: new Date(),
+      organizationId: orgId,
     },
   });
 

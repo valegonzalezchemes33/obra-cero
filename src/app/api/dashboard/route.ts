@@ -2,15 +2,19 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCached } from "@/lib/cache";
 import { apiLogger } from "@/lib/logger";
+import { getTenant } from "@/lib/tenant";
 
 export async function GET() {
   try {
-    const data = await getCached("dashboard:full", async () => {
+    const tenant = await getTenant();
+    const orgId = tenant.organizationId;
+    const data = await getCached(`dashboard:full:${orgId}`, async () => {
       const now = new Date();
+      const orgWhere = { organizationId: orgId };
 
       const [incomeAgg, expenseAgg] = await Promise.all([
-        db.transaction.aggregate({ where: { type: "income" }, _sum: { amount: true } }),
-        db.transaction.aggregate({ where: { type: "expense" }, _sum: { amount: true } }),
+        db.transaction.aggregate({ where: { ...orgWhere, type: "income" }, _sum: { amount: true } }),
+        db.transaction.aggregate({ where: { ...orgWhere, type: "expense" }, _sum: { amount: true } }),
       ]);
       const totalIncome = incomeAgg._sum.amount ?? 0;
       const totalExpenses = expenseAgg._sum.amount ?? 0;
@@ -18,16 +22,16 @@ export async function GET() {
       const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
 
       const [expenseByCategory, incomeByCategory, stockAgg, counts] = await Promise.all([
-        db.transaction.groupBy({ by: ["category"], where: { type: "expense" }, _sum: { amount: true } }),
-        db.transaction.groupBy({ by: ["category"], where: { type: "income" }, _sum: { amount: true } }),
-        db.material.aggregate({ _sum: { stock: true, unitCost: true } }),
+        db.transaction.groupBy({ by: ["category"], where: { ...orgWhere, type: "expense" }, _sum: { amount: true } }),
+        db.transaction.groupBy({ by: ["category"], where: { ...orgWhere, type: "income" }, _sum: { amount: true } }),
+        db.material.aggregate({ where: orgWhere, _sum: { stock: true, unitCost: true } }),
         Promise.all([
-          db.material.count(),
-          db.supplier.count(),
-          db.project.count(),
-          db.project.count({ where: { status: "in_progress" } }),
-          db.task.count({ where: { status: { in: ["pending", "in_progress"] } } }),
-          db.task.count({ where: { dueDate: { lt: now }, status: { in: ["pending", "in_progress"] } } }),
+          db.material.count({ where: orgWhere }),
+          db.supplier.count({ where: orgWhere }),
+          db.project.count({ where: orgWhere }),
+          db.project.count({ where: { ...orgWhere, status: "in_progress" } }),
+          db.task.count({ where: { ...orgWhere, status: { in: ["pending", "in_progress"] } } }),
+          db.task.count({ where: { ...orgWhere, dueDate: { lt: now }, status: { in: ["pending", "in_progress"] } } }),
         ]),
       ]);
       const [totalMaterials, totalSuppliers, totalProjects, activeProjects, pendingTasks, overdueTasks] = counts;
@@ -41,18 +45,18 @@ export async function GET() {
         ? stockAgg._sum.stock * stockAgg._sum.unitCost : 0;
 
       const [budgetAgg, spentAgg] = await Promise.all([
-        db.project.aggregate({ _sum: { budget: true, progress: true } }),
-        db.transaction.aggregate({ where: { type: "expense", projectId: { not: null } }, _sum: { amount: true } }),
+        db.project.aggregate({ where: orgWhere, _sum: { budget: true, progress: true } }),
+        db.transaction.aggregate({ where: { ...orgWhere, type: "expense", projectId: { not: null } }, _sum: { amount: true } }),
       ]);
       const totalBudget = budgetAgg._sum.budget ?? 0;
       const totalSpentOnProjects = spentAgg._sum.amount ?? 0;
       const avgProgress = totalProjects > 0 ? (budgetAgg._sum.progress ?? 0) / totalProjects : 0;
 
       const [materials, projectRows, tasks, suppliers] = await Promise.all([
-        db.material.findMany({ select: { id: true, name: true, sku: true, stock: true, minStock: true, unit: true, unitCost: true, category: true }, orderBy: { name: "asc" } }),
-        db.project.findMany({ select: { id: true, code: true, name: true, budget: true, progress: true, status: true, type: true, address: true, clientName: true, startDate: true, endDate: true }, orderBy: { code: "asc" } }),
-        db.task.findMany({ select: { id: true, title: true, status: true, priority: true, dueDate: true, projectId: true, createdAt: true }, orderBy: { createdAt: "desc" } }),
-        db.supplier.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
+        db.material.findMany({ where: orgWhere, select: { id: true, name: true, sku: true, stock: true, minStock: true, unit: true, unitCost: true, category: true }, orderBy: { name: "asc" } }),
+        db.project.findMany({ where: orgWhere, select: { id: true, code: true, name: true, budget: true, progress: true, status: true, type: true, address: true, clientName: true, startDate: true, endDate: true }, orderBy: { code: "asc" } }),
+        db.task.findMany({ where: orgWhere, select: { id: true, title: true, status: true, priority: true, dueDate: true, projectId: true, createdAt: true }, orderBy: { createdAt: "desc" } }),
+        db.supplier.findMany({ where: orgWhere, select: { id: true, name: true }, orderBy: { name: "asc" } }),
       ]);
 
       const lowStock = materials.filter((m) => m.stock <= m.minStock && m.minStock > 0);
@@ -60,7 +64,7 @@ export async function GET() {
 
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
       const cashflowTx = await db.transaction.findMany({
-        where: { date: { gte: sixMonthsAgo } },
+        where: { ...orgWhere, date: { gte: sixMonthsAgo } },
         select: { type: true, amount: true, date: true },
         orderBy: { date: "asc" },
       });
@@ -82,12 +86,12 @@ export async function GET() {
 
       const projectExpensesData = await db.transaction.groupBy({
         by: ["projectId"],
-        where: { type: "expense", projectId: { not: null } },
+        where: { ...orgWhere, type: "expense", projectId: { not: null } },
         _sum: { amount: true },
       });
       const projectIncomeData = await db.transaction.groupBy({
         by: ["projectId"],
-        where: { type: "income", projectId: { not: null } },
+        where: { ...orgWhere, type: "income", projectId: { not: null } },
         _sum: { amount: true },
       });
       const projectExpenseMap = new Map(projectExpensesData.map((p) => [p.projectId, p._sum.amount ?? 0]));
@@ -103,7 +107,7 @@ export async function GET() {
         .sort((a, b) => b.spent - a.spent);
 
       const recentTx = await db.transaction.findMany({
-        where: { type: "expense" },
+        where: { ...orgWhere, type: "expense" },
         select: { id: true, description: true, amount: true, category: true, date: true, projectId: true },
         orderBy: { date: "desc" },
         take: 5,

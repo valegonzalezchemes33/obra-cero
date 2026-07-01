@@ -113,6 +113,8 @@ export async function scheduleEvent(
   });
 
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const orgId = (await getTenantSafe())?.organizationId ?? "default";
     const action = await db.agentAction.create({
       data: {
         type: "task",
@@ -121,6 +123,7 @@ export async function scheduleEvent(
         description: args.description || "",
         payload,
         status: "active",
+        organizationId: orgId,
       },
     });
 

@@ -118,13 +118,17 @@ export function parseIntent(text: string): ParsedCommand {
 export { generateSku } from "@/lib/agent/sku";
 
 export async function processAgentMessage(text: string): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const tenantCtx = await getTenantSafe();
+  const orgId = tenantCtx?.organizationId ?? "default";
+
   const originalText = text.trim();
   const normalized = normalizeMessage(originalText);
   const parsed = parseIntent(normalized.normalized || originalText);
 
   // Guardar mensaje del usuario
   try {
-    await db.agentMessage.create({ data: { role: "user", content: originalText, intent: parsed.intent } });
+    await db.agentMessage.create({ data: { role: "user", content: originalText, intent: parsed.intent, organizationId: orgId } });
   } catch (e) { agentLogger.warn({ module: "agent" }, "catch swallowed: guardar mensaje del usuario en BD") }
 
   let response: AgentResponse | null = null;
@@ -173,6 +177,7 @@ export async function processAgentMessage(text: string): Promise<AgentResponse> 
         content: response.text,
         intent: response.intent,
         meta: response.data ? JSON.stringify(response.data).slice(0, 4000) : null,
+        organizationId: orgId,
       },
     });
   } catch (e) { agentLogger.warn({ module: "agent" }, "catch swallowed: guardar respuesta del agente en BD") }

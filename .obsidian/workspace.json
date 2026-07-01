@@ -178,6 +178,9 @@
   },
   "active": "1eda971f34f71697",
   "lastOpenFiles": [
+    "node_modules/@napi-rs/canvas/LICENSE",
+    "node_modules/@napi-rs/canvas",
+    "node_modules/@napi-rs/canvas-win32-x64-msvc",
     "scripts/migrate-multitenant.ts",
     "src/lib/tenant.ts",
     "src/lib/auth-service.ts",
@@ -191,8 +194,6 @@
     "docs-vault/templates/nota-api.md",
     "docs-vault/templates/reporte-semanal.md",
     "docs-vault/templates/nota-decision.md",
-    "docs-vault/templates",
-    "src/lib/agent/capabilities/obsidian.ts",
-    "tsconfig.tsbuildinfo"
+    "docs-vault/templates"
   ]
 }

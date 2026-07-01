@@ -39,6 +39,7 @@ function audit(entry: {
           description: `IP: ${entry.ip}${entry.workflowId ? ` | workflowId: ${entry.workflowId}` : ""}`,
           status: "active",
           payload: JSON.stringify(entry).slice(0, 4000),
+          organizationId: "default",
         },
       })
       .catch(() => {});

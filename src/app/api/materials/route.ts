@@ -2,13 +2,16 @@ import { db } from "@/lib/db";
 import { MaterialCreateSchema } from "@/lib/validation";
 import { cachedGet, createPost } from "@/lib/crud-factory";
 
-export const GET = cachedGet("materials:list", () =>
+export const GET = cachedGet("materials:list", (organizationId) =>
   db.material.findMany({
+    where: { organizationId },
     include: { supplier: { select: { id: true, name: true } } },
     orderBy: { name: "asc" },
     take: 200,
   })
 );
+
+
 
 export const POST = createPost(MaterialCreateSchema, async (body) => {
   const result = await db.$transaction(async (tx) => {
@@ -25,6 +28,7 @@ export const POST = createPost(MaterialCreateSchema, async (body) => {
         maxStock: body.maxStock ?? null,
         location: body.location,
         supplierId: body.supplierId || null,
+        organizationId: body.organizationId,
       },
     });
 
@@ -38,6 +42,7 @@ export const POST = createPost(MaterialCreateSchema, async (body) => {
           note: "Stock inicial",
           materialId: mat.id,
           supplierId: body.supplierId || null,
+          organizationId: body.organizationId,
         },
       });
     }

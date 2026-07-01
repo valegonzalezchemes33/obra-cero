@@ -3,7 +3,7 @@ import { requireSession, authRequiredResponse, AuthRequiredError, RateLimitError
 import { parseBody } from "@/lib/validation";
 import { apiLogger } from "@/lib/logger";
 import { getCached } from "@/lib/cache";
-import { getTenant, orgScope } from "@/lib/tenant";
+import { getTenant, getTenantSafe, orgScope } from "@/lib/tenant";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -16,10 +16,12 @@ export function handleError(error: any, path: string): NextResponse {
 }
 
 /** Wraps a collection-GET handler with caching, error handling, and logging */
-export function cachedGet(cacheKey: string, query: () => Promise<any[]>, ttl = 15000) {
+export function cachedGet(cacheKey: string, query: (organizationId: string) => Promise<any[]>, ttl = 15000) {
   return async function GET() {
     try {
-      const data = await getCached(cacheKey, query, ttl);
+      const tenant = await getTenantSafe();
+      const orgId = tenant?.organizationId ?? "default";
+      const data = await getCached(`${cacheKey}:${orgId}`, () => query(orgId), ttl);
       return NextResponse.json(data);
     } catch (error: any) {
       return handleError(error, `/api/${cacheKey.split(":")[0]}`);
@@ -36,7 +38,7 @@ export function createPost(schema: any, handler: (body: any) => Promise<any>, pa
       const parsed = await parseBody(req, schema);
       if (!parsed.ok) return parsed.response;
       // Inyectar organizationId automáticamente
-      const result = await handler(orgScope(tenant, parsed.data));
+      const result = await handler(orgScope(tenant, parsed.data as Record<string, any>));
       return NextResponse.json(result, { status: 201 });
     } catch (error: any) {
       return handleError(error, path);

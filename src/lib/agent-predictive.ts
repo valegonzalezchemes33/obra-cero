@@ -165,12 +165,16 @@ export async function detectPatterns(): Promise<PredictiveSuggestion[]> {
 
 export async function createWorkflowFromSuggestion(suggestion: PredictiveSuggestion): Promise<boolean> {
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const orgId = (await getTenantSafe())?.organizationId ?? "default";
+
     const workflow = await db.workflow.create({
       data: {
         name: suggestion.workflowName,
         description: suggestion.workflowDescription,
         trigger: "manual",
         enabled: true,
+        organizationId: orgId,
       },
     });
 

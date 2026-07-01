@@ -154,6 +154,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { db } = await import("@/lib/db");
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
 
     // Helper para guardar mensajes en la BD
     async function saveMessage(role: "user" | "agent", content: string, intent?: string, meta?: any) {
@@ -164,6 +167,7 @@ export async function POST(req: NextRequest) {
             content: content.slice(0, 5000),
             intent: intent || null,
             meta: meta ? JSON.stringify(meta).slice(0, 4000) : null,
+            organizationId: orgId,
           },
         });
       } catch (e) { apiLogger.warn({ module: "api-agent-route" }, "catch swallowed: guardar mensaje del agente en BD") }
@@ -518,9 +522,12 @@ export async function POST(req: NextRequest) {
 export async function GET() {
   try {
     const { db } = await import("@/lib/db");
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
     await runAutomations();
     const actions = await db.agentAction.findMany({
-      where: { status: "active" },
+      where: { status: "active", organizationId: orgId },
       orderBy: { createdAt: "desc" },
       take: 20,
     });

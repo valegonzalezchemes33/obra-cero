@@ -61,6 +61,8 @@ export async function sendNotification(
   });
 
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const orgId = (await getTenantSafe())?.organizationId ?? "default";
     const action = await db.agentAction.create({
       data: {
         type: args.type,
@@ -69,6 +71,7 @@ export async function sendNotification(
         description: args.description || "",
         payload,
         status: "active",
+        organizationId: orgId,
       },
     });
 

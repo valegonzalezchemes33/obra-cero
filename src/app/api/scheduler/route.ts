@@ -4,11 +4,14 @@ import { requireSession, authRequiredResponse, AuthRequiredError, RateLimitError
 import { apiLogger } from "@/lib/logger";
 import { getCached } from "@/lib/cache";
 import { parseBody, validateBody, SchedulerCreateSchema, SchedulerPatchSchema } from "@/lib/validation";
+import { getTenant, orgScope } from "@/lib/tenant";
 
 export async function GET() {
   try {
-    const schedules = await getCached("scheduler:list", () =>
+    const tenant = await getTenant();
+    const schedules = await getCached(`scheduler:list:${tenant.organizationId}`, () =>
       db.agentSchedule.findMany({
+        where: { organizationId: tenant.organizationId },
         orderBy: { nextRun: "asc" },
         take: 200,
       }), 15000);
@@ -22,18 +25,19 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const parsed = await parseBody(req, SchedulerCreateSchema);
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
     const schedule = await db.agentSchedule.create({
-      data: {
+      data: orgScope(tenant, {
         name: body.name,
         type: body.type,
         config: JSON.stringify(body.config || {}),
         cron: body.cron,
         enabled: body.enabled ?? true,
         nextRun: body.nextRun ? new Date(body.nextRun) : new Date(),
-      },
+      }),
     });
     return NextResponse.json(schedule, { status: 201 });
   } catch (error: any) {
@@ -47,6 +51,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const raw = await req.json();
     const parsed = validateBody(SchedulerPatchSchema, raw);
     if (!parsed.ok) return parsed.response;
@@ -76,6 +81,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });

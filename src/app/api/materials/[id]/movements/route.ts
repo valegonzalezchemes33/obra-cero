@@ -3,24 +3,26 @@ import { db } from "@/lib/db";
 import { requireSession, authRequiredResponse, AuthRequiredError, RateLimitError, rateLimitResponse } from "@/lib/api-utils";
 import { parseBody, StockMovementCreateSchema } from "@/lib/validation";
 import { apiLogger } from "@/lib/logger";
+import { getTenant, orgScope } from "@/lib/tenant";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const { id } = await params;
     const parsed = await parseBody(req, StockMovementCreateSchema);
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
 
     const result = await db.$transaction(async (tx) => {
-      const mat = await tx.material.findUnique({ where: { id } });
+      const mat = await tx.material.findFirst({ where: { id, organizationId: tenant.organizationId } });
       if (!mat) throw new Error("Material not found");
 
       const qty = body.quantity;
       const unitCost = body.unitCost ?? mat.unitCost;
 
       const movement = await tx.stockMovement.create({
-        data: {
+        data: orgScope(tenant, {
           type: body.type,
           quantity: qty,
           unitCost,
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           materialId: id,
           supplierId: body.supplierId || null,
           date: body.date ? new Date(body.date) : new Date(),
-        },
+        }),
       });
 
       const stockDelta = body.type === "incoming" ? qty : body.type === "outgoing" ? -qty : 0;
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
       if (body.type === "incoming" && body.supplierId) {
         await tx.transaction.create({
-          data: {
+          data: orgScope(tenant, {
             type: "expense",
             category: "materiales",
             description: `Compra: ${mat.name} x${qty} ${mat.unit}`,
@@ -59,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             projectId: body.projectId || null,
             supplierId: body.supplierId,
             date: new Date(),
-          },
+          }),
         });
       }
 

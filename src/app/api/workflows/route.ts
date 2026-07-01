@@ -4,11 +4,14 @@ import { requireSession, authRequiredResponse, AuthRequiredError, RateLimitError
 import { parseBody, validateBody, WorkflowCreateSchema, WorkflowUpdateSchema } from "@/lib/validation";
 import { apiLogger } from "@/lib/logger";
 import { getCached } from "@/lib/cache";
+import { getTenant, orgScope } from "@/lib/tenant";
 
 export async function GET() {
   try {
-    const workflows = await getCached("workflows:list", () =>
+    const tenant = await getTenant();
+    const workflows = await getCached(`workflows:list:${tenant.organizationId}`, () =>
       db.workflow.findMany({
+        where: { organizationId: tenant.organizationId },
         include: {
           steps: { orderBy: { order: "asc" } },
           executions: { orderBy: { startedAt: "desc" }, take: 1, select: { id: true, status: true, startedAt: true, completedAt: true, error: true } },
@@ -26,17 +29,18 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const parsed = await parseBody(req, WorkflowCreateSchema);
     if (!parsed.ok) return parsed.response;
     const body = parsed.data;
     const workflow = await db.workflow.create({
-      data: {
+      data: orgScope(tenant, {
         name: body.name,
         description: body.description || null,
         trigger: body.trigger || "manual",
         triggerConfig: body.triggerConfig ? JSON.stringify(body.triggerConfig) : null,
         enabled: body.enabled ?? true,
-      },
+      }),
     });
 
     if (body.steps && Array.isArray(body.steps)) {
@@ -74,6 +78,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const body = await req.json();
     if (!body.id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
@@ -130,12 +135,14 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     await requireSession();
+    const tenant = await getTenant();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
     if (!id) return NextResponse.json({ error: "ID requerido" }, { status: 400 });
 
-    await db.workflowStep.deleteMany({ where: { workflowId: id } });
-    await db.workflowExecution.deleteMany({ where: { workflowId: id } });
+    const orgFilter = { organizationId: tenant.organizationId };
+    await db.workflowStep.deleteMany({ where: { workflowId: id, ...orgFilter } });
+    await db.workflowExecution.deleteMany({ where: { workflowId: id, ...orgFilter } });
     await db.workflow.delete({ where: { id } });
 
     return NextResponse.json({ ok: true });

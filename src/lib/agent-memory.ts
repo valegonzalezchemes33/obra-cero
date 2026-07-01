@@ -172,6 +172,10 @@ export async function getPendingAction(): Promise<PendingAction | null> {
 
 export async function savePendingAction(action: PendingAction): Promise<void> {
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
+
     const metaData = { pendingAction: { ...action, timestamp: Date.now() } };
     const lastAgentMsg = await db.agentMessage.findFirst({
       where: { role: "agent" },
@@ -193,6 +197,7 @@ export async function savePendingAction(action: PendingAction): Promise<void> {
         content: action.prompt || "Acción pendiente",
         intent: action.intent,
         meta: JSON.stringify(metaData).slice(0, 4000),
+        organizationId: orgId,
       },
       });
   } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: guardar acción pendiente") }
@@ -479,6 +484,10 @@ export async function saveUndoSnapshot(
   action: string
 ): Promise<void> {
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
+
     await db.agentAction.create({
       data: {
         type: "highlight",
@@ -494,6 +503,7 @@ export async function saveUndoSnapshot(
           action,
           timestamp: Date.now(),
         }),
+        organizationId: orgId,
       },
     });
 
@@ -552,20 +562,23 @@ export async function findUndoSnapshot(): Promise<UndoSnapshot | null> {
 
 export async function executeUndo(snapshot: UndoSnapshot): Promise<boolean> {
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const tenantCtx = await getTenantSafe();
+    const orgId = tenantCtx?.organizationId ?? "default";
     const { id, createdAt, updatedAt, ...cleanData } = snapshot.data;
 
     switch (snapshot.model) {
       case "task":
-        await db.task.create({ data: cleanData as any });
+        await db.task.create({ data: { ...cleanData, organizationId: orgId } as any });
         return true;
       case "material":
-        await db.material.create({ data: cleanData as any });
+        await db.material.create({ data: { ...cleanData, organizationId: orgId } as any });
         return true;
       case "transaction":
-        await db.transaction.create({ data: cleanData as any });
+        await db.transaction.create({ data: { ...cleanData, organizationId: orgId } as any });
         return true;
       case "supplier":
-        await db.supplier.create({ data: cleanData as any });
+        await db.supplier.create({ data: { ...cleanData, organizationId: orgId } as any });
         return true;
       default:
         return false;

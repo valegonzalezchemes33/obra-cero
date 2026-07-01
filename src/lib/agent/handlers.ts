@@ -956,6 +956,8 @@ ${priority}`,
 }
 
 export async function respondActionCreateExpense(parsed: ParsedCommand): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const orgId = (await getTenantSafe())?.organizationId ?? "default";
   const amount = parsed.entities.amount as number | undefined;
   const category = parsed.entities.category as string | undefined;
   if (!amount) {
@@ -977,6 +979,7 @@ export async function respondActionCreateExpense(parsed: ParsedCommand): Promise
       description: `Gasto registrado por asistente`,
       amount,
       projectId,
+      organizationId: orgId,
     },
   });
   return {
@@ -988,6 +991,8 @@ export async function respondActionCreateExpense(parsed: ParsedCommand): Promise
 }
 
 export async function respondActionCreateIncome(parsed: ParsedCommand): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const orgId = (await getTenantSafe())?.organizationId ?? "default";
   const amount = parsed.entities.amount as number | undefined;
   if (!amount) {
     return {
@@ -1008,6 +1013,7 @@ export async function respondActionCreateIncome(parsed: ParsedCommand): Promise<
       description: `Ingreso registrado por asistente`,
       amount,
       projectId,
+      organizationId: orgId,
     },
   });
   return {
@@ -1029,6 +1035,8 @@ export async function respondActionCreateProject(): Promise<AgentResponse> {
 }
 
 export async function respondActionCreateTask(parsed: ParsedCommand): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const orgId = (await getTenantSafe())?.organizationId ?? "default";
   const title = parsed.entities.title as string | undefined;
   if (!title) {
     return {
@@ -1050,6 +1058,7 @@ export async function respondActionCreateTask(parsed: ParsedCommand): Promise<Ag
       priority: "medium",
       projectId,
       createdBy: "agent",
+      organizationId: orgId,
     },
   });
   return {
@@ -1158,6 +1167,8 @@ export async function respondActionAddMaterials(parsed: ParsedCommand, rawText: 
 
     if (existing) {
       // Actualizar stock
+      const { getTenantSafe } = await import("@/lib/tenant");
+      const handlerOrgId = (await getTenantSafe())?.organizationId ?? "default";
       await db.material.update({
         where: { id: existing.id },
         data: { stock: { increment: item.qty } },
@@ -1170,11 +1181,14 @@ export async function respondActionAddMaterials(parsed: ParsedCommand, rawText: 
           reason: 'compra',
           note: `Cargado por asistente${project ? ` para obra ${project.code}` : ''}`,
           materialId: existing.id,
+          organizationId: handlerOrgId,
         },
       });
       updated.push(`• ${item.qty} ${item.unit} de ${existing.name} (stock actualizado)`);
     } else {
       // Crear material nuevo
+      const { getTenantSafe } = await import("@/lib/tenant");
+      const handlerOrgId = (await getTenantSafe())?.organizationId ?? "default";
       const sku = generateSku(item.name);
       const mat = await db.material.create({
         data: {
@@ -1185,6 +1199,7 @@ export async function respondActionAddMaterials(parsed: ParsedCommand, rawText: 
           stock: item.qty,
           unitCost: (item as any).price || 0,
           minStock: 0,
+          organizationId: handlerOrgId,
         },
       });
       await db.stockMovement.create({
@@ -1195,6 +1210,7 @@ export async function respondActionAddMaterials(parsed: ParsedCommand, rawText: 
           reason: 'compra',
           note: `Stock inicial cargado por asistente${project ? ` para obra ${project.code}` : ''}`,
           materialId: mat.id,
+          organizationId: handlerOrgId,
         },
       });
       created.push(`• ${item.qty} ${item.unit} de ${mat.name}${(item as any).price ? ` a $${(item as any).price} c/u` : ''} (nuevo)`);
@@ -1236,6 +1252,8 @@ export async function respondActionAddStockMovement(parsed: ParsedCommand, rawTe
     where: { id: match.id },
     data: { stock: type === 'incoming' ? { increment: qty } : { decrement: qty } },
   });
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const handlerOrgId = (await getTenantSafe())?.organizationId ?? "default";
   await db.stockMovement.create({
     data: {
       type,
@@ -1244,6 +1262,7 @@ export async function respondActionAddStockMovement(parsed: ParsedCommand, rawTe
       reason: type === 'incoming' ? 'compra' : type === 'outgoing' ? 'consumo' : 'ajuste',
       note: 'Registrado por asistente',
       materialId: match.id,
+      organizationId: handlerOrgId,
     },
   });
 
@@ -1329,6 +1348,8 @@ export async function respondActionUpdateProjectStatus(parsed: ParsedCommand, ra
 }
 
 export async function respondActionCreateProjectDirect(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const orgId = (await getTenantSafe())?.organizationId ?? "default";
   const name = parsed.entities.name as string | undefined;
   const budget = parsed.entities.budget as number | undefined;
   const clientName = parsed.entities.clientName as string | undefined;
@@ -1358,6 +1379,7 @@ export async function respondActionCreateProjectDirect(parsed: ParsedCommand, ra
       status: 'planning',
       type: 'obra',
       progress: 0,
+      organizationId: orgId,
     },
   });
 
@@ -1403,6 +1425,8 @@ export async function respondActionCreateProjectDirect(parsed: ParsedCommand, ra
 }
 
 export async function respondActionCreateSupplier(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const { getTenantSafe } = await import("@/lib/tenant");
+  const orgId = (await getTenantSafe())?.organizationId ?? "default";
   const name = parsed.entities.name as string | undefined;
   if (!name) {
     return {
@@ -1418,6 +1442,7 @@ export async function respondActionCreateSupplier(parsed: ParsedCommand, rawText
       email: (parsed.entities.email as string) || null,
       category: (parsed.entities.category as string) || null,
       rating: 3,
+      organizationId: orgId,
     },
   });
 

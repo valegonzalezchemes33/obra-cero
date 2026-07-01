@@ -109,6 +109,7 @@ export async function auditLog(entry: AuditEntry): Promise<void> {
           durationMs,
           ...metadata,
         }).slice(0, 4000),
+        organizationId: "default",
       },
     });
   } catch {

@@ -2,12 +2,15 @@ import { db } from "@/lib/db";
 import { ProjectCreateSchema } from "@/lib/validation";
 import { cachedGet, createPost } from "@/lib/crud-factory";
 
-export const GET = cachedGet("projects:list", () =>
+export const GET = cachedGet("projects:list", (organizationId) =>
   db.project.findMany({
+    where: { organizationId },
     orderBy: { createdAt: "desc" },
     take: 200,
   })
 );
+
+
 
 export const POST = createPost(ProjectCreateSchema, async (body) => {
   const maxResult = await db.$queryRaw<[{ maxNum: number | null }]>`
@@ -31,6 +34,7 @@ export const POST = createPost(ProjectCreateSchema, async (body) => {
       startDate: body.startDate ? new Date(body.startDate) : null,
       endDate: body.endDate ? new Date(body.endDate) : null,
       progress: body.progress || 0,
+      organizationId: body.organizationId,
     },
   });
 }, "/api/projects");

@@ -95,6 +95,7 @@ export async function runAutomations(): Promise<AgentActionItem[]> {
             title: item.title,
             description: item.description,
             payload: item.payload ? JSON.stringify(item.payload) : null,
+            organizationId: "default",
           },
         });
         recentTitles.add(item.title);

@@ -469,6 +469,9 @@ export async function createWorkflowFromText(text: string): Promise<WorkflowFrom
 
   // 5. Guardar en DB
   try {
+    const { getTenantSafe } = await import("@/lib/tenant");
+    const orgId = (await getTenantSafe())?.organizationId ?? "default";
+
     const workflow = await db.workflow.create({
       data: {
         name: result.name,
@@ -476,6 +479,7 @@ export async function createWorkflowFromText(text: string): Promise<WorkflowFrom
         trigger: result.trigger,
         triggerConfig: result.triggerConfig ? JSON.stringify(result.triggerConfig) : null,
         enabled: true,
+        organizationId: orgId,
       },
     });
 
