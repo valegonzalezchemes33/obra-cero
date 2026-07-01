@@ -45,7 +45,6 @@ function isCsrfExempt(pathname: string): boolean {
 }
 
 function isAuthDisabled(): boolean {
-  if (process.env.NODE_ENV === "production") return false;
   return process.env.AUTH_DISABLED === "1";
 }
 

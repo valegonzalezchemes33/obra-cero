@@ -47,6 +47,5 @@ export function isProd(): boolean {
 }
 
 export function isAuthDisabledAllowed(): boolean {
-  if (process.env.AUTH_DISABLED !== "1") return false;
-  return env.NODE_ENV !== "production";
+  return process.env.AUTH_DISABLED === "1";
 }

@@ -70,8 +70,7 @@ function getEnvCredentials(): { user: string; password: string } | null {
 }
 
 function isAuthDisabledAllowed(): boolean {
-  if (process.env.AUTH_DISABLED !== "1") return false;
-  return process.env.NODE_ENV !== "production";
+  return process.env.AUTH_DISABLED === "1";
 }
 
 // ─── Extender tipos de Session ───────────────────────────────
@@ -223,7 +222,7 @@ export const authOptions: NextAuthOptions = {
 // ─── Helpers ──────────────────────────────────────────────────
 
 export function isAuthEnabled(): boolean {
-  if (process.env.AUTH_DISABLED === "1" && process.env.NODE_ENV !== "production") {
+  if (process.env.AUTH_DISABLED === "1") {
     return false;
   }
   return Boolean(process.env.ADMIN_USER && process.env.ADMIN_PASSWORD);

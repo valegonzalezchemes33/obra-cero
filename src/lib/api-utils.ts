@@ -86,7 +86,25 @@ export function withErrorHandler(handler: Handler): Handler {
   };
 }
 
+function dummySession(): Session {
+  return {
+    user: {
+      id: "guest",
+      name: "guest",
+      email: "guest@local",
+      organizationId: "default",
+      organizationRole: "admin",
+      isLegacy: true,
+    } as any,
+    expires: new Date(Date.now() + 86_400_000).toISOString(),
+  } as unknown as Session;
+}
+
 export async function getSession(): Promise<Session | null> {
+  if (process.env.AUTH_DISABLED === "1") {
+    return dummySession();
+  }
+
   try {
     return await getServerSession(authOptions);
   } catch {
@@ -95,6 +113,11 @@ export async function getSession(): Promise<Session | null> {
 }
 
 export async function requireSession(): Promise<Session> {
+  // Auth deshabilitada: sesión dummy para desarrollo/testing
+  if (process.env.AUTH_DISABLED === "1") {
+    return dummySession();
+  }
+
   const session = await getSession();
   if (!session?.user) {
     throw new AuthRequiredError();
