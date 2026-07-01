@@ -156,11 +156,14 @@ export const authOptions: NextAuthOptions = {
 
         // ─── MODO 2: Env Auth (legacy, backward compat) ───
         const env = getEnvCredentials();
+        console.log("[AUTH_DEBUG] getEnvCredentials result:", {
+          hasUser: !!process.env.ADMIN_USER,
+          hasPass: !!process.env.ADMIN_PASSWORD,
+          userLen: (process.env.ADMIN_USER || "").length,
+          passLen: (process.env.ADMIN_PASSWORD || "").length,
+          found: !!env
+        });
         if (!env) {
-          authLogger.warn(
-            { hasUser: !!process.env.ADMIN_USER, hasPass: !!process.env.ADMIN_PASSWORD },
-            "Env credentials not configured — ADMIN_USER/ADMIN_PASSWORD missing"
-          );
           if (isAuthDisabledAllowed()) {
             return { id: "guest", name: "guest", email: "guest@local" };
           }
@@ -170,10 +173,14 @@ export const authOptions: NextAuthOptions = {
         // El campo "email" puede contener el username legacy
         const okUser = safeStringEqual(credentials.email.trim(), env.user);
         const okPass = safeStringEqual(credentials.password, env.password);
-        authLogger.info(
-          { email: credentials.email, envUser: env.user, okUser, okPass },
-          "Legacy auth comparison result"
-        );
+        console.log("[AUTH_DEBUG] comparison:", {
+          email: credentials.email,
+          envUser: env.user,
+          emailLen: credentials.email.length,
+          envUserLen: env.user.length,
+          okUser,
+          okPass
+        });
         if (okUser && okPass) {
           return {
             id: env.user,
