@@ -1,0 +1,162 @@
+graph TD
+  %% Architecture layers
+
+  subgraph Presentation[Presentación]
+  Presentation_Home["Home"]
+  Presentation_login["login"]
+  Presentation_Home["Home"]
+  end
+  subgraph API[API Routes]
+  API__api_agent_actions["/api/agent/actions"]
+  API__api_agent_analyze_file["/api/agent/analyze-file"]
+  API__api_agent_conversation["/api/agent/conversation"]
+  API__api_agent_message["/api/agent/message"]
+  API__api_agent["/api/agent"]
+  API__api_agent_stream["/api/agent/stream"]
+  API__api_agent_tools_execute["/api/agent/tools/execute"]
+  API__api_agent_tools["/api/agent/tools"]
+  API__api_agent_upload["/api/agent/upload"]
+  API__api_agent_vision["/api/agent/vision"]
+  API__api_auth_____nextauth_["/api/auth/[...nextauth]"]
+  API__api_automations["/api/automations"]
+  API__api_automations_run["/api/automations/run"]
+  API__api_dashboard_insights["/api/dashboard/insights"]
+  API__api_dashboard["/api/dashboard"]
+  API__api_events["/api/events"]
+  API__api_health["/api/health"]
+  API__api_materials__id_movements["/api/materials/:id/movements"]
+  API__api_materials__id["/api/materials/:id"]
+  API__api_materials["/api/materials"]
+  API__api_projects__id["/api/projects/:id"]
+  API__api_projects["/api/projects"]
+  API__api["/api"]
+  API__api_scheduler["/api/scheduler"]
+  API__api_scheduler_run["/api/scheduler/run"]
+  API__api_seed["/api/seed"]
+  API__api_suppliers__id["/api/suppliers/:id"]
+  API__api_suppliers["/api/suppliers"]
+  API__api_tasks__id["/api/tasks/:id"]
+  API__api_tasks["/api/tasks"]
+  API__api_transactions__id["/api/transactions/:id"]
+  API__api_transactions["/api/transactions"]
+  API__api_workflows_execute["/api/workflows/execute"]
+  API__api_workflows_executions["/api/workflows/executions"]
+  API__api_workflows["/api/workflows"]
+  API__api_workflows_webhook["/api/workflows/webhook"]
+  end
+  subgraph Agent[Sistema Agente]
+  Agent_agent_dispatcher["agent-dispatcher"]
+  Agent_agent_extended["agent-extended"]
+  Agent_agent_intents["agent-intents"]
+  Agent_agent_memory["agent-memory"]
+  Agent_agent["agent"]
+  Agent_agent_audit_test["agent/audit.test"]
+  Agent_agent_audit["agent/audit"]
+  Agent_agent_automation_engine["agent/automation-engine"]
+  Agent_agent_capabilities_calendar["agent/capabilities/calendar"]
+  Agent_agent_capabilities_documents["agent/capabilities/documents"]
+  Agent_agent_capabilities_memory_tools["agent/capabilities/memory-tools"]
+  Agent_agent_capabilities_notifications["agent/capabilities/notifications"]
+  Agent_agent_capabilities_search_tools["agent/capabilities/search-tools"]
+  Agent_agent_context["agent/context"]
+  Agent_agent_dispatcher["agent/dispatcher"]
+  Agent_agent_handlers["agent/handlers"]
+  Agent_agent_item_parser["agent/item-parser"]
+  Agent_agent_normalize["agent/normalize"]
+  Agent_agent_project_resolver["agent/project-resolver"]
+  Agent_agent_queries["agent/queries"]
+  Agent_agent_router["agent/router"]
+  Agent_agent_sku["agent/sku"]
+  Agent_agent_types["agent/types"]
+  Agent_tool_execution["tool-execution"]
+  Agent_tool_registry["tool-registry"]
+  Agent_tools_registry_definitions["tools/registry-definitions"]
+  end
+  subgraph Lib[Bibliotecas]
+  Lib_Home["Home"]
+  Lib_api_audit["api-audit"]
+  Lib_api_utils["api-utils"]
+  Lib_auth["auth"]
+  Lib_cache["cache"]
+  Lib_crud_factory["crud-factory"]
+  Lib_db["db"]
+  Lib_env["env"]
+  Lib_file_processor["file-processor"]
+  Lib_format["format"]
+  Lib_groq_integration["groq-integration"]
+  Lib_groq["groq"]
+  Lib_llm_provider["llm-provider"]
+  Lib_logger["logger"]
+  Lib_rate_limit["rate-limit"]
+  Lib_tool_execution["tool-execution"]
+  Lib_tool_registry["tool-registry"]
+  Lib_utils["utils"]
+  Lib_validation["validation"]
+  Lib_workflow_engine["workflow-engine"]
+  Lib_workflow_from_text["workflow-from-text"]
+  Lib_workflow_types["workflow-types"]
+  Lib_mcp_bridge_package_json["mcp-bridge/package.json"]
+  Lib_mcp_bridge_src_index_ts["mcp-bridge/src/index.ts"]
+  Lib_mcp_bridge_tsconfig_json["mcp-bridge/tsconfig.json"]
+  Lib_src_app_api_automations_route["src/app/api/automations/route"]
+  Lib_src_app_api_automations_run_route["src/app/api/automations/run/route"]
+  Lib_src_app_api_scheduler_route["src/app/api/scheduler/route"]
+  Lib_src_app_api_scheduler_run_route["src/app/api/scheduler/run/route"]
+  Lib_src_app_api_workflows_execute_route["src/app/api/workflows/execute/route"]
+  Lib_src_app_api_workflows_executions_route["src/app/api/workflows/executions/route"]
+  Lib_src_app_api_workflows_route["src/app/api/workflows/route"]
+  Lib_src_app_api_workflows_webhook_route["src/app/api/workflows/webhook/route"]
+  Lib_src_components_views_automationsx["src/components/views/automationsx"]
+  Lib_src_components_workflow_builderx["src/components/workflow-builderx"]
+  Lib_agent_automation_engine["agent/automation-engine"]
+  Lib_workflow_engine["workflow-engine"]
+  Lib_workflow_from_text["workflow-from-text"]
+  Lib_workflow_types["workflow-types"]
+  end
+  subgraph DB[Base de Datos]
+  Database_Project["Project"]
+  Database_Transaction["Transaction"]
+  Database_Task["Task"]
+  Database_Supplier["Supplier"]
+  Database_Material["Material"]
+  Database_StockMovement["StockMovement"]
+  Database_AutomationRule["AutomationRule"]
+  Database_Workflow["Workflow"]
+  Database_WorkflowStep["WorkflowStep"]
+  Database_WorkflowExecution["WorkflowExecution"]
+  Database_AgentSchedule["AgentSchedule"]
+  Database_AgentAction["AgentAction"]
+  Database_AgentMessage["AgentMessage"]
+  end
+
+  %% Cross-layer connections
+  Database_Project -->|belongs_to| Database_Transaction
+  Database_Project -->|belongs_to| Database_Task
+  Database_Transaction -->|belongs_to| Database_Project
+  Database_Transaction -->|belongs_to| Database_Supplier
+  Database_Task -->|belongs_to| Database_Project
+  Database_Supplier -->|belongs_to| Database_Transaction
+  Database_Supplier -->|belongs_to| Database_Material
+  Database_Supplier -->|belongs_to| Database_StockMovement
+  Database_Material -->|belongs_to| Database_Supplier
+  Database_Material -->|belongs_to| Database_StockMovement
+  Database_StockMovement -->|belongs_to| Database_Material
+  Database_StockMovement -->|belongs_to| Database_Supplier
+  Database_Workflow -->|belongs_to| Database_WorkflowStep
+  Database_Workflow -->|belongs_to| Database_WorkflowExecution
+  Database_WorkflowStep -->|belongs_to| Database_Workflow
+  Presentation_login -->|rendered_by| Presentation_Home
+  Presentation_Home -->|rendered_by| Presentation_Home
+  API__api_materials__id_movements -->|operates_on| Database_Material
+  API__api_materials__id -->|operates_on| Database_Material
+  API__api_materials -->|operates_on| Database_Material
+  API__api_projects__id -->|operates_on| Database_Project
+  API__api_projects -->|operates_on| Database_Project
+  API__api_suppliers__id -->|operates_on| Database_Supplier
+  API__api_suppliers -->|operates_on| Database_Supplier
+  API__api_tasks__id -->|operates_on| Database_Task
+  API__api_tasks -->|operates_on| Database_Task
+  API__api_transactions__id -->|operates_on| Database_Transaction
+  API__api_transactions -->|operates_on| Database_Transaction
+  API__api_workflows_execute -->|operates_on| Database_Workflow
+  API__api_workflows_executions -->|operates_on| Database_Workflow

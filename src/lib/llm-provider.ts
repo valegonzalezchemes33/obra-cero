@@ -1,4 +1,5 @@
 import { sanitizeForGroq } from "@/lib/agent/audit";
+import { llmLogger } from "@/lib/logger";
 
 // ============================================================
 // CAPA DE ABSTRACCIÓN MULTI-PROVIDER LLM
@@ -310,7 +311,7 @@ export async function chatStream(
             fullContent += token;
             onToken(token);
           }
-        } catch {}
+        } catch (e) { llmLogger.warn({ module: "llm-provider" }, "catch swallowed: parsear token streaming de LLM") }
       }
     }
 

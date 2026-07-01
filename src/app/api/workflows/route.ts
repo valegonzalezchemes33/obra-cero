@@ -1,21 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
-import { parseBody, WorkflowCreateSchema } from "@/lib/validation";
+import { requireSession, authRequiredResponse, AuthRequiredError, RateLimitError, rateLimitResponse } from "@/lib/api-utils";
+import { parseBody, validateBody, WorkflowCreateSchema, WorkflowUpdateSchema } from "@/lib/validation";
+import { apiLogger } from "@/lib/logger";
+import { getCached } from "@/lib/cache";
 
 export async function GET() {
   try {
-    const workflows = await db.workflow.findMany({
-      include: {
-        steps: { orderBy: { order: "asc" } },
-        executions: { orderBy: { startedAt: "desc" }, take: 1 },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const workflows = await getCached("workflows:list", () =>
+      db.workflow.findMany({
+        include: {
+          steps: { orderBy: { order: "asc" } },
+          executions: { orderBy: { startedAt: "desc" }, take: 1, select: { id: true, status: true, startedAt: true, completedAt: true, error: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      }), 15000);
     return NextResponse.json(workflows);
   } catch (error: any) {
-    console.error("[API] GET /api/workflows:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/workflows" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
@@ -36,19 +40,21 @@ export async function POST(req: NextRequest) {
     });
 
     if (body.steps && Array.isArray(body.steps)) {
-      for (let i = 0; i < body.steps.length; i++) {
-        const step = body.steps[i];
-        await db.workflowStep.create({
-          data: {
-            workflowId: workflow.id,
-            type: step.type,
-            label: step.label || null,
-            config: JSON.stringify(step.config || step),
-            order: step.order ?? (i + 1) * 10,
-            parentId: step.parentId || null,
-          },
-        });
-      }
+      await db.$transaction(async (tx) => {
+        for (let i = 0; i < body.steps!.length; i++) {
+          const step = body.steps![i];
+          await tx.workflowStep.create({
+            data: {
+              workflowId: workflow.id,
+              type: step.type,
+              label: step.label || null,
+              config: JSON.stringify(step.config || step),
+              order: step.order ?? (i + 1) * 10,
+              parentId: step.parentId || null,
+            },
+          });
+        }
+      });
     }
 
     const full = await db.workflow.findUnique({
@@ -58,9 +64,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(full, { status: 201 });
   } catch (error: any) {
+    if (error instanceof RateLimitError) return rateLimitResponse();
     if (error instanceof AuthRequiredError) return authRequiredResponse();
-    console.error("[API] POST /api/workflows:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/workflows" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
@@ -68,39 +75,43 @@ export async function PATCH(req: NextRequest) {
   try {
     await requireSession();
     const body = await req.json();
-    const { id, ...data } = body;
-
-    if (!id) {
+    if (!body.id) {
       return NextResponse.json({ error: "ID requerido" }, { status: 400 });
     }
+    const id = body.id;
+    const parsed = validateBody(WorkflowUpdateSchema, body);
+    if (!parsed.ok) return parsed.response;
+    const data = parsed.data;
 
-    await db.workflow.update({
-      where: { id },
-      data: {
-        name: data.name,
-        description: data.description,
-        trigger: data.trigger,
-        triggerConfig: data.triggerConfig ? JSON.stringify(data.triggerConfig) : undefined,
-        enabled: data.enabled,
-      },
-    });
+    await db.$transaction(async (tx) => {
+      await tx.workflow.update({
+        where: { id },
+        data: {
+          name: data.name,
+          description: data.description,
+          trigger: data.trigger,
+          triggerConfig: data.triggerConfig ? JSON.stringify(data.triggerConfig) : undefined,
+          enabled: data.enabled,
+        },
+      });
 
-    if (data.steps && Array.isArray(data.steps)) {
-      await db.workflowStep.deleteMany({ where: { workflowId: id } });
-      for (let i = 0; i < data.steps.length; i++) {
-        const step = data.steps[i];
-        await db.workflowStep.create({
-          data: {
-            workflowId: id,
-            type: step.type,
-            label: step.label || null,
-            config: JSON.stringify(step.config || step),
-            order: step.order ?? (i + 1) * 10,
-            parentId: step.parentId || null,
-          },
-        });
+      if (data.steps && Array.isArray(data.steps)) {
+        await tx.workflowStep.deleteMany({ where: { workflowId: id } });
+        for (let i = 0; i < data.steps.length; i++) {
+          const step = data.steps[i];
+          await tx.workflowStep.create({
+            data: {
+              workflowId: id,
+              type: step.type,
+              label: step.label || null,
+              config: JSON.stringify(step.config || step),
+              order: step.order ?? (i + 1) * 10,
+              parentId: step.parentId || null,
+            },
+          });
+        }
       }
-    }
+    });
 
     const full = await db.workflow.findUnique({
       where: { id },
@@ -109,9 +120,10 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json(full);
   } catch (error: any) {
+    if (error instanceof RateLimitError) return rateLimitResponse();
     if (error instanceof AuthRequiredError) return authRequiredResponse();
-    console.error("[API] PATCH /api/workflows:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/workflows" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
@@ -128,8 +140,9 @@ export async function DELETE(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error: any) {
+    if (error instanceof RateLimitError) return rateLimitResponse();
     if (error instanceof AuthRequiredError) return authRequiredResponse();
-    console.error("[API] DELETE /api/workflows:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/workflows" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiLogger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
@@ -50,7 +51,7 @@ Luego los DETALLES completos extraídos.`,
 
     if (!response.ok) {
       const err = await response.text();
-      return NextResponse.json({ error: `Groq Vision error: ${err.slice(0, 300)}` }, { status: 502 });
+      return NextResponse.json({ error: "Error al procesar imagen con Groq" }, { status: 502 });
     }
 
     const data = await response.json();
@@ -62,7 +63,7 @@ Luego los DETALLES completos extraídos.`,
       fileName,
     });
   } catch (error: any) {
-    console.error("[API] POST /api/agent/vision:", error.message);
-    return NextResponse.json({ error: error.message || "Error al analizar imagen" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/agent/vision" }, error.message);
+    return NextResponse.json({ error: "Error al analizar imagen" }, { status: 500 });
   }
 }

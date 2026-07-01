@@ -31,6 +31,7 @@ import {
   getRiskLevel,
 } from "@/lib/tool-registry";
 import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
+import { apiLogger } from "@/lib/logger";
 
 // ─── Helper: Obtener labels amigables para campos faltantes ───
 
@@ -165,7 +166,7 @@ export async function POST(req: NextRequest) {
             meta: meta ? JSON.stringify(meta).slice(0, 4000) : null,
           },
         });
-      } catch {}
+      } catch (e) { apiLogger.warn({ module: "api-agent-route" }, "catch swallowed: guardar mensaje del agente en BD") }
     }
 
     // 0. Normalizar mensaje (traducir variaciones del lenguaje natural)
@@ -280,7 +281,7 @@ export async function POST(req: NextRequest) {
 
     // 4. Cargar contexto para Groq
     const recentCtx = await getConversationContext();
-    const recentMessages = recentCtx.recentMessages?.map(m => m.content) || [];
+    const recentMessages = recentCtx.recentMessages?.map(m => `${m.role}: ${m.content}`) || [];
 
     // 4.5 Interceptor de follow-ups con pronombres/referencias
     // Si el usuario dice "agrega eso", "solo eso", "agrégalos", "ponlos", etc.
@@ -508,8 +509,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(response);
   } catch (error: any) {
-    console.error("[API] POST /api/agent:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/agent" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
@@ -525,7 +526,7 @@ export async function GET() {
     });
     return NextResponse.json({ actions });
   } catch (error: any) {
-    console.error("[API] GET /api/agent:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/agent" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

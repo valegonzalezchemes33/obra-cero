@@ -1,0 +1,26 @@
+---
+tags: [config]
+aliases: [tsconfig.json]
+---
+
+# tsconfig.json
+
+Configuration file: tsconfig.json
+
+## Información
+
+- **Tipo:** `config`
+- **Ruta:** `tsconfig.json`
+- **ID:** `config:tsconfig.json`
+
+## Metadatos
+
+```json
+{
+  "lineCount": 45
+}
+```
+
+## Relacionado
+
+- [[architecture/overview|config]] — Arquitectura de configs

@@ -1,0 +1,26 @@
+---
+tags: [config]
+aliases: [vercel.json]
+---
+
+# vercel.json
+
+Configuration file: vercel.json
+
+## Información
+
+- **Tipo:** `config`
+- **Ruta:** `vercel.json`
+- **ID:** `config:vercel.json`
+
+## Metadatos
+
+```json
+{
+  "lineCount": 4
+}
+```
+
+## Relacionado
+
+- [[architecture/overview|config]] — Arquitectura de configs

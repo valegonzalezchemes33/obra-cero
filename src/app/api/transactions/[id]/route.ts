@@ -1,16 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { TransactionUpdateSchema } from "@/lib/validation";
+import { createGet, createPatch, simpleDelete } from "@/lib/crud-factory";
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    await requireSession();
-    const { id } = await params;
-    await db.transaction.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
-  } catch (error: any) {
-    if (error instanceof AuthRequiredError) return authRequiredResponse();
-    console.error("[API] DELETE /api/transactions/[id]:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
-  }
-}
+export const GET = createGet("/api/transactions/[id]", (id, organizationId) =>
+  db.transaction.findFirst({ where: { id, organizationId } })
+);
+
+export const PATCH = createPatch(TransactionUpdateSchema, (body, id, organizationId) =>
+  db.transaction.update({ where: { id, organizationId }, data: body }),
+  "/api/transactions/[id]"
+);
+
+export const DELETE = simpleDelete("transaction");

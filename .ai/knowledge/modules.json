@@ -1,0 +1,542 @@
+{
+  "total": 47,
+  "modules": [
+    {
+      "id": "module:api-audit",
+      "name": "api-audit",
+      "type": "module",
+      "path": "src/lib/api-audit.ts",
+      "description": "Library module: api-audit",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/logger"
+      ]
+    },
+    {
+      "id": "module:api-utils",
+      "name": "api-utils",
+      "type": "module",
+      "path": "src/lib/api-utils.ts",
+      "description": "Library module: api-utils",
+      "dependencies": [
+        "@/lib/auth",
+        "@/lib/api-audit",
+        "@/lib/logger",
+        "@/lib/rate-limit"
+      ]
+    },
+    {
+      "id": "module:auth",
+      "name": "auth",
+      "type": "module",
+      "path": "src/lib/auth.ts",
+      "description": "Library module: auth",
+      "dependencies": [
+        "@/lib/logger",
+        "@/lib/rate-limit"
+      ]
+    },
+    {
+      "id": "module:cache",
+      "name": "cache",
+      "type": "module",
+      "path": "src/lib/cache.ts",
+      "description": "Library module: cache",
+      "dependencies": []
+    },
+    {
+      "id": "module:crud-factory",
+      "name": "crud-factory",
+      "type": "module",
+      "path": "src/lib/crud-factory.ts",
+      "description": "Library module: crud-factory",
+      "dependencies": [
+        "@/lib/api-utils",
+        "@/lib/validation",
+        "@/lib/logger",
+        "@/lib/cache"
+      ]
+    },
+    {
+      "id": "module:db",
+      "name": "db",
+      "type": "module",
+      "path": "src/lib/db.ts",
+      "description": "Library module: db",
+      "dependencies": []
+    },
+    {
+      "id": "module:env",
+      "name": "env",
+      "type": "module",
+      "path": "src/lib/env.ts",
+      "description": "Library module: env",
+      "dependencies": []
+    },
+    {
+      "id": "module:file-processor",
+      "name": "file-processor",
+      "type": "module",
+      "path": "src/lib/file-processor.ts",
+      "description": "Library module: file-processor",
+      "dependencies": [
+        "@/lib/agent/audit"
+      ]
+    },
+    {
+      "id": "module:format",
+      "name": "format",
+      "type": "module",
+      "path": "src/lib/format.ts",
+      "description": "Library module: format",
+      "dependencies": []
+    },
+    {
+      "id": "module:groq-integration",
+      "name": "groq-integration",
+      "type": "module",
+      "path": "src/lib/groq-integration.ts",
+      "description": "Library module: groq-integration",
+      "dependencies": [
+        "./groq",
+        "./agent",
+        "./db",
+        "./llm-provider"
+      ]
+    },
+    {
+      "id": "module:groq",
+      "name": "groq",
+      "type": "module",
+      "path": "src/lib/groq.ts",
+      "description": "Library module: groq",
+      "dependencies": [
+        "./llm-provider"
+      ]
+    },
+    {
+      "id": "module:llm-provider",
+      "name": "llm-provider",
+      "type": "module",
+      "path": "src/lib/llm-provider.ts",
+      "description": "Library module: llm-provider",
+      "dependencies": [
+        "@/lib/agent/audit",
+        "@/lib/logger"
+      ]
+    },
+    {
+      "id": "module:logger",
+      "name": "logger",
+      "type": "module",
+      "path": "src/lib/logger.ts",
+      "description": "Library module: logger",
+      "dependencies": []
+    },
+    {
+      "id": "module:rate-limit",
+      "name": "rate-limit",
+      "type": "module",
+      "path": "src/lib/rate-limit.ts",
+      "description": "Library module: rate-limit",
+      "dependencies": []
+    },
+    {
+      "id": "module:tool-execution",
+      "name": "tool-execution",
+      "type": "module",
+      "path": "src/lib/tool-execution.ts",
+      "description": "Library module: tool-execution",
+      "dependencies": [
+        "./tool-registry",
+        "./agent",
+        "./tools/registry-definitions",
+        "@/lib/agent/audit",
+        "@/lib/tool-registry"
+      ]
+    },
+    {
+      "id": "module:tool-registry",
+      "name": "tool-registry",
+      "type": "module",
+      "path": "src/lib/tool-registry.ts",
+      "description": "Library module: tool-registry",
+      "dependencies": [
+        "./agent"
+      ]
+    },
+    {
+      "id": "module:utils",
+      "name": "utils",
+      "type": "module",
+      "path": "src/lib/utils.ts",
+      "description": "Library module: utils",
+      "dependencies": []
+    },
+    {
+      "id": "module:validation",
+      "name": "validation",
+      "type": "module",
+      "path": "src/lib/validation.ts",
+      "description": "Library module: validation",
+      "dependencies": []
+    },
+    {
+      "id": "module:workflow-engine",
+      "name": "workflow-engine",
+      "type": "module",
+      "path": "src/lib/workflow-engine.ts",
+      "description": "Library module: workflow-engine",
+      "dependencies": [
+        "./db",
+        "./workflow-types",
+        "./workflow-types",
+        "./agent",
+        "./groq-integration"
+      ]
+    },
+    {
+      "id": "module:workflow-from-text",
+      "name": "workflow-from-text",
+      "type": "module",
+      "path": "src/lib/workflow-from-text.ts",
+      "description": "Library module: workflow-from-text",
+      "dependencies": [
+        "@/lib/db",
+        "./agent",
+        "./workflow-types"
+      ]
+    },
+    {
+      "id": "module:workflow-types",
+      "name": "workflow-types",
+      "type": "module",
+      "path": "src/lib/workflow-types.ts",
+      "description": "Library module: workflow-types",
+      "dependencies": []
+    },
+    {
+      "id": "agent:agent-dispatcher",
+      "name": "agent-dispatcher",
+      "type": "agent-module",
+      "path": "src/lib/agent-dispatcher.ts",
+      "description": "Agent module: agent-dispatcher",
+      "dependencies": [
+        "@/lib/db",
+        "./agent",
+        "@/lib/logger"
+      ]
+    },
+    {
+      "id": "agent:agent-extended",
+      "name": "agent-extended",
+      "type": "agent-module",
+      "path": "src/lib/agent-extended.ts",
+      "description": "Agent module: agent-extended",
+      "dependencies": [
+        "@/lib/db",
+        "./agent",
+        "@/lib/logger",
+        "./workflow-engine",
+        "./workflow-from-text",
+        "./agent-rag",
+        "./agent-predictive",
+        "./agent-memory"
+      ]
+    },
+    {
+      "id": "agent:agent-intents",
+      "name": "agent-intents",
+      "type": "agent-module",
+      "path": "src/lib/agent-intents.ts",
+      "description": "Agent module: agent-intents",
+      "dependencies": []
+    },
+    {
+      "id": "agent:agent-memory",
+      "name": "agent-memory",
+      "type": "agent-module",
+      "path": "src/lib/agent-memory.ts",
+      "description": "Agent module: agent-memory",
+      "dependencies": [
+        "@/lib/db",
+        "./agent",
+        "@/lib/logger"
+      ]
+    },
+    {
+      "id": "agent:agent",
+      "name": "agent",
+      "type": "agent-module",
+      "path": "src/lib/agent.ts",
+      "description": "Agent module: agent",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/agent-nlu",
+        "@/lib/agent-memory",
+        "@/lib/logger",
+        "@/lib/agent-intents",
+        "@/lib/agent-intents",
+        "@/lib/agent/normalize",
+        "@/lib/agent/dispatcher",
+        "@/lib/agent/automation-engine",
+        "@/lib/agent/sku"
+      ]
+    },
+    {
+      "id": "agent:agent/audit.test",
+      "name": "agent/audit.test",
+      "type": "agent-module",
+      "path": "src/lib/agent/audit.test.ts",
+      "description": "Agent module: agent/audit.test",
+      "dependencies": [
+        "./audit"
+      ]
+    },
+    {
+      "id": "agent:agent/audit",
+      "name": "agent/audit",
+      "type": "agent-module",
+      "path": "src/lib/agent/audit.ts",
+      "description": "Agent module: agent/audit",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/tool-registry",
+        "@/lib/agent/types",
+        "@/lib/rate-limit",
+        "@/lib/tools/registry-definitions"
+      ]
+    },
+    {
+      "id": "agent:agent/automation-engine",
+      "name": "agent/automation-engine",
+      "type": "agent-module",
+      "path": "src/lib/agent/automation-engine.ts",
+      "description": "Agent module: agent/automation-engine",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/format",
+        "@/lib/agent/queries",
+        "@/lib/agent"
+      ]
+    },
+    {
+      "id": "agent:agent/capabilities/calendar",
+      "name": "agent/capabilities/calendar",
+      "type": "agent-module",
+      "path": "src/lib/agent/capabilities/calendar.ts",
+      "description": "Agent module: agent/capabilities/calendar",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/agent",
+        "@/lib/logger"
+      ]
+    },
+    {
+      "id": "agent:agent/capabilities/documents",
+      "name": "agent/capabilities/documents",
+      "type": "agent-module",
+      "path": "src/lib/agent/capabilities/documents.ts",
+      "description": "Agent module: agent/capabilities/documents",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/groq",
+        "@/lib/agent"
+      ]
+    },
+    {
+      "id": "agent:agent/capabilities/memory-tools",
+      "name": "agent/capabilities/memory-tools",
+      "type": "agent-module",
+      "path": "src/lib/agent/capabilities/memory-tools.ts",
+      "description": "Agent module: agent/capabilities/memory-tools",
+      "dependencies": [
+        "../context",
+        "@/lib/agent"
+      ]
+    },
+    {
+      "id": "agent:agent/capabilities/notifications",
+      "name": "agent/capabilities/notifications",
+      "type": "agent-module",
+      "path": "src/lib/agent/capabilities/notifications.ts",
+      "description": "Agent module: agent/capabilities/notifications",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/agent",
+        "@/lib/logger"
+      ]
+    },
+    {
+      "id": "agent:agent/capabilities/search-tools",
+      "name": "agent/capabilities/search-tools",
+      "type": "agent-module",
+      "path": "src/lib/agent/capabilities/search-tools.ts",
+      "description": "Agent module: agent/capabilities/search-tools",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/agent"
+      ]
+    },
+    {
+      "id": "agent:agent/context",
+      "name": "agent/context",
+      "type": "agent-module",
+      "path": "src/lib/agent/context.ts",
+      "description": "Agent module: agent/context",
+      "dependencies": [
+        "../db",
+        "../cache",
+        "../agent-memory",
+        "../tool-execution",
+        "../tool-registry",
+        "../groq-integration",
+        "./types"
+      ]
+    },
+    {
+      "id": "agent:agent/dispatcher",
+      "name": "agent/dispatcher",
+      "type": "agent-module",
+      "path": "src/lib/agent/dispatcher.ts",
+      "description": "Agent module: agent/dispatcher",
+      "dependencies": [
+        "@/lib/agent/handlers",
+        "@/lib/agent"
+      ]
+    },
+    {
+      "id": "agent:agent/handlers",
+      "name": "agent/handlers",
+      "type": "agent-module",
+      "path": "src/lib/agent/handlers.ts",
+      "description": "Agent module: agent/handlers",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/format",
+        "@/lib/agent/normalize",
+        "@/lib/agent/queries",
+        "@/lib/agent/project-resolver",
+        "@/lib/agent",
+        "@/lib/agent/item-parser",
+        "@/lib/agent/item-parser",
+        "@/lib/agent/sku"
+      ]
+    },
+    {
+      "id": "agent:agent/item-parser",
+      "name": "agent/item-parser",
+      "type": "agent-module",
+      "path": "src/lib/agent/item-parser.ts",
+      "description": "Agent module: agent/item-parser",
+      "dependencies": []
+    },
+    {
+      "id": "agent:agent/normalize",
+      "name": "agent/normalize",
+      "type": "agent-module",
+      "path": "src/lib/agent/normalize.ts",
+      "description": "Agent module: agent/normalize",
+      "dependencies": []
+    },
+    {
+      "id": "agent:agent/project-resolver",
+      "name": "agent/project-resolver",
+      "type": "agent-module",
+      "path": "src/lib/agent/project-resolver.ts",
+      "description": "Agent module: agent/project-resolver",
+      "dependencies": [
+        "@/lib/db",
+        "@/lib/agent/normalize"
+      ]
+    },
+    {
+      "id": "agent:agent/queries",
+      "name": "agent/queries",
+      "type": "agent-module",
+      "path": "src/lib/agent/queries.ts",
+      "description": "Agent module: agent/queries",
+      "dependencies": [
+        "@/lib/db"
+      ]
+    },
+    {
+      "id": "agent:agent/router",
+      "name": "agent/router",
+      "type": "agent-module",
+      "path": "src/lib/agent/router.ts",
+      "description": "Agent module: agent/router",
+      "dependencies": [
+        "../agent-nlu",
+        "../groq-integration",
+        "../agent",
+        "../agent",
+        "../tool-registry",
+        "../agent-memory",
+        "./context",
+        "./types"
+      ]
+    },
+    {
+      "id": "agent:agent/sku",
+      "name": "agent/sku",
+      "type": "agent-module",
+      "path": "src/lib/agent/sku.ts",
+      "description": "Agent module: agent/sku",
+      "dependencies": []
+    },
+    {
+      "id": "agent:agent/types",
+      "name": "agent/types",
+      "type": "agent-module",
+      "path": "src/lib/agent/types.ts",
+      "description": "Agent module: agent/types",
+      "dependencies": [
+        "../agent",
+        "../agent"
+      ]
+    },
+    {
+      "id": "agent:tool-execution",
+      "name": "tool-execution",
+      "type": "agent-module",
+      "path": "src/lib/tool-execution.ts",
+      "description": "Agent module: tool-execution",
+      "dependencies": [
+        "./tool-registry",
+        "./agent",
+        "./tools/registry-definitions",
+        "@/lib/agent/audit",
+        "@/lib/tool-registry"
+      ]
+    },
+    {
+      "id": "agent:tool-registry",
+      "name": "tool-registry",
+      "type": "agent-module",
+      "path": "src/lib/tool-registry.ts",
+      "description": "Agent module: tool-registry",
+      "dependencies": [
+        "./agent"
+      ]
+    },
+    {
+      "id": "agent:tools/registry-definitions",
+      "name": "tools/registry-definitions",
+      "type": "agent-module",
+      "path": "src/lib/tools/registry-definitions.ts",
+      "description": "Agent module: tools/registry-definitions",
+      "dependencies": [
+        "@/lib/db",
+        "../agent",
+        "../tool-registry",
+        "../agent-extended",
+        "@/lib/agent/capabilities/memory-tools",
+        "@/lib/agent/capabilities/calendar",
+        "@/lib/agent/capabilities/notifications",
+        "@/lib/agent/capabilities/search-tools",
+        "@/lib/agent/capabilities/documents"
+      ]
+    }
+  ]
+}

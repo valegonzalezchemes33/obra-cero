@@ -1,0 +1,26 @@
+---
+tags: [config]
+aliases: [Caddyfile]
+---
+
+# Caddyfile
+
+Configuration file: Caddyfile
+
+## Información
+
+- **Tipo:** `config`
+- **Ruta:** `Caddyfile`
+- **ID:** `config:Caddyfile`
+
+## Metadatos
+
+```json
+{
+  "lineCount": 24
+}
+```
+
+## Relacionado
+
+- [[architecture/overview|config]] — Arquitectura de configs

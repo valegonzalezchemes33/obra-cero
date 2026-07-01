@@ -1,0 +1,65 @@
+---
+tags: [model]
+aliases: [AgentMessage]
+---
+
+# AgentMessage
+
+Prisma model: AgentMessage
+
+## Información
+
+- **Tipo:** `model`
+- **Ruta:** `prisma/schema.prisma`
+- **ID:** `model:AgentMessage`
+
+## Metadatos
+
+```json
+{
+  "fields": [
+    {
+      "name": "id",
+      "type": "String",
+      "required": "true",
+      "relation": "",
+      "attributes": "@id @default(cuid())"
+    },
+    {
+      "name": "role",
+      "type": "String",
+      "required": "true",
+      "relation": "",
+      "attributes": "// user | agent"
+    },
+    {
+      "name": "content",
+      "type": "String",
+      "required": "true",
+      "relation": "",
+      "attributes": "@db.Text"
+    },
+    {
+      "name": "intent",
+      "type": "String",
+      "required": "false",
+      "relation": "",
+      "attributes": "meta      String?  @db.Text // JSON con datos adicionales"
+    },
+    {
+      "name": "createdAt",
+      "type": "DateTime",
+      "required": "true",
+      "relation": "",
+      "attributes": "@default(now())"
+    }
+  ],
+  "indexes": [
+    "createdAt"
+  ]
+}
+```
+
+## Relacionado
+
+- [[architecture/database|model]] — Arquitectura de models

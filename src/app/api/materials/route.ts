@@ -1,28 +1,18 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
-import { parseBody, MaterialCreateSchema } from "@/lib/validation";
+import { MaterialCreateSchema } from "@/lib/validation";
+import { cachedGet, createPost } from "@/lib/crud-factory";
 
-export async function GET() {
-  try {
-    const materials = await db.material.findMany({
-      include: { supplier: true },
-      orderBy: { name: "asc" },
-    });
-    return NextResponse.json(materials);
-  } catch (error: any) {
-    console.error("[API] GET /api/materials:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
-  }
-}
+export const GET = cachedGet("materials:list", () =>
+  db.material.findMany({
+    include: { supplier: { select: { id: true, name: true } } },
+    orderBy: { name: "asc" },
+    take: 200,
+  })
+);
 
-export async function POST(req: NextRequest) {
-  try {
-    await requireSession();
-    const parsed = await parseBody(req, MaterialCreateSchema);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const mat = await db.material.create({
+export const POST = createPost(MaterialCreateSchema, async (body) => {
+  const result = await db.$transaction(async (tx) => {
+    const mat = await tx.material.create({
       data: {
         sku: body.sku || "",
         name: body.name,
@@ -39,7 +29,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (mat.stock > 0) {
-      await db.stockMovement.create({
+      await tx.stockMovement.create({
         data: {
           type: "incoming",
           quantity: mat.stock,
@@ -52,10 +42,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json(mat, { status: 201 });
-  } catch (error: any) {
-    if (error instanceof AuthRequiredError) return authRequiredResponse();
-    console.error("[API] POST /api/materials:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
-  }
-}
+    return mat;
+  });
+
+  return result;
+}, "/api/materials");

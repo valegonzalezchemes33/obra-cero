@@ -1,0 +1,27 @@
+---
+tags: [mcp]
+aliases: [mcp-bridge/tsconfig.json]
+---
+
+# mcp-bridge/tsconfig.json
+
+MCP integration: mcp-bridge/tsconfig.json
+
+## Información
+
+- **Tipo:** `mcp`
+- **Ruta:** `mcp-bridge/tsconfig.json`
+- **ID:** `mcp:tsconfig.json`
+
+## Metadatos
+
+```json
+{
+  "lineCount": 18,
+  "imports": []
+}
+```
+
+## Relacionado
+
+- [[architecture/agents|mcp]] — Arquitectura de mcps

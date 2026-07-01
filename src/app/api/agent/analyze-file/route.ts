@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiLogger } from "@/lib/logger";
 
 async function analyzePdf(buffer: ArrayBuffer): Promise<{ text: string; pages: number }> {
   const { PDFParse } = await import("pdf-parse");
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
       fileName,
     });
   } catch (error: any) {
-    console.error("[API] POST /api/agent/analyze-file:", error.message);
-    return NextResponse.json({ error: error.message || "Error al analizar archivo" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/agent/analyze-file" }, error.message);
+    return NextResponse.json({ error: "Error al analizar archivo" }, { status: 500 });
   }
 }

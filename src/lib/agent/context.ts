@@ -35,8 +35,8 @@ import type {
 // Límites y configuración
 // ──────────────────────────────────────────────────────────────
 
-const MAX_HISTORY_TURNS = 12;
-const MAX_CONTEXT_CACHE_TTL_MS = 90_000; // 90s
+const MAX_HISTORY_TURNS = 30;
+const MAX_CONTEXT_CACHE_TTL_MS = 15_000; // 15s
 const TOOL_CATEGORY_MAP: Record<string, string> = {
   // CRUD
   create_project: "proyectos",
@@ -115,7 +115,7 @@ async function loadHistory(limit = MAX_HISTORY_TURNS): Promise<HistoryTurn[]> {
       .map((m): HistoryTurn => ({
         id: m.id,
         role: m.role === "user" ? "user" : "agent",
-        content: m.content.length > 800 ? m.content.slice(0, 800) + "…" : m.content,
+        content: m.content.length > 2000 ? m.content.slice(0, 2000) + "…" : m.content,
         intent: m.intent || undefined,
         meta: m.meta ? safeParse(m.meta) : undefined,
         createdAt: m.createdAt,

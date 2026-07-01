@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getCached } from "@/lib/cache";
+import { apiLogger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -139,7 +140,7 @@ export async function GET() {
 
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error("[API] GET /api/dashboard:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/dashboard" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

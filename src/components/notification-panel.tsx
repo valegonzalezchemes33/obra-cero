@@ -85,18 +85,22 @@ export function NotificationPanel() {
                   const audio = new Audio("/sounds/notification.mp3");
                   audio.volume = 0.3;
                   audio.play().catch(() => {});
-                } catch {}
+                } catch (e) {
+                  console.warn("notification audio failed", e);
+                }
               }
             }
-          } catch {}
+          } catch (e) {
+            console.warn("SSE parse error", e);
+          }
         });
 
         es.onerror = () => {
           es?.close();
-          // Reconectar después de 5s
           reconnectTimer = setTimeout(connect, 5000);
         };
-      } catch {
+      } catch (e) {
+        console.warn("SSE connection error", e);
         reconnectTimer = setTimeout(connect, 5000);
       }
     }

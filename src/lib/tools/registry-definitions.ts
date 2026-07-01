@@ -421,6 +421,216 @@ const tools: Record<ToolName, ExecutableTool> = {
 
   // ─────────── PROVEEDORES ───────────
 
+  edit_supplier: {
+    name: "edit_supplier",
+    intent: "action_edit_supplier",
+    description: "Edita los datos de un proveedor (nombre, teléfono, email, rubro, CUIT, rating, notas)",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleEditSupplier } = await import("../agent-extended");
+      return await handleEditSupplier(
+        makeParsed("action_edit_supplier", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  delete_supplier: {
+    name: "delete_supplier",
+    intent: "action_delete_supplier",
+    description: "Elimina un proveedor (requiere confirmación)",
+    riskLevel: "destructive",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleDeleteSupplier } = await import("../agent-extended");
+      return await handleDeleteSupplier(
+        makeParsed("action_delete_supplier", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  // ─────────── DETAIL VIEWS ───────────
+
+  get_project: {
+    name: "get_project",
+    intent: "action_get_project",
+    description: "Obtiene el detalle completo de una obra (financiero, tareas, movimientos)",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleGetProject } = await import("../agent-extended");
+      return await handleGetProject(
+        makeParsed("action_get_project", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  get_material: {
+    name: "get_material",
+    intent: "action_get_material",
+    description: "Obtiene el detalle completo de un material (stock, movimientos, proveedor)",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleGetMaterial } = await import("../agent-extended");
+      return await handleGetMaterial(
+        makeParsed("action_get_material", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  get_supplier: {
+    name: "get_supplier",
+    intent: "action_get_supplier",
+    description: "Obtiene el detalle completo de un proveedor (contacto, materiales, transacciones)",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleGetSupplier } = await import("../agent-extended");
+      return await handleGetSupplier(
+        makeParsed("action_get_supplier", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  get_task: {
+    name: "get_task",
+    intent: "action_get_task",
+    description: "Obtiene el detalle completo de una tarea",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleGetTask } = await import("../agent-extended");
+      return await handleGetTask(
+        makeParsed("action_get_task", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  // ─────────── BULK ACTIONS ───────────
+
+  bulk_complete_tasks: {
+    name: "bulk_complete_tasks",
+    intent: "action_bulk_complete_tasks",
+    description: "Completa todas las tareas pendientes de una obra o del sistema",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleBulkCompleteTasks } = await import("../agent-extended");
+      return await handleBulkCompleteTasks(
+        makeParsed("action_bulk_complete_tasks", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  bulk_delete_tasks: {
+    name: "bulk_delete_tasks",
+    intent: "action_bulk_delete_tasks",
+    description: "Elimina todas las tareas de una obra (requiere confirmación)",
+    riskLevel: "destructive",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleBulkDeleteTasks } = await import("../agent-extended");
+      return await handleBulkDeleteTasks(
+        makeParsed("action_bulk_delete_tasks", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  // ─────────── SCHEDULE MANAGEMENT ───────────
+
+  create_schedule: {
+    name: "create_schedule",
+    intent: "action_create_schedule",
+    description: "Crea un nuevo schedule/agendamiento para tareas automáticas",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { handleCreateSchedule } = await import("../agent-extended");
+      return await handleCreateSchedule(
+        makeParsed("action_create_schedule", args, ctx.rawText || ""),
+        ctx.rawText || ""
+      );
+    },
+  },
+
+  list_schedules: {
+    name: "list_schedules",
+    intent: "action_list_schedules",
+    description: "Lista todos los schedules/agendamientos configurados",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async () => {
+      const { db } = await import("@/lib/db");
+      const schedules = await db.agentSchedule.findMany({
+        orderBy: { nextRun: "asc" },
+        take: 50,
+      });
+
+      if (schedules.length === 0) {
+        return {
+          text: "No hay schedules configurados. Creá uno desde Agendamiento o diciendo *crear schedule*.",
+          intent: "action_list_schedules",
+          suggestions: ["Crear schedule", "Ver automatizaciones"],
+        };
+      }
+
+      const lines = schedules.map(s =>
+        `• **${s.name}** — ${s.type} — cron: \`${s.cron}\`${s.enabled ? " (activo)" : " (inactivo)"}${s.lastRun ? ` — último: ${new Date(s.lastRun).toLocaleString("es-AR")}` : ""}`
+      );
+
+      return {
+        text: `**Schedules (${schedules.length}):**\n\n${lines.join("\n")}`,
+        intent: "action_list_schedules",
+        data: { schedules },
+        suggestions: ["Crear schedule", "Ejecutar scheduler ahora", "Ver automatizaciones"],
+      };
+    },
+  },
+
+  delete_schedule: {
+    name: "delete_schedule",
+    intent: "action_delete_schedule",
+    description: "Elimina un schedule/agendamiento",
+    riskLevel: "destructive",
+    inputSchema: null,
+    execute: async (args, ctx) => {
+      const { db } = await import("@/lib/db");
+      const scheduleId = args.scheduleId;
+      if (!scheduleId) {
+        return {
+          text: "Necesito el ID del schedule. Ej: *eliminar schedule ID*",
+          intent: "action_delete_schedule",
+        };
+      }
+
+      const schedule = await db.agentSchedule.findUnique({ where: { id: scheduleId } });
+      if (!schedule) {
+        return {
+          text: `No encontré el schedule con ID ${scheduleId}.`,
+          intent: "action_delete_schedule",
+        };
+      }
+
+      await db.agentSchedule.delete({ where: { id: scheduleId } });
+
+      return {
+        text: `🗑️ Schedule **${schedule.name}** eliminado.`,
+        intent: "action_delete_schedule",
+        data: { schedule },
+        suggestions: ["Listar schedules", "Crear schedule"],
+      };
+    },
+  },
+
   create_supplier: {
     name: "create_supplier",
     intent: "action_create_supplier",
@@ -769,6 +979,92 @@ const tools: Record<ToolName, ExecutableTool> = {
     riskLevel: "moderate",
     inputSchema: null,
     execute: async (args) => generateDocument(args),
+  },
+
+  // ─────────── OBSIDIAN VAULT ───────────
+
+  obsidian_read_note: {
+    name: "obsidian_read_note",
+    intent: "obsidian_read_note",
+    description: "Leer una nota del vault de Obsidian. Requiere el plugin Local REST API activo en Obsidian.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => {
+      const { readNote } = await import("../agent/capabilities/obsidian");
+      return readNote(args);
+    },
+  },
+
+  obsidian_write_note: {
+    name: "obsidian_write_note",
+    intent: "obsidian_write_note",
+    description: "Crear o sobrescribir una nota en el vault de Obsidian. Si append=true, agrega al final.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => {
+      const { writeNote } = await import("../agent/capabilities/obsidian");
+      return writeNote(args);
+    },
+  },
+
+  obsidian_search_notes: {
+    name: "obsidian_search_notes",
+    intent: "obsidian_search_notes",
+    description: "Buscar texto en el vault de Obsidian usando búsqueda full-text.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => {
+      const { searchNotes } = await import("../agent/capabilities/obsidian");
+      return searchNotes(args);
+    },
+  },
+
+  obsidian_list_vault: {
+    name: "obsidian_list_vault",
+    intent: "obsidian_list_vault",
+    description: "Listar archivos y directorios del vault de Obsidian en una ruta específica.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => {
+      const { listVault } = await import("../agent/capabilities/obsidian");
+      return listVault(args);
+    },
+  },
+
+  obsidian_append_note: {
+    name: "obsidian_append_note",
+    intent: "obsidian_append_note",
+    description: "Agregar contenido al final de una nota existente (o bajo un heading específico).",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => {
+      const { appendToNote } = await import("../agent/capabilities/obsidian");
+      return appendToNote(args);
+    },
+  },
+
+  obsidian_list_tags: {
+    name: "obsidian_list_tags",
+    intent: "obsidian_list_tags",
+    description: "Listar todos los tags del vault de Obsidian con su cantidad de ocurrencias.",
+    riskLevel: "safe",
+    inputSchema: null,
+    execute: async (args) => {
+      const { listTags } = await import("../agent/capabilities/obsidian");
+      return listTags();
+    },
+  },
+
+  obsidian_execute_command: {
+    name: "obsidian_execute_command",
+    intent: "obsidian_execute_command",
+    description: "Ejecutar un comando nativo de Obsidian por su ID.",
+    riskLevel: "moderate",
+    inputSchema: null,
+    execute: async (args) => {
+      const { executeObsidianCommand } = await import("../agent/capabilities/obsidian");
+      return executeObsidianCommand(args);
+    },
   },
 };
 

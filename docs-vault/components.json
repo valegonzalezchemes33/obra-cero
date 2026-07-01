@@ -1,0 +1,26 @@
+---
+tags: [config]
+aliases: [components.json]
+---
+
+# components.json
+
+Configuration file: components.json
+
+## Información
+
+- **Tipo:** `config`
+- **Ruta:** `components.json`
+- **ID:** `config:components.json`
+
+## Metadatos
+
+```json
+{
+  "lineCount": 21
+}
+```
+
+## Relacionado
+
+- [[architecture/overview|config]] — Arquitectura de configs

@@ -1,0 +1,56 @@
+{
+  "version": "0.2.0",
+  "changeId": 3,
+  "lastUpdated": "2026-06-30T21:39:59.116Z",
+  "architecture": {
+    "frontend": "NextJS",
+    "backend": "API Routes",
+    "database": "Prisma (PostgreSQL)",
+    "ai": "Groq LLM"
+  },
+  "agents": [
+    "agent-dispatcher",
+    "agent-extended",
+    "agent-intents",
+    "agent-memory",
+    "agent",
+    "agent/audit.test",
+    "agent/audit",
+    "agent/automation-engine",
+    "agent/capabilities/calendar",
+    "agent/capabilities/documents",
+    "agent/capabilities/memory-tools",
+    "agent/capabilities/notifications",
+    "agent/capabilities/search-tools",
+    "agent/context",
+    "agent/dispatcher",
+    "agent/handlers",
+    "agent/item-parser",
+    "agent/normalize",
+    "agent/project-resolver",
+    "agent/queries",
+    "agent/router",
+    "agent/sku",
+    "agent/types"
+  ],
+  "stats": {
+    "scannedFiles": 124,
+    "apiRoutes": 36,
+    "databaseModels": 13,
+    "agentModules": 26,
+    "automations": 14,
+    "tests": 86
+  },
+  "health": "OK",
+  "pendingRefactors": [],
+  "lastBuildStatus": "PASSED",
+  "lastTestStatus": "86/86 PASSED",
+  "protocol": {
+    "entrypoint": ".ai/ENTRYPOINT.md",
+    "steps": 8,
+    "readPhase": "Pasos 1-5",
+    "actionPhase": "Pasos 6-7",
+    "updatePhase": "Paso 8",
+    "rule": "No escribir código sin leer. No finalizar sin actualizar."
+  }
+}

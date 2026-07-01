@@ -40,10 +40,7 @@ export async function POST() {
     const { stdout, stderr } = await execAsync(command, {
       cwd: projectRoot,
       timeout: 60_000,
-      env: {
-        ...process.env,
-        DATABASE_URL: process.env.DATABASE_URL || "",
-      },
+      env: { DATABASE_URL: process.env.DATABASE_URL, DIRECT_URL: process.env.DIRECT_URL, NODE_ENV: process.env.NODE_ENV },
     });
 
     return NextResponse.json({

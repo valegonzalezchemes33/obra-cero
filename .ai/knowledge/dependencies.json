@@ -1,0 +1,384 @@
+{
+  "packages": [
+    {
+      "name": "0",
+      "version": "@tailwindcss/postcss"
+    },
+    {
+      "name": "1",
+      "version": "@types/react"
+    },
+    {
+      "name": "2",
+      "version": "@types/react-dom"
+    },
+    {
+      "name": "3",
+      "version": "@types/react-syntax-highlighter"
+    },
+    {
+      "name": "4",
+      "version": "eslint"
+    },
+    {
+      "name": "5",
+      "version": "eslint-config-next"
+    },
+    {
+      "name": "6",
+      "version": "prisma"
+    },
+    {
+      "name": "7",
+      "version": "tailwindcss"
+    },
+    {
+      "name": "8",
+      "version": "tw-animate-css"
+    },
+    {
+      "name": "9",
+      "version": "typescript"
+    },
+    {
+      "name": "10",
+      "version": "vitest"
+    },
+    {
+      "name": "11",
+      "version": "@radix-ui/react-dropdown-menu"
+    },
+    {
+      "name": "12",
+      "version": "@radix-ui/react-label"
+    },
+    {
+      "name": "13",
+      "version": "@radix-ui/react-popover"
+    },
+    {
+      "name": "14",
+      "version": "@radix-ui/react-progress"
+    },
+    {
+      "name": "15",
+      "version": "@radix-ui/react-scroll-area"
+    },
+    {
+      "name": "16",
+      "version": "@radix-ui/react-select"
+    },
+    {
+      "name": "17",
+      "version": "@radix-ui/react-separator"
+    },
+    {
+      "name": "18",
+      "version": "@radix-ui/react-slot"
+    },
+    {
+      "name": "19",
+      "version": "@radix-ui/react-switch"
+    },
+    {
+      "name": "20",
+      "version": "@radix-ui/react-tabs"
+    },
+    {
+      "name": "21",
+      "version": "@radix-ui/react-toast"
+    },
+    {
+      "name": "22",
+      "version": "@radix-ui/react-toggle"
+    },
+    {
+      "name": "23",
+      "version": "@radix-ui/react-toggle-group"
+    },
+    {
+      "name": "24",
+      "version": "@radix-ui/react-tooltip"
+    },
+    {
+      "name": "25",
+      "version": "@tanstack/react-query"
+    },
+    {
+      "name": "26",
+      "version": "@tanstack/react-table"
+    },
+    {
+      "name": "27",
+      "version": "class-variance-authority"
+    },
+    {
+      "name": "28",
+      "version": "clsx"
+    },
+    {
+      "name": "29",
+      "version": "cmdk"
+    },
+    {
+      "name": "30",
+      "version": "date-fns"
+    },
+    {
+      "name": "31",
+      "version": "framer-motion"
+    },
+    {
+      "name": "32",
+      "version": "lucide-react"
+    },
+    {
+      "name": "33",
+      "version": "next"
+    },
+    {
+      "name": "34",
+      "version": "next-auth"
+    },
+    {
+      "name": "35",
+      "version": "next-intl"
+    },
+    {
+      "name": "36",
+      "version": "next-themes"
+    },
+    {
+      "name": "37",
+      "version": "pino"
+    },
+    {
+      "name": "38",
+      "version": "react"
+    },
+    {
+      "name": "39",
+      "version": "react-day-picker"
+    },
+    {
+      "name": "40",
+      "version": "react-dom"
+    },
+    {
+      "name": "41",
+      "version": "react-hook-form"
+    },
+    {
+      "name": "42",
+      "version": "react-markdown"
+    },
+    {
+      "name": "43",
+      "version": "react-syntax-highlighter"
+    },
+    {
+      "name": "44",
+      "version": "recharts"
+    },
+    {
+      "name": "45",
+      "version": "sharp"
+    },
+    {
+      "name": "46",
+      "version": "sonner"
+    },
+    {
+      "name": "47",
+      "version": "tailwind-merge"
+    },
+    {
+      "name": "48",
+      "version": "tailwindcss-animate"
+    },
+    {
+      "name": "49",
+      "version": "uuid"
+    },
+    {
+      "name": "50",
+      "version": "vaul"
+    },
+    {
+      "name": "51",
+      "version": "zod"
+    }
+  ],
+  "codeRelations": [
+    {
+      "source": "agent:agent",
+      "target": "agent:agent-memory",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent",
+      "target": "agent:agent-intents",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent",
+      "target": "agent:agent-intents",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent",
+      "target": "agent:agent/normalize",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent",
+      "target": "agent:agent/dispatcher",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent",
+      "target": "agent:agent/automation-engine",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent",
+      "target": "agent:agent/sku",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/audit",
+      "target": "agent:tool-registry",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/audit",
+      "target": "agent:agent/types",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/audit",
+      "target": "agent:tools/registry-definitions",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/automation-engine",
+      "target": "agent:agent/queries",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/automation-engine",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/capabilities/calendar",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/capabilities/documents",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/capabilities/memory-tools",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/capabilities/notifications",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/capabilities/search-tools",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/dispatcher",
+      "target": "agent:agent/handlers",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/dispatcher",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent/normalize",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent/queries",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent/project-resolver",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent/item-parser",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent/item-parser",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/handlers",
+      "target": "agent:agent/sku",
+      "type": "imports"
+    },
+    {
+      "source": "agent:agent/project-resolver",
+      "target": "agent:agent/normalize",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tool-execution",
+      "target": "agent:agent/audit",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tool-execution",
+      "target": "agent:tool-registry",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tools/registry-definitions",
+      "target": "agent:agent/capabilities/memory-tools",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tools/registry-definitions",
+      "target": "agent:agent/capabilities/calendar",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tools/registry-definitions",
+      "target": "agent:agent/capabilities/notifications",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tools/registry-definitions",
+      "target": "agent:agent/capabilities/search-tools",
+      "type": "imports"
+    },
+    {
+      "source": "agent:tools/registry-definitions",
+      "target": "agent:agent/capabilities/documents",
+      "type": "imports"
+    }
+  ]
+}

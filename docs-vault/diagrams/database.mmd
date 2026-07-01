@@ -1,0 +1,155 @@
+erDiagram
+  Project {
+    String id PK
+    String code
+    String name
+    String address optional
+    String type
+    Float budget
+    Float progress
+    String clientName optional
+    String clientEmail optional
+    DateTime endDate optional
+    DateTime updatedAt
+    Transaction transactions
+    Task tasks
+  }
+  Transaction {
+    String id PK
+    String type
+    String category
+    String description
+    DateTime date
+    String method optional
+    String recurring optional
+    String projectId optional
+    DateTime createdAt
+    Project project optional
+    Supplier supplier optional
+  }
+  Task {
+    String id PK
+    String title
+    String status
+    String priority
+    String assignee optional
+    String projectId optional
+    DateTime createdAt
+    DateTime updatedAt
+    Project project optional
+  }
+  Supplier {
+    String id PK
+    String name
+    String phone optional
+    String taxId optional
+    String category optional
+    Float rating
+    String notes optional
+    DateTime updatedAt
+    Transaction transactions
+    Material materials
+    StockMovement stockMovements
+  }
+  Material {
+    String id PK
+    String sku
+    String name
+    String unit
+    Float unitCost
+    Float unitPrice
+    Float stock
+    Float minStock
+    Float maxStock optional
+    String supplierId optional
+    DateTime updatedAt
+    Supplier supplier optional
+    StockMovement stockMovements
+  }
+  StockMovement {
+    String id PK
+    String type
+    Float quantity
+    String reason optional
+    String note optional
+    String materialId
+    Material material
+    Supplier supplier optional
+  }
+  AutomationRule {
+    String id PK
+    String name
+    String trigger
+    String condition optional
+    String action
+    Boolean enabled
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Workflow {
+    String id PK
+    String name
+    String trigger
+    String triggerConfig optional
+    Boolean enabled
+    DateTime createdAt
+    DateTime updatedAt
+    WorkflowStep steps
+    WorkflowExecution executions
+  }
+  WorkflowStep {
+    String id PK
+    String workflowId
+    String label optional
+    Float order
+    String parentId optional
+    DateTime createdAt
+    Workflow workflow
+  }
+  WorkflowExecution {
+    String id PK
+    String workflowId
+    DateTime startedAt
+    DateTime completedAt optional
+  }
+  AgentSchedule {
+    String id PK
+    String name
+    String config
+    String cron
+    DateTime lastRun optional
+    Boolean enabled
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  AgentAction {
+    String id PK
+    String type
+    String severity
+    String title
+    String payload optional
+    String status
+    DateTime createdAt
+  }
+  AgentMessage {
+    String id PK
+    String role
+    String content
+    String intent optional
+    DateTime createdAt
+  }
+  Project ||--o{ Transaction : "transactions"
+  Project ||--o{ Task : "tasks"
+  Transaction ||--o{ Project : "project"
+  Transaction ||--o{ Supplier : "supplier"
+  Task ||--o{ Project : "project"
+  Supplier ||--o{ Transaction : "transactions"
+  Supplier ||--o{ Material : "materials"
+  Supplier ||--o{ StockMovement : "stockMovements"
+  Material ||--o{ Supplier : "supplier"
+  Material ||--o{ StockMovement : "stockMovements"
+  StockMovement ||--o{ Material : "material"
+  StockMovement ||--o{ Supplier : "supplier"
+  Workflow ||--o{ WorkflowStep : "steps"
+  Workflow ||--o{ WorkflowExecution : "executions"
+  WorkflowStep ||--o{ Workflow : "workflow"

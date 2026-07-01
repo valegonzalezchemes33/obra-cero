@@ -1,0 +1,7 @@
+{
+  "templates_folder": "templates",
+  "trigger_on_file_creation": true,
+  "enable_folder_templates": true,
+  "syntax_highlight": true,
+  "jump_to_cursor": true
+}

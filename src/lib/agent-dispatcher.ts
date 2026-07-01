@@ -18,6 +18,7 @@ import {
   type ParsedCommand,
   type AgentResponse,
 } from "./agent";
+import { agentLogger } from "@/lib/logger";
 
 // ─── Crear ParsedCommand sintético desde intent + entities ───
 
@@ -62,7 +63,7 @@ export async function processMessageWithIntent(
         }).slice(0, 4000),
       },
     });
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-dispatcher" }, "catch swallowed: guardar mensaje del usuario en BD") }
 
   // ✅ Ejecutar el handler real del agente, SIN re-parsar con NLU local
   // dispatchByIntent usa el switch de agent.ts con todos los respond*()
@@ -78,7 +79,7 @@ export async function processMessageWithIntent(
         meta: response.data ? JSON.stringify(response.data).slice(0, 4000) : null,
       },
     });
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-dispatcher" }, "catch swallowed: guardar respuesta del agente en BD") }
 
   return response;
 }
@@ -246,6 +247,7 @@ export async function enrichActionResponseWithGroq(
     const available = await isGroqAvailable();
     if (!available) return localResponse;
 
+    // Usar Groq solo para agregar contexto, NO para reemplazar la respuesta
     const dbData = {
       intent,
       handlerData: localResponse.data || {},
@@ -256,9 +258,12 @@ export async function enrichActionResponseWithGroq(
     if (groqResponse && groqResponse.text) {
       return {
         ...localResponse,
-        text: groqResponse.text,
+        // Solo usamos Groq si el agente local no produjo texto sustancial
+        text: localResponse.text && localResponse.text.length > 20
+          ? localResponse.text
+          : groqResponse.text,
         _groqEnhanced: true,
-        _groqActionEnhanced: true,
+        _groqEnriched: true,
         suggestions: localResponse.suggestions || groqResponse.suggestions,
       };
     }

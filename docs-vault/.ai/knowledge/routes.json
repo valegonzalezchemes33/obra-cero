@@ -1,0 +1,293 @@
+{
+  "total": 36,
+  "routes": [
+    {
+      "id": "route:/api/agent/actions",
+      "path": "src/app/api/agent/actions/route.ts",
+      "method": "GET",
+      "description": "API GET/PATCH /api/agent/actions",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/analyze-file",
+      "path": "src/app/api/agent/analyze-file/route.ts",
+      "method": "GET",
+      "description": "API POST /api/agent/analyze-file",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/conversation",
+      "path": "src/app/api/agent/conversation/route.ts",
+      "method": "GET",
+      "description": "API GET/DELETE /api/agent/conversation",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/message",
+      "path": "src/app/api/agent/message/route.ts",
+      "method": "GET",
+      "description": "API POST/GET /api/agent/message",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent",
+      "path": "src/app/api/agent/route.ts",
+      "method": "GET",
+      "description": "API POST/GET /api/agent",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/stream",
+      "path": "src/app/api/agent/stream/route.ts",
+      "method": "GET",
+      "description": "API POST /api/agent/stream",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/tools/execute",
+      "path": "src/app/api/agent/tools/execute/route.ts",
+      "method": "GET",
+      "description": "API POST /api/agent/tools/execute",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/tools",
+      "path": "src/app/api/agent/tools/route.ts",
+      "method": "GET",
+      "description": "API GET /api/agent/tools",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/upload",
+      "path": "src/app/api/agent/upload/route.ts",
+      "method": "GET",
+      "description": "API POST/GET /api/agent/upload",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/agent/vision",
+      "path": "src/app/api/agent/vision/route.ts",
+      "method": "GET",
+      "description": "API POST /api/agent/vision",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/auth/[...nextauth]",
+      "path": "src/app/api/auth/[...nextauth]/route.ts",
+      "method": "GET",
+      "description": "API  /api/auth/[...nextauth]",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/automations",
+      "path": "src/app/api/automations/route.ts",
+      "method": "GET",
+      "description": "API GET/POST /api/automations",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/automations/run",
+      "path": "src/app/api/automations/run/route.ts",
+      "method": "GET",
+      "description": "API POST /api/automations/run",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/dashboard/insights",
+      "path": "src/app/api/dashboard/insights/route.ts",
+      "method": "GET",
+      "description": "API GET /api/dashboard/insights",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/dashboard",
+      "path": "src/app/api/dashboard/route.ts",
+      "method": "GET",
+      "description": "API GET /api/dashboard",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/events",
+      "path": "src/app/api/events/route.ts",
+      "method": "GET",
+      "description": "API GET /api/events",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/health",
+      "path": "src/app/api/health/route.ts",
+      "method": "GET",
+      "description": "API GET /api/health",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/materials/:id/movements",
+      "path": "src/app/api/materials/[id]/movements/route.ts",
+      "method": "GET",
+      "description": "API POST /api/materials/:id/movements",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/materials/:id",
+      "path": "src/app/api/materials/[id]/route.ts",
+      "method": "GET",
+      "description": "API GET/PATCH/DELETE /api/materials/:id",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/materials",
+      "path": "src/app/api/materials/route.ts",
+      "method": "GET",
+      "description": "API GET/POST /api/materials",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/projects/:id",
+      "path": "src/app/api/projects/[id]/route.ts",
+      "method": "GET",
+      "description": "API GET/PATCH/DELETE /api/projects/:id",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/projects",
+      "path": "src/app/api/projects/route.ts",
+      "method": "GET",
+      "description": "API GET/POST /api/projects",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api",
+      "path": "src/app/api/route.ts",
+      "method": "GET",
+      "description": "API GET /api",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/scheduler",
+      "path": "src/app/api/scheduler/route.ts",
+      "method": "GET",
+      "description": "API GET/POST/PATCH/DELETE /api/scheduler",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/scheduler/run",
+      "path": "src/app/api/scheduler/run/route.ts",
+      "method": "GET",
+      "description": "API POST /api/scheduler/run",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/seed",
+      "path": "src/app/api/seed/route.ts",
+      "method": "GET",
+      "description": "API POST /api/seed",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/suppliers/:id",
+      "path": "src/app/api/suppliers/[id]/route.ts",
+      "method": "GET",
+      "description": "API GET/PATCH/DELETE /api/suppliers/:id",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/suppliers",
+      "path": "src/app/api/suppliers/route.ts",
+      "method": "GET",
+      "description": "API GET/POST /api/suppliers",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/tasks/:id",
+      "path": "src/app/api/tasks/[id]/route.ts",
+      "method": "GET",
+      "description": "API GET/PATCH/DELETE /api/tasks/:id",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/tasks",
+      "path": "src/app/api/tasks/route.ts",
+      "method": "GET",
+      "description": "API GET/POST /api/tasks",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/transactions/:id",
+      "path": "src/app/api/transactions/[id]/route.ts",
+      "method": "GET",
+      "description": "API GET/PATCH/DELETE /api/transactions/:id",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/transactions",
+      "path": "src/app/api/transactions/route.ts",
+      "method": "GET",
+      "description": "API GET/POST /api/transactions",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/workflows/execute",
+      "path": "src/app/api/workflows/execute/route.ts",
+      "method": "GET",
+      "description": "API POST /api/workflows/execute",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/workflows/executions",
+      "path": "src/app/api/workflows/executions/route.ts",
+      "method": "GET",
+      "description": "API GET /api/workflows/executions",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/workflows",
+      "path": "src/app/api/workflows/route.ts",
+      "method": "GET",
+      "description": "API GET/POST/PATCH/DELETE /api/workflows",
+      "auth": true,
+      "schema": null
+    },
+    {
+      "id": "route:/api/workflows/webhook",
+      "path": "src/app/api/workflows/webhook/route.ts",
+      "method": "GET",
+      "description": "API POST /api/workflows/webhook",
+      "auth": true,
+      "schema": null
+    }
+  ]
+}

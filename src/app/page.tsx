@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { Sidebar, MobileNav, ViewKey } from "@/components/sidebar-nav";
-import { Dashboard } from "@/components/views/dashboard";
-import { ProjectsView } from "@/components/views/projects";
-import { FinancesView } from "@/components/views/finances";
-import { InventoryView } from "@/components/views/inventory";
-import { SuppliersView } from "@/components/views/suppliers";
-import { TasksView } from "@/components/views/tasks";
-import { AgentView } from "@/components/views/agent";
-import { AutomationsView } from "@/components/views/automations";
 import { CommandPalette } from "@/components/command-palette";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -18,6 +11,17 @@ import { NotificationPanel } from "@/components/notification-panel";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { motion, AnimatePresence } from "framer-motion";
+import { ErrorBoundary } from "@/components/error-boundary";
+import { Loader2 } from "lucide-react";
+
+const Dashboard = dynamic(() => import("@/components/views/dashboard").then((m) => ({ default: m.Dashboard })), { ssr: false });
+const ProjectsView = dynamic(() => import("@/components/views/projects").then((m) => ({ default: m.ProjectsView })), { ssr: false });
+const FinancesView = dynamic(() => import("@/components/views/finances").then((m) => ({ default: m.FinancesView })), { ssr: false });
+const InventoryView = dynamic(() => import("@/components/views/inventory").then((m) => ({ default: m.InventoryView })), { ssr: false });
+const SuppliersView = dynamic(() => import("@/components/views/suppliers").then((m) => ({ default: m.SuppliersView })), { ssr: false });
+const TasksView = dynamic(() => import("@/components/views/tasks").then((m) => ({ default: m.TasksView })), { ssr: false });
+const AgentView = dynamic(() => import("@/components/views/agent").then((m) => ({ default: m.AgentView })), { ssr: false });
+const AutomationsView = dynamic(() => import("@/components/views/automations").then((m) => ({ default: m.AutomationsView })), { ssr: false });
 
 const TITLES: Record<ViewKey, { title: string; sub: string; cta?: { label: string; target: ViewKey } }> = {
   dashboard: { title: "Panel", sub: "Vista general de tu operación" },
@@ -66,7 +70,13 @@ export default function Home() {
     setTimeout(() => setPendingAgentQuery(null), 100);
   }, []);
 
-  const meta = TITLES[view];
+  const meta = useMemo(() => TITLES[view], [view]);
+
+  const fallback = (
+    <div className="flex items-center justify-center min-h-[300px]">
+      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+    </div>
+  );
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -110,14 +120,62 @@ export default function Home() {
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              {view === "dashboard" && <Dashboard onNavigate={setView} />}
-              {view === "projects" && <ProjectsView />}
-              {view === "finances" && <FinancesView />}
-              {view === "inventory" && <InventoryView />}
-              {view === "suppliers" && <SuppliersView />}
-              {view === "tasks" && <TasksView />}
-              {view === "agent" && <AgentView initialQuery={pendingAgentQuery} />}
-              {view === "automations" && <AutomationsView />}
+              {view === "dashboard" && (
+                <ErrorBoundary name="Dashboard">
+                  <Suspense fallback={fallback}>
+                    <Dashboard onNavigate={setView} />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "projects" && (
+                <ErrorBoundary name="Obras">
+                  <Suspense fallback={fallback}>
+                    <ProjectsView />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "finances" && (
+                <ErrorBoundary name="Finanzas">
+                  <Suspense fallback={fallback}>
+                    <FinancesView />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "inventory" && (
+                <ErrorBoundary name="Inventario">
+                  <Suspense fallback={fallback}>
+                    <InventoryView />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "suppliers" && (
+                <ErrorBoundary name="Proveedores">
+                  <Suspense fallback={fallback}>
+                    <SuppliersView />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "tasks" && (
+                <ErrorBoundary name="Tareas">
+                  <Suspense fallback={fallback}>
+                    <TasksView />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "agent" && (
+                <ErrorBoundary name="Asistente">
+                  <Suspense fallback={fallback}>
+                    <AgentView initialQuery={pendingAgentQuery} />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
+              {view === "automations" && (
+                <ErrorBoundary name="Automatizaciones">
+                  <Suspense fallback={fallback}>
+                    <AutomationsView />
+                  </Suspense>
+                </ErrorBoundary>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

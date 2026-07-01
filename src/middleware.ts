@@ -49,14 +49,18 @@ function isAuthDisabled(): boolean {
   return process.env.AUTH_DISABLED === "1";
 }
 
-function getExpectedOrigin(): string {
-  const url = process.env.NEXTAUTH_URL || process.env.ALLOWED_ORIGIN || "";
-  try {
-    const parsed = new URL(url);
-    return parsed.origin;
-  } catch {
-    return "";
+function getExpectedOrigins(): string[] {
+  const raw = process.env.ALLOWED_ORIGINS || process.env.NEXTAUTH_URL || process.env.ALLOWED_ORIGIN || "";
+  const candidates = raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const origins: string[] = [];
+  for (const c of candidates) {
+    try {
+      origins.push(new URL(c).origin);
+    } catch {
+      // ignore invalid URLs
+    }
   }
+  return origins;
 }
 
 function checkCsrf(req: { method: string; nextUrl: URL; headers: Headers }): boolean {
@@ -66,13 +70,13 @@ function checkCsrf(req: { method: string; nextUrl: URL; headers: Headers }): boo
   const origin = req.headers.get("origin");
   if (!origin) return true;
 
-  const expected = getExpectedOrigin();
-  if (!expected) return true;
+  const expected = getExpectedOrigins();
+  if (expected.length === 0) return true;
 
   try {
-    const parsedOrigin = new URL(origin);
-    if (parsedOrigin.origin === expected) return true;
-    if (/^https?:\/\/localhost(:\d+)?$/.test(parsedOrigin.origin)) return true;
+    const parsedOrigin = new URL(origin).origin;
+    if (expected.includes(parsedOrigin)) return true;
+    if (/^https?:\/\/localhost(:\d+)?$/.test(parsedOrigin)) return true;
   } catch {
     return false;
   }
@@ -82,13 +86,24 @@ function checkCsrf(req: { method: string; nextUrl: URL; headers: Headers }): boo
 
 const isProd = process.env.NODE_ENV === "production";
 
+const LLM_ENDPOINTS: Record<string, string> = {
+  groq: "https://api.groq.com",
+  openai: "https://api.openai.com",
+  anthropic: "https://api.anthropic.com",
+  ollama: "",
+};
+
+const activeProvider = (process.env.LLM_ACTIVE_PROVIDER || "groq").toLowerCase();
+const llmEndpoint = LLM_ENDPOINTS[activeProvider] || LLM_ENDPOINTS.groq;
+const connectSrc = `connect-src 'self'${llmEndpoint ? ` ${llmEndpoint}` : ""}`;
+
 const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://api.groq.com",
+  connectSrc,
   "frame-ancestors 'none'",
   "base-uri 'self'",
 ].join("; ");

@@ -1,0 +1,20 @@
+{
+  "name": "ObraCero",
+  "version": "0.2.0",
+  "description": "Sistema CRM interno con Agente IA para la construcción",
+  "architecture": "NextJS + Prisma + Groq",
+  "frontend": "NextJS + Tailwind CSS + shadcn/ui",
+  "backend": "Next.js API Routes + Prisma ORM",
+  "database": "PostgreSQL via Prisma",
+  "ai": "Groq LLM + Internal Agent System",
+  "lastScan": "2026-06-30T21:39:59.116Z",
+  "fileCount": 124,
+  "itemCount": 124,
+  "dependencies": {
+    "react": "^19.0.0",
+    "next": "^16.1.1",
+    "prisma": "^6.11.1",
+    "tailwind": "^4",
+    "groq": "none"
+  }
+}

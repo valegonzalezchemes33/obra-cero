@@ -133,7 +133,7 @@ export async function route(
     // 2a. Intentar Groq (intent único)
     try {
       const groqResult = await withTimeout(
-        tryGroqIntentRecognition(normalized, ctx.history.map(h => h.content)),
+        tryGroqIntentRecognition(normalized, ctx.history.map(h => `${h.role}: ${h.content}`)),
         TIMEOUT_PLANNING_MS
       );
 
@@ -163,7 +163,7 @@ export async function route(
         };
 
         const compoundResult = await withTimeout(
-          tryGroqCompoundIntent(rawText, ctx.history.map(h => h.content), conversationContext),
+          tryGroqCompoundIntent(rawText, ctx.history.map(h => `${h.role}: ${h.content}`), conversationContext),
           TIMEOUT_PLANNING_MS
         );
 

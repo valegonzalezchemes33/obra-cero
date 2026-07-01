@@ -42,8 +42,10 @@ function audit(entry: {
         },
       })
       .catch(() => {});
-  } catch {}
+  } catch (e) { webhookLogger.warn({ module: "webhook" }, "catch swallowed: auditar entrada de webhook") }
 }
+
+const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "set-cookie", "x-api-key"]);
 
 async function postHandler(req: NextRequest) {
   const ip = resolveClientIp(req);
@@ -79,7 +81,9 @@ async function postHandler(req: NextRequest) {
     return NextResponse.json({ error: "Body JSON inválido." }, { status: 400 });
   }
 
-  const headers = Object.fromEntries(req.headers);
+  const headers = Object.fromEntries(
+    Array.from(req.headers.entries()).filter(([k]) => !SENSITIVE_HEADERS.has(k.toLowerCase()))
+  );
   const apiKey = (headers["x-api-key"] as string) || body.apiKey;
   const webhookSecret = body.webhookSecret;
 
@@ -110,6 +114,10 @@ async function postHandler(req: NextRequest) {
       source: req.headers.get("user-agent") || "unknown",
     },
   };
+
+  if (body.workflowId && typeof body.workflowId !== "string") {
+    return NextResponse.json({ error: "workflowId inválido" }, { status: 400 });
+  }
 
   if (body.workflowId) {
     const workflow = await db.workflow.findUnique({

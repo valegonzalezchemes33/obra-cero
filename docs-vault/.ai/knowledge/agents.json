@@ -1,0 +1,307 @@
+{
+  "total": 26,
+  "modules": [
+    {
+      "name": "core",
+      "items": [
+        {
+          "id": "agent:agent-dispatcher",
+          "name": "agent-dispatcher",
+          "description": "Agent module: agent-dispatcher",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent-extended",
+          "name": "agent-extended",
+          "description": "Agent module: agent-extended",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "@/lib/logger",
+            "./workflow-engine",
+            "./workflow-from-text",
+            "./agent-rag",
+            "./agent-predictive",
+            "./agent-memory"
+          ]
+        },
+        {
+          "id": "agent:agent-intents",
+          "name": "agent-intents",
+          "description": "Agent module: agent-intents",
+          "capabilities": [],
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent-memory",
+          "name": "agent-memory",
+          "description": "Agent module: agent-memory",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent",
+          "name": "agent",
+          "description": "Agent module: agent",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent-nlu",
+            "@/lib/agent-memory",
+            "@/lib/logger",
+            "@/lib/agent-intents",
+            "@/lib/agent-intents",
+            "@/lib/agent/normalize",
+            "@/lib/agent/dispatcher",
+            "@/lib/agent/automation-engine",
+            "@/lib/agent/sku"
+          ]
+        },
+        {
+          "id": "agent:agent/audit.test",
+          "name": "agent/audit.test",
+          "description": "Agent module: agent/audit.test",
+          "capabilities": [],
+          "dependencies": [
+            "./audit"
+          ]
+        },
+        {
+          "id": "agent:agent/audit",
+          "name": "agent/audit",
+          "description": "Agent module: agent/audit",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/tool-registry",
+            "@/lib/agent/types",
+            "@/lib/rate-limit",
+            "@/lib/tools/registry-definitions"
+          ]
+        },
+        {
+          "id": "agent:agent/automation-engine",
+          "name": "agent/automation-engine",
+          "description": "Agent module: agent/automation-engine",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/format",
+            "@/lib/agent/queries",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/calendar",
+          "name": "agent/capabilities/calendar",
+          "description": "Agent module: agent/capabilities/calendar",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/documents",
+          "name": "agent/capabilities/documents",
+          "description": "Agent module: agent/capabilities/documents",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/groq",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/memory-tools",
+          "name": "agent/capabilities/memory-tools",
+          "description": "Agent module: agent/capabilities/memory-tools",
+          "capabilities": [],
+          "dependencies": [
+            "../context",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/notifications",
+          "name": "agent/capabilities/notifications",
+          "description": "Agent module: agent/capabilities/notifications",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/search-tools",
+          "name": "agent/capabilities/search-tools",
+          "description": "Agent module: agent/capabilities/search-tools",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/context",
+          "name": "agent/context",
+          "description": "Agent module: agent/context",
+          "capabilities": [],
+          "dependencies": [
+            "../db",
+            "../cache",
+            "../agent-memory",
+            "../tool-execution",
+            "../tool-registry",
+            "../groq-integration",
+            "./types"
+          ]
+        },
+        {
+          "id": "agent:agent/dispatcher",
+          "name": "agent/dispatcher",
+          "description": "Agent module: agent/dispatcher",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/agent/handlers",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/handlers",
+          "name": "agent/handlers",
+          "description": "Agent module: agent/handlers",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/format",
+            "@/lib/agent/normalize",
+            "@/lib/agent/queries",
+            "@/lib/agent/project-resolver",
+            "@/lib/agent",
+            "@/lib/agent/item-parser",
+            "@/lib/agent/item-parser",
+            "@/lib/agent/sku"
+          ]
+        },
+        {
+          "id": "agent:agent/item-parser",
+          "name": "agent/item-parser",
+          "description": "Agent module: agent/item-parser",
+          "capabilities": [],
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent/normalize",
+          "name": "agent/normalize",
+          "description": "Agent module: agent/normalize",
+          "capabilities": [],
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent/project-resolver",
+          "name": "agent/project-resolver",
+          "description": "Agent module: agent/project-resolver",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent/normalize"
+          ]
+        },
+        {
+          "id": "agent:agent/queries",
+          "name": "agent/queries",
+          "description": "Agent module: agent/queries",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db"
+          ]
+        },
+        {
+          "id": "agent:agent/router",
+          "name": "agent/router",
+          "description": "Agent module: agent/router",
+          "capabilities": [],
+          "dependencies": [
+            "../agent-nlu",
+            "../groq-integration",
+            "../agent",
+            "../agent",
+            "../tool-registry",
+            "../agent-memory",
+            "./context",
+            "./types"
+          ]
+        },
+        {
+          "id": "agent:agent/sku",
+          "name": "agent/sku",
+          "description": "Agent module: agent/sku",
+          "capabilities": [],
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent/types",
+          "name": "agent/types",
+          "description": "Agent module: agent/types",
+          "capabilities": [],
+          "dependencies": [
+            "../agent",
+            "../agent"
+          ]
+        },
+        {
+          "id": "agent:tool-execution",
+          "name": "tool-execution",
+          "description": "Agent module: tool-execution",
+          "capabilities": [],
+          "dependencies": [
+            "./tool-registry",
+            "./agent",
+            "./tools/registry-definitions",
+            "@/lib/agent/audit",
+            "@/lib/tool-registry"
+          ]
+        },
+        {
+          "id": "agent:tool-registry",
+          "name": "tool-registry",
+          "description": "Agent module: tool-registry",
+          "capabilities": [],
+          "dependencies": [
+            "./agent"
+          ]
+        },
+        {
+          "id": "agent:tools/registry-definitions",
+          "name": "tools/registry-definitions",
+          "description": "Agent module: tools/registry-definitions",
+          "capabilities": [],
+          "dependencies": [
+            "@/lib/db",
+            "../agent",
+            "../tool-registry",
+            "../agent-extended",
+            "@/lib/agent/capabilities/memory-tools",
+            "@/lib/agent/capabilities/calendar",
+            "@/lib/agent/capabilities/notifications",
+            "@/lib/agent/capabilities/search-tools",
+            "@/lib/agent/capabilities/documents"
+          ]
+        }
+      ]
+    }
+  ]
+}

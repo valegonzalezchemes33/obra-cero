@@ -41,11 +41,25 @@ export type ToolName =
   | "reorder"
   // CRUD proveedores
   | "create_supplier"
+  | "edit_supplier"
+  | "delete_supplier"
   // Workflows / automatización
   | "trigger_workflow"
   | "list_workflows"
   | "list_project_tasks"
   | "list_automations"
+  // Detail views
+  | "get_project"
+  | "get_material"
+  | "get_supplier"
+  | "get_task"
+  // Bulk actions
+  | "bulk_complete_tasks"
+  | "bulk_delete_tasks"
+  // Schedule management
+  | "create_schedule"
+  | "list_schedules"
+  | "delete_schedule"
   // Utilidades
   | "export_data"
   // Capabilities del agente (FASE 4-5)
@@ -65,7 +79,15 @@ export type ToolName =
   | "search_clients"
   | "search_budgets"
   | "list_budget_ranges"
-  | "generate_document";
+  | "generate_document"
+  // Obsidian vault
+  | "obsidian_read_note"
+  | "obsidian_write_note"
+  | "obsidian_search_notes"
+  | "obsidian_list_vault"
+  | "obsidian_append_note"
+  | "obsidian_list_tags"
+  | "obsidian_execute_command";
 
 export interface ToolCall<TArgs = Record<string, any>> {
   tool: ToolName;
@@ -246,6 +268,64 @@ const createSupplierSchema = z.object({
   rating: z.number().min(1).max(5).optional(),
 });
 
+const editSupplierSchema = z.object({
+  supplierRef: nonEmptyString.describe("Nombre o ID del proveedor a editar"),
+  name: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional(),
+  taxId: z.string().optional(),
+  category: z.string().optional(),
+  rating: z.number().min(1).max(5).optional(),
+  notes: z.string().optional(),
+});
+
+const deleteSupplierSchema = z.object({
+  supplierRef: nonEmptyString.describe("Nombre o ID del proveedor a eliminar"),
+});
+
+const getProjectSchema = z.object({
+  projectRef: projectRefSchema,
+});
+
+const getMaterialSchema = z.object({
+  materialName: nonEmptyString.describe("Nombre o SKU del material"),
+});
+
+const getSupplierSchema = z.object({
+  supplierRef: nonEmptyString.describe("Nombre o ID del proveedor"),
+});
+
+const getTaskSchema = z.object({
+  taskId: z.string().optional(),
+  taskTitle: z.string().optional(),
+}).refine(d => d.taskId || d.taskTitle, { message: "Se requiere taskId o taskTitle" });
+
+const bulkCompleteTasksSchema = z.object({
+  taskIds: z.array(z.string()).optional(),
+  projectRef: projectRefSchema,
+}).refine(d => d.taskIds || d.projectRef, { message: "Se requiere taskIds o projectRef" });
+
+const bulkDeleteTasksSchema = z.object({
+  taskIds: z.array(z.string()).optional(),
+  projectRef: projectRefSchema,
+}).refine(d => d.taskIds || d.projectRef, { message: "Se requiere taskIds o projectRef" });
+
+const createScheduleSchema = z.object({
+  name: nonEmptyString,
+  type: z.enum(["check_alerts", "run_workflow", "send_report", "analyze"]),
+  cron: nonEmptyString.describe("Expresión cron: */5 * * * *"),
+  config: z.record(z.string(), z.any()).optional(),
+  enabled: z.boolean().optional(),
+});
+
+const listSchedulesSchema = z.object({
+  enabledOnly: z.boolean().optional(),
+});
+
+const deleteScheduleSchema = z.object({
+  scheduleId: nonEmptyString,
+});
+
 const triggerWorkflowSchema = z.object({
   workflowName: nonEmptyString.optional(),
   workflowId: nonEmptyString.optional(),
@@ -390,6 +470,17 @@ export const toolSchemas: Record<ToolName, z.ZodTypeAny> = {
   delete_material: deleteMaterialSchema,
   reorder: reorderSchema,
   create_supplier: createSupplierSchema,
+  edit_supplier: editSupplierSchema,
+  delete_supplier: deleteSupplierSchema,
+  get_project: getProjectSchema,
+  get_material: getMaterialSchema,
+  get_supplier: getSupplierSchema,
+  get_task: getTaskSchema,
+  bulk_complete_tasks: bulkCompleteTasksSchema,
+  bulk_delete_tasks: bulkDeleteTasksSchema,
+  create_schedule: createScheduleSchema,
+  list_schedules: listSchedulesSchema,
+  delete_schedule: deleteScheduleSchema,
   trigger_workflow: triggerWorkflowSchema,
   list_workflows: listWorkflowsSchema,
   list_project_tasks: listProjectTasksSchema,
@@ -413,6 +504,14 @@ export const toolSchemas: Record<ToolName, z.ZodTypeAny> = {
   search_budgets: searchBudgetsSchema,
   list_budget_ranges: listBudgetRangesSchema,
   generate_document: generateDocumentSchema,
+  // Obsidian
+  obsidian_read_note: z.object({ path: z.string().min(1) }),
+  obsidian_write_note: z.object({ path: z.string().min(1), content: z.string().min(1), append: z.boolean().optional().default(false) }),
+  obsidian_search_notes: z.object({ query: z.string().min(1), limit: z.number().int().min(1).max(100).optional().default(20) }),
+  obsidian_list_vault: z.object({ path: z.string().optional().default("/"), pattern: z.string().optional() }),
+  obsidian_append_note: z.object({ path: z.string().min(1), content: z.string().min(1), section: z.string().optional() }),
+  obsidian_list_tags: z.object({}),
+  obsidian_execute_command: z.object({ commandId: z.string().min(1) }),
 };
 
 // ─── Mapeo entre ToolName e Intent del agente ───
@@ -437,6 +536,17 @@ export const toolToIntent: Record<ToolName, Intent> = {
   delete_material: "action_delete_material",
   reorder: "action_reorder",
   create_supplier: "action_create_supplier",
+  edit_supplier: "action_edit_supplier",
+  delete_supplier: "action_delete_supplier",
+  get_project: "action_get_project",
+  get_material: "action_get_material",
+  get_supplier: "action_get_supplier",
+  get_task: "action_get_task",
+  bulk_complete_tasks: "action_bulk_complete_tasks",
+  bulk_delete_tasks: "action_bulk_delete_tasks",
+  create_schedule: "action_create_schedule",
+  list_schedules: "action_list_schedules",
+  delete_schedule: "action_delete_schedule",
   trigger_workflow: "action_trigger_workflow",
   list_workflows: "action_list_workflows",
   list_project_tasks: "action_list_project_tasks",
@@ -460,6 +570,14 @@ export const toolToIntent: Record<ToolName, Intent> = {
   search_budgets: "capability_search_budgets",
   list_budget_ranges: "capability_list_budget_ranges",
   generate_document: "capability_generate_document",
+  // Obsidian
+  obsidian_read_note: "obsidian_read_note",
+  obsidian_write_note: "obsidian_write_note",
+  obsidian_search_notes: "obsidian_search_notes",
+  obsidian_list_vault: "obsidian_list_vault",
+  obsidian_append_note: "obsidian_append_note",
+  obsidian_list_tags: "obsidian_list_tags",
+  obsidian_execute_command: "obsidian_execute_command",
 };
 
 // Mapeo inverso: Intent -> ToolName (para que el router elija tool según intent)
@@ -477,6 +595,9 @@ const destructiveTools: ToolName[] = [
   "delete_task",
   "delete_material",
   "delete_transaction",
+  "delete_supplier",
+  "bulk_delete_tasks",
+  "delete_schedule",
   "close_project",
 ];
 
@@ -497,6 +618,18 @@ const moderateTools: ToolName[] = [
   "reorder",
   "create_supplier",
   "trigger_workflow",
+  // Detail views
+  "get_project",
+  "get_material",
+  "get_supplier",
+  "get_task",
+  // Bulk actions
+  "bulk_complete_tasks",
+  // Schedule management
+  "create_schedule",
+  // Obsidian
+  "obsidian_write_note",
+  "obsidian_append_note",
   // Capabilities moderadas
   "remember_preference",
   "forget_preference",

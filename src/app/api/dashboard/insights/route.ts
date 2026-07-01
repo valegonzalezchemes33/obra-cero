@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { dispatchByIntent, parseIntent } from "@/lib/agent";
+import { apiLogger } from "@/lib/logger";
 
 export async function GET() {
   try {
@@ -34,13 +35,13 @@ export async function GET() {
       },
     });
   } catch (error: any) {
-    console.error("[API] GET /api/dashboard/insights:", error.message);
+    apiLogger.error({ module: "API", path: "/api/dashboard/insights" }, error.message);
     return NextResponse.json(
       {
         recommendations: null,
         alerts: null,
         summary: null,
-        error: error.message,
+        error: "Error al generar insights",
       },
       { status: 200 } // Always return 200 so dashboard doesn't break
     );

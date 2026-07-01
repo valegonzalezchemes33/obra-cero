@@ -1,0 +1,131 @@
+{
+  "total": 14,
+  "automations": [
+    {
+      "id": "automation:src/app/api/automations/route",
+      "name": "src/app/api/automations/route",
+      "type": "automation",
+      "path": "src/app/api/automations/route.ts",
+      "description": "Automation module: src/app/api/automations/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/automations/run/route",
+      "name": "src/app/api/automations/run/route",
+      "type": "automation",
+      "path": "src/app/api/automations/run/route.ts",
+      "description": "Automation module: src/app/api/automations/run/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/scheduler/route",
+      "name": "src/app/api/scheduler/route",
+      "type": "automation",
+      "path": "src/app/api/scheduler/route.ts",
+      "description": "Automation module: src/app/api/scheduler/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/scheduler/run/route",
+      "name": "src/app/api/scheduler/run/route",
+      "type": "automation",
+      "path": "src/app/api/scheduler/run/route.ts",
+      "description": "Automation module: src/app/api/scheduler/run/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/workflows/execute/route",
+      "name": "src/app/api/workflows/execute/route",
+      "type": "automation",
+      "path": "src/app/api/workflows/execute/route.ts",
+      "description": "Automation module: src/app/api/workflows/execute/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/workflows/executions/route",
+      "name": "src/app/api/workflows/executions/route",
+      "type": "automation",
+      "path": "src/app/api/workflows/executions/route.ts",
+      "description": "Automation module: src/app/api/workflows/executions/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/workflows/route",
+      "name": "src/app/api/workflows/route",
+      "type": "automation",
+      "path": "src/app/api/workflows/route.ts",
+      "description": "Automation module: src/app/api/workflows/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/app/api/workflows/webhook/route",
+      "name": "src/app/api/workflows/webhook/route",
+      "type": "automation",
+      "path": "src/app/api/workflows/webhook/route.ts",
+      "description": "Automation module: src/app/api/workflows/webhook/route",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/components/views/automationsx",
+      "name": "src/components/views/automationsx",
+      "type": "automation",
+      "path": "src/components/views/automations.tsx",
+      "description": "Automation module: src/components/views/automationsx",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:src/components/workflow-builderx",
+      "name": "src/components/workflow-builderx",
+      "type": "automation",
+      "path": "src/components/workflow-builder.tsx",
+      "description": "Automation module: src/components/workflow-builderx",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:agent/automation-engine",
+      "name": "agent/automation-engine",
+      "type": "automation",
+      "path": "src/lib/agent/automation-engine.ts",
+      "description": "Automation module: agent/automation-engine",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:workflow-engine",
+      "name": "workflow-engine",
+      "type": "automation",
+      "path": "src/lib/workflow-engine.ts",
+      "description": "Automation module: workflow-engine",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:workflow-from-text",
+      "name": "workflow-from-text",
+      "type": "automation",
+      "path": "src/lib/workflow-from-text.ts",
+      "description": "Automation module: workflow-from-text",
+      "triggers": [],
+      "conditions": []
+    },
+    {
+      "id": "automation:workflow-types",
+      "name": "workflow-types",
+      "type": "automation",
+      "path": "src/lib/workflow-types.ts",
+      "description": "Automation module: workflow-types",
+      "triggers": [],
+      "conditions": []
+    }
+  ]
+}

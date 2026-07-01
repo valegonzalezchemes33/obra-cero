@@ -112,18 +112,6 @@ export async function chatWithGroq(
   }
 }
 
-// ─── Completación simple ───
-
-export async function generateCompletion(
-  prompt: string,
-  options: Omit<GroqChatOptions, "messages"> = {}
-): Promise<GroqResponse> {
-  return chatWithGroq(prompt, {
-    ...options,
-    systemPrompt: options.systemPrompt || "Eres un asistente útil para una constructora.",
-  });
-}
-
 // ─── Entender lenguaje natural → intent + entidades ───
 
 export async function parseIntentWithGroq(
@@ -188,7 +176,11 @@ export async function parseIntentWithGroq(
   // Bloque de contexto conversacional para resolver referencias
   const recentBlock =
     context?.recentMessages && context.recentMessages.length > 0
-      ? `\nULTIMOS MENSAJES DE LA CONVERSACION (para resolver referencias como "esos", "la nueva obra", "esos materiales"):\n${context.recentMessages.slice(-6).join("\n")}\n`
+      ? `\nULTIMOS MENSAJES DE LA CONVERSACION (para resolver referencias como "esos", "la nueva obra", "esos materiales"):\n${context.recentMessages.slice(-12).map(m => {
+          // If messages already have role prefix (user:/agent:), show as-is
+          if (m.startsWith("user:") || m.startsWith("agent:")) return m;
+          return `usuario: ${m}`;
+        }).join("\n")}\n`
       : "";
 
   const systemPrompt = `Sos un sistema experto de comprension de lenguaje natural para una constructora argentina llamada ObraCero. Tu unica tarea es analizar el mensaje del usuario y devolver SOLO un JSON valido, sin ningun otro texto.
@@ -207,43 +199,24 @@ REGLAS CRITICAS:
 PARSEO DE MATERIALES - MUY IMPORTANTE:
 Para "action_add_materials", el campo "items" es SIEMPRE un array de objetos:
   {"qty": numero, "unit": "unidad", "name": "nombre del material", "price": numero_opcional}
-Ejemplos de parseo de materiales:
-  "10 bolsas de cremel de 25kg a $2450 la unidad" -> {"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}
-  "5 m3 de arena fina" -> {"qty":5,"unit":"m3","name":"arena fina"}
-  "20 ladrillos comunes a $150 cada uno" -> {"qty":20,"unit":"unidades","name":"ladrillos comunes","price":150}
-  "3 rollos de alambre y 2 bolsas de cal" -> [{"qty":3,"unit":"rollos","name":"alambre"},{"qty":2,"unit":"bolsas","name":"cal"}]
+Ejemplos: "10 bolsas de cremel de 25kg a $2450" -> {"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}
+"5 m3 de arena fina" -> {"qty":5,"unit":"m3","name":"arena fina"}
 
-EJEMPLOS COMPLETOS:
-
-Ej1 - Un material con precio:
-Usuario: "agrega 10 bolsas de cremel de 25kg a $2450 cada una"
-Respuesta: {"intent":"action_add_materials","confidence":0.97,"entities":{"items":[{"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}]},"explanation":"Agregar materiales con precio","isCompound":false,"compoundIntents":[]}
-
-Ej2 - Crear obra + agregar materiales (COMPUESTO):
-Usuario: "crea una nueva obra vistassur. Materiales en inventario de la obra son: 10 bolsas de cremel de 25kg a $2450 la unidad"
-Respuesta: {"intent":"compound","confidence":0.95,"entities":{},"explanation":"Crear obra y agregar materiales","isCompound":true,"compoundIntents":[{"intent":"action_create_project_direct","entities":{"name":"vistassur"}},{"intent":"action_add_materials","entities":{"items":[{"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}]}}]}
-
-Ej3 - Seguimiento con referencia al contexto previo:
-(Contexto: se creo obra "vistassur" OB-009, se mencionaron materiales: 10 bolsas de cremel)
-Usuario: "quiero que agregues esos materiales a la nueva obra"
-Respuesta: {"intent":"action_add_materials","confidence":0.88,"entities":{"projectRef":"OB-009","items":[{"qty":10,"unit":"bolsas","name":"cremel 25kg","price":2450}]},"explanation":"Referencia a materiales y obra previos resueltos del contexto","isCompound":false,"compoundIntents":[]}
-
-Ej4 - Consulta simple:
-Usuario: "cuanto gaste este mes"
-Respuesta: {"intent":"query_expenses","confidence":0.95,"entities":{"period":"current_month"},"explanation":"Consulta de gastos del mes actual","isCompound":false,"compoundIntents":[]}
-
-Ej5 - Registrar gasto con proyecto:
-Usuario: "registra un gasto de $50000 en materiales para la obra OB-003"
-Respuesta: {"intent":"action_create_expense","confidence":0.96,"entities":{"amount":50000,"category":"materiales","projectRef":"OB-003"},"explanation":"Registrar gasto de materiales en obra especifica","isCompound":false,"compoundIntents":[]}`;
+EJEMPLOS RAPIDOS (formato Usuario -> Respuesta):
+"agrega 10 bolsas de cremel" -> {"intent":"action_add_materials","entities":{"items":[{"qty":10,"unit":"bolsas","name":"cremel"}]}}
+"cuanto gaste este mes" -> {"intent":"query_expenses","entities":{"period":"current_month"}}
+"registra un gasto de $50000 en materiales" -> {"intent":"action_create_expense","entities":{"amount":50000,"category":"materiales"}}
+"crea obra vistassur y agrega 10 bolsas de cremel" -> {"intent":"compound","isCompound":true,"compoundIntents":[{"intent":"action_create_project_direct","entities":{"name":"vistassur"}},{"intent":"action_add_materials","entities":{"items":[{"qty":10,"unit":"bolsas","name":"cremel"}]}}]}`;
 
   try {
-    // Pasar los mensajes recientes como contexto conversacional adicional
+    // Pasar los mensajes recientes como contexto conversacional adicional con roles reales
     let contextMessages: GroqMessage[] = [];
     if (context?.recentMessages && context.recentMessages.length > 0) {
-      contextMessages = context.recentMessages.slice(-4).map((msg) => ({
-        role: "user" as const,
-        content: msg,
-      }));
+      contextMessages = context.recentMessages.slice(-10).map((msg) => {
+        if (msg.startsWith("user:")) return { role: "user" as const, content: msg.slice(5).trim() };
+        if (msg.startsWith("agent:")) return { role: "assistant" as const, content: msg.slice(6).trim() };
+        return { role: "user" as const, content: msg };
+      });
     }
 
     const result = await chatWithGroq(userMessage, {
@@ -287,29 +260,32 @@ export async function generateAgentResponseWithGroq(
     ? `\nHistorial reciente de la conversacion:\n${systemData.recentConversation.slice(-6).join("\n")}\n`
     : "";
 
-  const systemPrompt = `Sos el asistente virtual de una constructora/inmobiliaria argentina llamada "ObraCero".
+  const dbDataStr = systemData.dbData ? JSON.stringify(systemData.dbData, null, 1).slice(0, 2000) : "{}";
+
+  const systemPrompt = `Sos el asistente virtual de una constructora argentina llamada "ObraCero".
 Tus respuestas deben ser:
 - En español argentino, natural y conversacional
 - Claras y directas, sin rodeos
 - Profesionales pero cálidas
-- Basadas en los datos del sistema que se te proporcionan
-- Incluir montos en pesos argentinos formateados (ej: $1.250.000)
 ${recentCtx}
 Contexto actual:
 - Intención detectada: ${systemData.intent}
-- Datos del sistema: ${JSON.stringify(systemData.dbData || {})}
+- Datos del sistema: ${dbDataStr}
 
-IMPORTANTE:
-- No inventes datos que no estén en el contexto
-- Si no hay datos suficientes, decíselo al usuario y sugerí cómo empezar
-- Mantené las respuestas concisas (máximo 3 párrafos)
-- Usa emojis moderadamente para hacer la respuesta más amigable
-- Si el usuario hace referencia a algo anterior ("eso", "esa obra"), usá el historial reciente`;
+REGLAS ESTRICTAS (NUNCA las violes):
+1. NUNCA inventes datos, nombres, montos o proyectos que no estén en los "Datos del sistema" de arriba.
+2. NUNCA le pidas al usuario información que YA ESTÁ en los datos del sistema.
+3. Si los datos están vacíos, decí "No encontré información al respecto" sin sugerir datos falsos.
+4. No generes preguntas de confirmación si la acción ya fue ejecutada exitosamente.
+5. Mantené las respuestas concisas (máximo 2 párrafos).
+6. Usá emojis con moderación (máximo 1 por respuesta).
+7. Si el usuario hace referencia a algo anterior ("eso", "esa obra"), usá el historial reciente.
+8. Si el usuario confirma algo con "sí", "dale", "ok", asumí que la acción YA FUE EJECUTADA y respondé con el resultado.`;
 
   try {
     let messages: GroqMessage[] = [];
     if (systemData.recentConversation && systemData.recentConversation.length > 0) {
-      const recentMessages = systemData.recentConversation.slice(-6);
+      const recentMessages = systemData.recentConversation.slice(-8);
       for (const msg of recentMessages) {
         if (msg.startsWith("user:")) {
           messages.push({ role: "user", content: msg.slice(5).trim() });
@@ -322,8 +298,8 @@ IMPORTANTE:
     const result = await chatWithGroq(userMessage, {
       systemPrompt,
       model: DEFAULT_MODEL,
-      temperature: 0.7,
-      maxTokens: 1024,
+      temperature: 0.3,
+      maxTokens: 800,
       messages: messages.length > 0 ? messages : undefined,
     });
 

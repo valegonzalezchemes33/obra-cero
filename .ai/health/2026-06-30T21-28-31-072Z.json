@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-06-30T21:28:31.070Z",
+  "changeId": 2,
+  "buildStatus": "PASSED",
+  "testStatus": "86/86 PASSED",
+  "moduleCount": 26,
+  "routeCount": 36,
+  "modelCount": 13,
+  "agentCount": 1,
+  "testCount": 86,
+  "deadCodeCount": 5,
+  "circularDepCount": 3,
+  "unusedRouteCount": 0,
+  "feedbackCount": 0,
+  "feedbackSuccessRate": 100,
+  "overall": "warning",
+  "warnings": [
+    "3 dependencias circulares"
+  ]
+}

@@ -1,0 +1,343 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-06-30T21:39:59.340Z",
+  "totalConcepts": 18,
+  "concepts": [
+    {
+      "concept": "Project",
+      "aliases": [
+        "Obra",
+        "Proyecto"
+      ],
+      "description": "Prisma model: Project",
+      "relatedModules": [
+        "prisma/schema.prisma",
+        "src/app/api/projects/[id]/route.ts",
+        "src/app/api/projects/route.ts",
+        "src/lib/agent/project-resolver.ts",
+        "package.json"
+      ],
+      "databaseModels": [
+        "Project"
+      ],
+      "routes": [
+        "route:/api/projects/:id",
+        "route:/api/projects"
+      ],
+      "ui": [],
+      "agents": [
+        "agent/project-resolver"
+      ],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "Transaction",
+      "aliases": [],
+      "description": "Prisma model: Transaction",
+      "relatedModules": [
+        "prisma/schema.prisma",
+        "src/app/api/transactions/[id]/route.ts",
+        "src/app/api/transactions/route.ts"
+      ],
+      "databaseModels": [
+        "Transaction"
+      ],
+      "routes": [
+        "route:/api/transactions/:id",
+        "route:/api/transactions"
+      ],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "Task",
+      "aliases": [],
+      "description": "Prisma model: Task",
+      "relatedModules": [
+        "prisma/schema.prisma",
+        "src/app/api/tasks/[id]/route.ts",
+        "src/app/api/tasks/route.ts"
+      ],
+      "databaseModels": [
+        "Task"
+      ],
+      "routes": [
+        "route:/api/tasks/:id",
+        "route:/api/tasks"
+      ],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "Supplier",
+      "aliases": [],
+      "description": "Prisma model: Supplier",
+      "relatedModules": [
+        "prisma/schema.prisma",
+        "src/app/api/suppliers/[id]/route.ts",
+        "src/app/api/suppliers/route.ts"
+      ],
+      "databaseModels": [
+        "Supplier"
+      ],
+      "routes": [
+        "route:/api/suppliers/:id",
+        "route:/api/suppliers"
+      ],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "Material",
+      "aliases": [],
+      "description": "Prisma model: Material",
+      "relatedModules": [
+        "prisma/schema.prisma",
+        "src/app/api/materials/[id]/movements/route.ts",
+        "src/app/api/materials/[id]/route.ts",
+        "src/app/api/materials/route.ts"
+      ],
+      "databaseModels": [
+        "Material"
+      ],
+      "routes": [
+        "route:/api/materials/:id/movements",
+        "route:/api/materials/:id",
+        "route:/api/materials"
+      ],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "StockMovement",
+      "aliases": [],
+      "description": "Prisma model: StockMovement",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "StockMovement"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "AutomationRule",
+      "aliases": [],
+      "description": "Prisma model: AutomationRule",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "AutomationRule"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "Workflow",
+      "aliases": [],
+      "description": "Prisma model: Workflow",
+      "relatedModules": [
+        "prisma/schema.prisma",
+        "src/app/api/workflows/execute/route.ts",
+        "src/app/api/workflows/executions/route.ts",
+        "src/app/api/workflows/route.ts",
+        "src/app/api/workflows/webhook/route.ts",
+        "src/lib/workflow-engine.ts",
+        "src/lib/workflow-from-text.ts",
+        "src/lib/workflow-types.ts",
+        "src/components/workflow-builder.tsx"
+      ],
+      "databaseModels": [
+        "Workflow"
+      ],
+      "routes": [
+        "route:/api/workflows/execute",
+        "route:/api/workflows/executions",
+        "route:/api/workflows",
+        "route:/api/workflows/webhook"
+      ],
+      "ui": [],
+      "agents": [],
+      "automations": [
+        "src/app/api/workflows/execute/route",
+        "src/app/api/workflows/executions/route",
+        "src/app/api/workflows/route",
+        "src/app/api/workflows/webhook/route",
+        "src/components/workflow-builderx",
+        "workflow-engine",
+        "workflow-from-text",
+        "workflow-types"
+      ],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "WorkflowStep",
+      "aliases": [],
+      "description": "Prisma model: WorkflowStep",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "WorkflowStep"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "WorkflowExecution",
+      "aliases": [],
+      "description": "Prisma model: WorkflowExecution",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "WorkflowExecution"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "AgentSchedule",
+      "aliases": [],
+      "description": "Prisma model: AgentSchedule",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "AgentSchedule"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "AgentAction",
+      "aliases": [],
+      "description": "Prisma model: AgentAction",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "AgentAction"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    },
+    {
+      "concept": "AgentMessage",
+      "aliases": [],
+      "description": "Prisma model: AgentMessage",
+      "relatedModules": [
+        "prisma/schema.prisma"
+      ],
+      "databaseModels": [
+        "AgentMessage"
+      ],
+      "routes": [],
+      "ui": [],
+      "agents": [],
+      "automations": [],
+      "tests": [],
+      "integrations": [],
+      "relatedConcepts": []
+    }
+  ],
+  "businessTerms": [
+    {
+      "term": "Presupuesto",
+      "aliases": [
+        "Budget",
+        "budget"
+      ],
+      "description": "Budget tracking and analysis per project",
+      "relatedConcepts": []
+    },
+    {
+      "term": "Monday",
+      "aliases": [
+        "monday",
+        "MONDAY"
+      ],
+      "description": "Monday.com integration for task sync",
+      "relatedConcepts": []
+    },
+    {
+      "term": "Informe",
+      "aliases": [
+        "Report",
+        "report"
+      ],
+      "description": "Reporting and analytics",
+      "relatedConcepts": []
+    },
+    {
+      "term": "OCR",
+      "aliases": [
+        "ocr",
+        "OCRAgent"
+      ],
+      "description": "OCR document processing agent",
+      "relatedConcepts": []
+    },
+    {
+      "term": "Dashboard",
+      "aliases": [
+        "dashboard"
+      ],
+      "description": "Main dashboard with KPIs and charts",
+      "relatedConcepts": []
+    }
+  ]
+}

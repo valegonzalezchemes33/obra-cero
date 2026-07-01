@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { auditLogger } from "@/lib/logger";
 
 interface ApiAuditEntry {
   method: string;
@@ -24,5 +25,5 @@ export function logApiAudit(entry: ApiAuditEntry) {
         },
       })
       .catch(() => {});
-  } catch {}
+  } catch (e) { auditLogger.warn({ module: "api-audit" }, "catch swallowed: registrar auditoría de API") }
 }

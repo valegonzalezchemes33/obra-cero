@@ -1,0 +1,4770 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-01T01:05:08.274Z",
+  "project": {
+    "name": "ObraCero",
+    "description": "Sistema CRM interno con Agente IA para la construcción"
+  },
+  "analyzers": {
+    "prisma": {
+      "type": "prisma",
+      "items": [
+        {
+          "id": "model:Project",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "Project",
+          "description": "Prisma model: Project",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "code",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@unique // OB-001, OB-002, ..."
+              },
+              {
+                "name": "name",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "description String?"
+              },
+              {
+                "name": "address",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "status      String    @default(\"planning\") // planning | in_progress | paused | completed | cancelled"
+              },
+              {
+                "name": "type",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"obra\") // obra | remodelacion | proyecto"
+              },
+              {
+                "name": "budget",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(0)"
+              },
+              {
+                "name": "progress",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(0) // 0-100"
+              },
+              {
+                "name": "clientName",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "clientPhone String?"
+              },
+              {
+                "name": "clientEmail",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "startDate   DateTime?"
+              },
+              {
+                "name": "endDate",
+                "type": "DateTime",
+                "required": "false",
+                "relation": "",
+                "attributes": "createdAt   DateTime  @default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              },
+              {
+                "name": "transactions",
+                "type": "Transaction",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              },
+              {
+                "name": "tasks",
+                "type": "Task",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              }
+            ],
+            "indexes": [
+              "status",
+              "clientName",
+              "createdAt",
+              "name"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:Transaction",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "Transaction",
+          "description": "Prisma model: Transaction",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "type",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// income | expense"
+              },
+              {
+                "name": "category",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// materiales | mano_de_obra | servicios | venta | anticipo | otros"
+              },
+              {
+                "name": "description",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "amount      Float"
+              },
+              {
+                "name": "date",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "method",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "@default(\"transferencia\") // efectivo | transferencia | cheque | tarjeta"
+              },
+              {
+                "name": "recurring",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// mensual | semanal | etc."
+              },
+              {
+                "name": "projectId",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "supplierId  String?"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "project",
+                "type": "Project",
+                "required": "false",
+                "relation": "fields: [projectId], references: [id], onDelete: SetNull",
+                "attributes": "@relation(fields: [projectId], references: [id], onDelete: SetNull)"
+              },
+              {
+                "name": "supplier",
+                "type": "Supplier",
+                "required": "false",
+                "relation": "fields: [supplierId], references: [id], onDelete: SetNull",
+                "attributes": "@relation(fields: [supplierId], references: [id], onDelete: SetNull)"
+              }
+            ],
+            "indexes": [
+              "type, date",
+              "projectId, date",
+              "supplierId",
+              "category",
+              "date"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:Task",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "Task",
+          "description": "Prisma model: Task",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "title",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "description String?"
+              },
+              {
+                "name": "status",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"pending\") // pending | in_progress | completed | cancelled"
+              },
+              {
+                "name": "priority",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"medium\")  // low | medium | high | critical"
+              },
+              {
+                "name": "assignee",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "dueDate     DateTime?"
+              },
+              {
+                "name": "projectId",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "createdBy   String?   @default(\"user\")"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              },
+              {
+                "name": "project",
+                "type": "Project",
+                "required": "false",
+                "relation": "fields: [projectId], references: [id], onDelete: SetNull",
+                "attributes": "@relation(fields: [projectId], references: [id], onDelete: SetNull)"
+              }
+            ],
+            "indexes": [
+              "status, dueDate",
+              "projectId",
+              "assignee",
+              "createdBy",
+              "dueDate"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:Supplier",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "Supplier",
+          "description": "Prisma model: Supplier",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "name",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "contact  String?"
+              },
+              {
+                "name": "phone",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "email    String?"
+              },
+              {
+                "name": "taxId",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// CUIT/RUT"
+              },
+              {
+                "name": "category",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// materiales | servicios | transporte | etc."
+              },
+              {
+                "name": "rating",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(3) // 1-5"
+              },
+              {
+                "name": "notes",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "createdAt DateTime @default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              },
+              {
+                "name": "transactions",
+                "type": "Transaction",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              },
+              {
+                "name": "materials",
+                "type": "Material",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              },
+              {
+                "name": "stockMovements",
+                "type": "StockMovement",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              }
+            ],
+            "indexes": [
+              "name",
+              "category"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:Material",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "Material",
+          "description": "Prisma model: Material",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "sku",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@unique"
+              },
+              {
+                "name": "name",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "category   String  @default(\"general\")"
+              },
+              {
+                "name": "unit",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"unidad\") // kg | m2 | m3 | litro | unidad | etc."
+              },
+              {
+                "name": "unitCost",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(0)"
+              },
+              {
+                "name": "unitPrice",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(0)"
+              },
+              {
+                "name": "stock",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(0)"
+              },
+              {
+                "name": "minStock",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(0)"
+              },
+              {
+                "name": "maxStock",
+                "type": "Float",
+                "required": "false",
+                "relation": "",
+                "attributes": "location   String?"
+              },
+              {
+                "name": "supplierId",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "createdAt  DateTime @default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              },
+              {
+                "name": "supplier",
+                "type": "Supplier",
+                "required": "false",
+                "relation": "fields: [supplierId], references: [id], onDelete: SetNull",
+                "attributes": "@relation(fields: [supplierId], references: [id], onDelete: SetNull)"
+              },
+              {
+                "name": "stockMovements",
+                "type": "StockMovement",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              }
+            ],
+            "indexes": [
+              "supplierId",
+              "category",
+              "stock",
+              "name"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:StockMovement",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "StockMovement",
+          "description": "Prisma model: StockMovement",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "type",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// incoming | outgoing | adjustment"
+              },
+              {
+                "name": "quantity",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "unitCost   Float    @default(0)"
+              },
+              {
+                "name": "reason",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// compra | consumo | ajuste | devolucion"
+              },
+              {
+                "name": "note",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "date       DateTime @default(now())"
+              },
+              {
+                "name": "materialId",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "supplierId String?"
+              },
+              {
+                "name": "material",
+                "type": "Material",
+                "required": "true",
+                "relation": "fields: [materialId], references: [id], onDelete: Cascade",
+                "attributes": "@relation(fields: [materialId], references: [id], onDelete: Cascade)"
+              },
+              {
+                "name": "supplier",
+                "type": "Supplier",
+                "required": "false",
+                "relation": "fields: [supplierId], references: [id], onDelete: SetNull",
+                "attributes": "@relation(fields: [supplierId], references: [id], onDelete: SetNull)"
+              }
+            ],
+            "indexes": [
+              "materialId, date",
+              "type"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:AutomationRule",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "AutomationRule",
+          "description": "Prisma model: AutomationRule",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "name",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "description String?"
+              },
+              {
+                "name": "trigger",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// stock_low | budget_exceeded | overdue_task | monthly_expense | etc."
+              },
+              {
+                "name": "condition",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// JSON con parámetros de la condición"
+              },
+              {
+                "name": "action",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"alert\") // alert | notify | task"
+              },
+              {
+                "name": "enabled",
+                "type": "Boolean",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(true)"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              }
+            ],
+            "indexes": [
+              "trigger, enabled"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:Workflow",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "Workflow",
+          "description": "Prisma model: Workflow",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "name",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "description String?"
+              },
+              {
+                "name": "trigger",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"manual\") // manual | schedule | event | webhook"
+              },
+              {
+                "name": "triggerConfig",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "@db.Text // JSON: cron expression, event type, params"
+              },
+              {
+                "name": "enabled",
+                "type": "Boolean",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(true)"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              },
+              {
+                "name": "steps",
+                "type": "WorkflowStep",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              },
+              {
+                "name": "executions",
+                "type": "WorkflowExecution",
+                "required": "true",
+                "relation": "",
+                "attributes": "[]"
+              }
+            ],
+            "indexes": [
+              "trigger, enabled"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:WorkflowStep",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "WorkflowStep",
+          "description": "Prisma model: WorkflowStep",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "workflowId",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "type       String   // trigger | condition | action | delay | loop | send_email | webhook"
+              },
+              {
+                "name": "label",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "config     String   @db.Text // JSON con configuración del paso"
+              },
+              {
+                "name": "order",
+                "type": "Float",
+                "required": "true",
+                "relation": "",
+                "attributes": "// Permite insertar pasos entre otros"
+              },
+              {
+                "name": "parentId",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// Para condiciones anidadas (if/else)"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "workflow",
+                "type": "Workflow",
+                "required": "true",
+                "relation": "fields: [workflowId], references: [id], onDelete: Cascade",
+                "attributes": "@relation(fields: [workflowId], references: [id], onDelete: Cascade)"
+              }
+            ],
+            "indexes": [
+              "workflowId, order"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:WorkflowExecution",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "WorkflowExecution",
+          "description": "Prisma model: WorkflowExecution",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "workflowId",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "status      String    @default(\"pending\") // pending | running | completed | failed | cancelled"
+              },
+              {
+                "name": "startedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "completedAt",
+                "type": "DateTime",
+                "required": "false",
+                "relation": "",
+                "attributes": "log         String?   @db.Text // JSON array: [{ step, status, data, error"
+              }
+            ],
+            "indexes": []
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:AgentSchedule",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "AgentSchedule",
+          "description": "Prisma model: AgentSchedule",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "name",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "type        String   // check_alerts | run_workflow | send_report | analyze"
+              },
+              {
+                "name": "config",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@db.Text // JSON: parámetros específicos"
+              },
+              {
+                "name": "cron",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// expresión cron: \"*/5 * * * *\" = cada 5 min"
+              },
+              {
+                "name": "lastRun",
+                "type": "DateTime",
+                "required": "false",
+                "relation": "",
+                "attributes": "nextRun     DateTime?"
+              },
+              {
+                "name": "enabled",
+                "type": "Boolean",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(true)"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              },
+              {
+                "name": "updatedAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@updatedAt"
+              }
+            ],
+            "indexes": [
+              "nextRun",
+              "enabled, nextRun"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:AgentAction",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "AgentAction",
+          "description": "Prisma model: AgentAction",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "type",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// alert | task | reorder | highlight | audit"
+              },
+              {
+                "name": "severity",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"info\") // info | warning | critical"
+              },
+              {
+                "name": "title",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "description String"
+              },
+              {
+                "name": "payload",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "// JSON serializado"
+              },
+              {
+                "name": "status",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(\"active\") // active | resolved | dismissed"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              }
+            ],
+            "indexes": [
+              "type, status",
+              "createdAt"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "model:AgentMessage",
+          "type": "model",
+          "path": "prisma/schema.prisma",
+          "name": "AgentMessage",
+          "description": "Prisma model: AgentMessage",
+          "metadata": {
+            "fields": [
+              {
+                "name": "id",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@id @default(cuid())"
+              },
+              {
+                "name": "role",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "// user | agent"
+              },
+              {
+                "name": "content",
+                "type": "String",
+                "required": "true",
+                "relation": "",
+                "attributes": "@db.Text"
+              },
+              {
+                "name": "intent",
+                "type": "String",
+                "required": "false",
+                "relation": "",
+                "attributes": "meta      String?  @db.Text // JSON con datos adicionales"
+              },
+              {
+                "name": "createdAt",
+                "type": "DateTime",
+                "required": "true",
+                "relation": "",
+                "attributes": "@default(now())"
+              }
+            ],
+            "indexes": [
+              "createdAt"
+            ]
+          },
+          "dependencies": []
+        }
+      ],
+      "relations": [
+        {
+          "source": "model:Project",
+          "target": "model:Transaction",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "transactions"
+          }
+        },
+        {
+          "source": "model:Project",
+          "target": "model:Task",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "tasks"
+          }
+        },
+        {
+          "source": "model:Transaction",
+          "target": "model:Project",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "project"
+          }
+        },
+        {
+          "source": "model:Transaction",
+          "target": "model:Supplier",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "supplier"
+          }
+        },
+        {
+          "source": "model:Task",
+          "target": "model:Project",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "project"
+          }
+        },
+        {
+          "source": "model:Supplier",
+          "target": "model:Transaction",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "transactions"
+          }
+        },
+        {
+          "source": "model:Supplier",
+          "target": "model:Material",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "materials"
+          }
+        },
+        {
+          "source": "model:Supplier",
+          "target": "model:StockMovement",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "stockMovements"
+          }
+        },
+        {
+          "source": "model:Material",
+          "target": "model:Supplier",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "supplier"
+          }
+        },
+        {
+          "source": "model:Material",
+          "target": "model:StockMovement",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "stockMovements"
+          }
+        },
+        {
+          "source": "model:StockMovement",
+          "target": "model:Material",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "material"
+          }
+        },
+        {
+          "source": "model:StockMovement",
+          "target": "model:Supplier",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "supplier"
+          }
+        },
+        {
+          "source": "model:Workflow",
+          "target": "model:WorkflowStep",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "steps"
+          }
+        },
+        {
+          "source": "model:Workflow",
+          "target": "model:WorkflowExecution",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "executions"
+          }
+        },
+        {
+          "source": "model:WorkflowStep",
+          "target": "model:Workflow",
+          "type": "belongs_to",
+          "metadata": {
+            "through": "workflow"
+          }
+        }
+      ]
+    },
+    "pages": {
+      "type": "pages",
+      "items": [
+        {
+          "id": "layout:/",
+          "type": "layout",
+          "path": "src/app/layout.tsx",
+          "name": "Home",
+          "description": "Layout for /",
+          "metadata": {
+            "routePath": "/",
+            "componentName": "RootLayout",
+            "fileName": "layout.tsx",
+            "imports": [
+              "next",
+              "next/font/google",
+              "@/components/ui/toaster",
+              "@/components/ui/sonner",
+              "@/components/providers",
+              "next-themes"
+            ]
+          },
+          "dependencies": [
+            "@/components/ui/toaster",
+            "@/components/ui/sonner",
+            "@/components/providers"
+          ]
+        },
+        {
+          "id": "loading:/",
+          "type": "loading",
+          "path": "src/app/loading.tsx",
+          "name": "Home",
+          "description": "Loading for /",
+          "metadata": {
+            "routePath": "/",
+            "componentName": "RootLoading",
+            "fileName": "loading.tsx",
+            "imports": []
+          },
+          "dependencies": []
+        },
+        {
+          "id": "page:/login",
+          "type": "page",
+          "path": "src/app/login/page.tsx",
+          "name": "login",
+          "description": "Page for /login",
+          "metadata": {
+            "routePath": "/login",
+            "componentName": "LoginPage",
+            "fileName": "page.tsx",
+            "imports": [
+              "react",
+              "next-auth/react",
+              "next/navigation",
+              "framer-motion",
+              "lucide-react"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "page:/",
+          "type": "page",
+          "path": "src/app/page.tsx",
+          "name": "Home",
+          "description": "Page for /",
+          "metadata": {
+            "routePath": "/",
+            "componentName": "Home",
+            "fileName": "page.tsx",
+            "imports": [
+              "react",
+              "next/dynamic",
+              "@/components/sidebar-nav",
+              "@/components/command-palette",
+              "@tanstack/react-query",
+              "@/components/ui/button",
+              "lucide-react",
+              "@/components/notification-panel",
+              "@/components/user-menu",
+              "@/components/theme-toggle",
+              "framer-motion",
+              "@/components/error-boundary",
+              "lucide-react"
+            ]
+          },
+          "dependencies": [
+            "@/components/sidebar-nav",
+            "@/components/command-palette",
+            "@/components/ui/button",
+            "@/components/notification-panel",
+            "@/components/user-menu",
+            "@/components/theme-toggle",
+            "@/components/error-boundary"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "source": "page:/login",
+          "target": "layout:/",
+          "type": "rendered_by"
+        },
+        {
+          "source": "page:/",
+          "target": "layout:/",
+          "type": "rendered_by"
+        }
+      ]
+    },
+    "routes": {
+      "type": "routes",
+      "items": [
+        {
+          "id": "route:/api/agent/actions",
+          "type": "route",
+          "path": "src/app/api/agent/actions/route.ts",
+          "name": "/api/agent/actions",
+          "description": "API GET/PATCH /api/agent/actions",
+          "metadata": {
+            "methods": [
+              "GET",
+              "PATCH"
+            ],
+            "schemas": [],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils",
+              "@/lib/logger",
+              "@/lib/validation",
+              "zod"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "route:/api/agent/analyze-file",
+          "type": "route",
+          "path": "src/app/api/agent/analyze-file/route.ts",
+          "name": "/api/agent/analyze-file",
+          "description": "API POST /api/agent/analyze-file",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "route:/api/agent/conversation",
+          "type": "route",
+          "path": "src/app/api/agent/conversation/route.ts",
+          "name": "/api/agent/conversation",
+          "description": "API GET/DELETE /api/agent/conversation",
+          "metadata": {
+            "methods": [
+              "GET",
+              "DELETE"
+            ],
+            "schemas": [],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "route:/api/agent/message",
+          "type": "route",
+          "path": "src/app/api/agent/message/route.ts",
+          "name": "/api/agent/message",
+          "description": "API POST/GET /api/agent/message",
+          "metadata": {
+            "methods": [
+              "POST",
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/agent/router",
+              "@/lib/agent/router",
+              "@/lib/tool-execution",
+              "@/lib/agent/context",
+              "@/lib/agent-dispatcher",
+              "@/lib/agent",
+              "@/lib/agent/types",
+              "uuid",
+              "@/lib/agent/audit",
+              "@/lib/api-utils",
+              "@/lib/db"
+            ]
+          },
+          "dependencies": [
+            "@/lib/agent/router",
+            "@/lib/agent/router",
+            "@/lib/tool-execution",
+            "@/lib/agent/context",
+            "@/lib/agent-dispatcher",
+            "@/lib/agent",
+            "@/lib/agent/types",
+            "@/lib/agent/audit",
+            "@/lib/api-utils",
+            "@/lib/db"
+          ]
+        },
+        {
+          "id": "route:/api/agent",
+          "type": "route",
+          "path": "src/app/api/agent/route.ts",
+          "name": "/api/agent",
+          "description": "API POST/GET /api/agent",
+          "metadata": {
+            "methods": [
+              "POST",
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/agent",
+              "@/lib/agent",
+              "@/lib/agent-extended",
+              "@/lib/agent-memory",
+              "@/lib/agent-nlu",
+              "@/lib/groq-integration",
+              "@/lib/agent-action-prompts",
+              "@/lib/tool-registry",
+              "@/lib/api-utils",
+              "@/lib/logger"
+            ]
+          },
+          "dependencies": [
+            "@/lib/agent",
+            "@/lib/agent",
+            "@/lib/agent-extended",
+            "@/lib/agent-memory",
+            "@/lib/agent-nlu",
+            "@/lib/groq-integration",
+            "@/lib/agent-action-prompts",
+            "@/lib/tool-registry",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "route:/api/agent/stream",
+          "type": "route",
+          "path": "src/app/api/agent/stream/route.ts",
+          "name": "/api/agent/stream",
+          "description": "API POST /api/agent/stream",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/groq-integration",
+              "@/lib/llm-provider",
+              "@/lib/agent-memory",
+              "@/lib/api-utils"
+            ]
+          },
+          "dependencies": [
+            "@/lib/groq-integration",
+            "@/lib/llm-provider",
+            "@/lib/agent-memory",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "route:/api/agent/tools/execute",
+          "type": "route",
+          "path": "src/app/api/agent/tools/execute/route.ts",
+          "name": "/api/agent/tools/execute",
+          "description": "API POST /api/agent/tools/execute",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/tool-execution",
+              "@/lib/tool-registry",
+              "@/lib/api-utils"
+            ]
+          },
+          "dependencies": [
+            "@/lib/tool-execution",
+            "@/lib/tool-registry",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "route:/api/agent/tools",
+          "type": "route",
+          "path": "src/app/api/agent/tools/route.ts",
+          "name": "/api/agent/tools",
+          "description": "API GET /api/agent/tools",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [
+              "toolSchema",
+              "inputSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/tool-registry",
+              "@/lib/tool-execution"
+            ]
+          },
+          "dependencies": [
+            "@/lib/tool-registry",
+            "@/lib/tool-execution"
+          ]
+        },
+        {
+          "id": "route:/api/agent/upload",
+          "type": "route",
+          "path": "src/app/api/agent/upload/route.ts",
+          "name": "/api/agent/upload",
+          "description": "API POST/GET /api/agent/upload",
+          "metadata": {
+            "methods": [
+              "POST",
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/api-utils",
+              "@/lib/file-processor",
+              "@/lib/agent/context",
+              "@/lib/agent/audit"
+            ]
+          },
+          "dependencies": [
+            "@/lib/api-utils",
+            "@/lib/file-processor",
+            "@/lib/agent/context",
+            "@/lib/agent/audit"
+          ]
+        },
+        {
+          "id": "route:/api/agent/vision",
+          "type": "route",
+          "path": "src/app/api/agent/vision/route.ts",
+          "name": "/api/agent/vision",
+          "description": "API POST /api/agent/vision",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "route:/api/auth/[...nextauth]",
+          "type": "route",
+          "path": "src/app/api/auth/[...nextauth]/route.ts",
+          "name": "/api/auth/[...nextauth]",
+          "description": "API  /api/auth/[...nextauth]",
+          "metadata": {
+            "methods": [],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next-auth",
+              "@/lib/auth"
+            ]
+          },
+          "dependencies": [
+            "@/lib/auth"
+          ]
+        },
+        {
+          "id": "route:/api/automations",
+          "type": "route",
+          "path": "src/app/api/automations/route.ts",
+          "name": "/api/automations",
+          "description": "API GET/POST /api/automations",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "schemas": [
+              "AutomationCreateSchema"
+            ],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils",
+              "@/lib/validation",
+              "@/lib/logger",
+              "@/lib/cache"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "route:/api/automations/run",
+          "type": "route",
+          "path": "src/app/api/automations/run/route.ts",
+          "name": "/api/automations/run",
+          "description": "API POST /api/automations/run",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/agent",
+              "@/lib/api-utils"
+            ]
+          },
+          "dependencies": [
+            "@/lib/agent",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "route:/api/dashboard/insights",
+          "type": "route",
+          "path": "src/app/api/dashboard/insights/route.ts",
+          "name": "/api/dashboard/insights",
+          "description": "API GET /api/dashboard/insights",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/agent"
+            ]
+          },
+          "dependencies": [
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "route:/api/dashboard",
+          "type": "route",
+          "path": "src/app/api/dashboard/route.ts",
+          "name": "/api/dashboard",
+          "description": "API GET /api/dashboard",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/cache",
+              "@/lib/logger"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/cache",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "route:/api/events",
+          "type": "route",
+          "path": "src/app/api/events/route.ts",
+          "name": "/api/events",
+          "description": "API GET /api/events",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/logger",
+              "@/lib/cache"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "route:/api/health",
+          "type": "route",
+          "path": "src/app/api/health/route.ts",
+          "name": "/api/health",
+          "description": "API GET /api/health",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/db"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db"
+          ]
+        },
+        {
+          "id": "route:/api/materials/:id/movements",
+          "type": "route",
+          "path": "src/app/api/materials/[id]/movements/route.ts",
+          "name": "/api/materials/:id/movements",
+          "description": "API POST /api/materials/:id/movements",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [
+              "StockMovementCreateSchema"
+            ],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils",
+              "@/lib/validation",
+              "@/lib/logger"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "route:/api/materials/:id",
+          "type": "route",
+          "path": "src/app/api/materials/[id]/route.ts",
+          "name": "/api/materials/:id",
+          "description": "API GET/PATCH/DELETE /api/materials/:id",
+          "metadata": {
+            "methods": [
+              "GET",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "MaterialUpdateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/materials",
+          "type": "route",
+          "path": "src/app/api/materials/route.ts",
+          "name": "/api/materials",
+          "description": "API GET/POST /api/materials",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "schemas": [
+              "MaterialCreateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/projects/:id",
+          "type": "route",
+          "path": "src/app/api/projects/[id]/route.ts",
+          "name": "/api/projects/:id",
+          "description": "API GET/PATCH/DELETE /api/projects/:id",
+          "metadata": {
+            "methods": [
+              "GET",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "ProjectUpdateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/projects",
+          "type": "route",
+          "path": "src/app/api/projects/route.ts",
+          "name": "/api/projects",
+          "description": "API GET/POST /api/projects",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "schemas": [
+              "ProjectCreateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api",
+          "type": "route",
+          "path": "src/app/api/route.ts",
+          "name": "/api",
+          "description": "API GET /api",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "route:/api/scheduler",
+          "type": "route",
+          "path": "src/app/api/scheduler/route.ts",
+          "name": "/api/scheduler",
+          "description": "API GET/POST/PATCH/DELETE /api/scheduler",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "SchedulerCreateSchema",
+              "SchedulerPatchSchema"
+            ],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils",
+              "@/lib/logger",
+              "@/lib/cache",
+              "@/lib/validation"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "route:/api/scheduler/run",
+          "type": "route",
+          "path": "src/app/api/scheduler/run/route.ts",
+          "name": "/api/scheduler/run",
+          "description": "API POST /api/scheduler/run",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/workflow-engine",
+              "@/lib/api-utils"
+            ]
+          },
+          "dependencies": [
+            "@/lib/workflow-engine",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "route:/api/seed",
+          "type": "route",
+          "path": "src/app/api/seed/route.ts",
+          "name": "/api/seed",
+          "description": "API POST /api/seed",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "child_process",
+              "util",
+              "path"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "route:/api/suppliers/:id",
+          "type": "route",
+          "path": "src/app/api/suppliers/[id]/route.ts",
+          "name": "/api/suppliers/:id",
+          "description": "API GET/PATCH/DELETE /api/suppliers/:id",
+          "metadata": {
+            "methods": [
+              "GET",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "SupplierUpdateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/suppliers",
+          "type": "route",
+          "path": "src/app/api/suppliers/route.ts",
+          "name": "/api/suppliers",
+          "description": "API GET/POST /api/suppliers",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "schemas": [
+              "SupplierCreateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/tasks/:id",
+          "type": "route",
+          "path": "src/app/api/tasks/[id]/route.ts",
+          "name": "/api/tasks/:id",
+          "description": "API GET/PATCH/DELETE /api/tasks/:id",
+          "metadata": {
+            "methods": [
+              "GET",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "TaskUpdateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/tasks",
+          "type": "route",
+          "path": "src/app/api/tasks/route.ts",
+          "name": "/api/tasks",
+          "description": "API GET/POST /api/tasks",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "schemas": [
+              "TaskCreateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/transactions/:id",
+          "type": "route",
+          "path": "src/app/api/transactions/[id]/route.ts",
+          "name": "/api/transactions/:id",
+          "description": "API GET/PATCH/DELETE /api/transactions/:id",
+          "metadata": {
+            "methods": [
+              "GET",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "TransactionUpdateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/transactions",
+          "type": "route",
+          "path": "src/app/api/transactions/route.ts",
+          "name": "/api/transactions",
+          "description": "API GET/POST /api/transactions",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST"
+            ],
+            "schemas": [
+              "TransactionCreateSchema"
+            ],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/validation",
+              "@/lib/crud-factory"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/crud-factory"
+          ]
+        },
+        {
+          "id": "route:/api/workflows/execute",
+          "type": "route",
+          "path": "src/app/api/workflows/execute/route.ts",
+          "name": "/api/workflows/execute",
+          "description": "API POST /api/workflows/execute",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "@/lib/workflow-engine",
+              "@/lib/api-utils",
+              "@/lib/logger"
+            ]
+          },
+          "dependencies": [
+            "@/lib/workflow-engine",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "route:/api/workflows/executions",
+          "type": "route",
+          "path": "src/app/api/workflows/executions/route.ts",
+          "name": "/api/workflows/executions",
+          "description": "API GET /api/workflows/executions",
+          "metadata": {
+            "methods": [
+              "GET"
+            ],
+            "schemas": [],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils",
+              "@/lib/logger"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "route:/api/workflows",
+          "type": "route",
+          "path": "src/app/api/workflows/route.ts",
+          "name": "/api/workflows",
+          "description": "API GET/POST/PATCH/DELETE /api/workflows",
+          "metadata": {
+            "methods": [
+              "GET",
+              "POST",
+              "PATCH",
+              "DELETE"
+            ],
+            "schemas": [
+              "WorkflowCreateSchema",
+              "WorkflowUpdateSchema"
+            ],
+            "hasAuth": true,
+            "imports": [
+              "next/server",
+              "@/lib/db",
+              "@/lib/api-utils",
+              "@/lib/validation",
+              "@/lib/logger",
+              "@/lib/cache"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "route:/api/workflows/webhook",
+          "type": "route",
+          "path": "src/app/api/workflows/webhook/route.ts",
+          "name": "/api/workflows/webhook",
+          "description": "API POST /api/workflows/webhook",
+          "metadata": {
+            "methods": [
+              "POST"
+            ],
+            "schemas": [],
+            "hasAuth": false,
+            "imports": [
+              "next/server",
+              "crypto",
+              "@/lib/db",
+              "@/lib/workflow-engine",
+              "@/lib/rate-limit",
+              "@/lib/api-utils",
+              "@/lib/logger"
+            ]
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/workflow-engine",
+            "@/lib/rate-limit",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "source": "route:/api/agent/actions",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/analyze-file",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/conversation",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/message",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/stream",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/tools/execute",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/tools",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/upload",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/agent/vision",
+          "target": "model:Agent",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/auth/[...nextauth]",
+          "target": "model:Auth",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/automations",
+          "target": "model:Automation",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/automations/run",
+          "target": "model:Automation",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/dashboard/insights",
+          "target": "model:Dashboard",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/dashboard",
+          "target": "model:Dashboard",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/events",
+          "target": "model:Event",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/health",
+          "target": "model:Health",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/materials/:id/movements",
+          "target": "model:Material",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/materials/:id",
+          "target": "model:Material",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/materials",
+          "target": "model:Material",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/projects/:id",
+          "target": "model:Project",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/projects",
+          "target": "model:Project",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/scheduler",
+          "target": "model:Scheduler",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/scheduler/run",
+          "target": "model:Scheduler",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/seed",
+          "target": "model:Seed",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/suppliers/:id",
+          "target": "model:Supplier",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/suppliers",
+          "target": "model:Supplier",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/tasks/:id",
+          "target": "model:Task",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/tasks",
+          "target": "model:Task",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/transactions/:id",
+          "target": "model:Transaction",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/transactions",
+          "target": "model:Transaction",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/workflows/execute",
+          "target": "model:Workflow",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/workflows/executions",
+          "target": "model:Workflow",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/workflows",
+          "target": "model:Workflow",
+          "type": "operates_on"
+        },
+        {
+          "source": "route:/api/workflows/webhook",
+          "target": "model:Workflow",
+          "type": "operates_on"
+        }
+      ]
+    },
+    "agent": {
+      "type": "agent",
+      "items": [
+        {
+          "id": "agent:agent-dispatcher",
+          "type": "agent-module",
+          "path": "src/lib/agent-dispatcher.ts",
+          "name": "agent-dispatcher",
+          "description": "Agent module: agent-dispatcher",
+          "metadata": {
+            "exports": [
+              "createSyntheticParsedCommand",
+              "processMessageWithIntent",
+              "enrichQueryWithGroq",
+              "processCompoundMessage",
+              "enrichActionResponseWithGroq"
+            ],
+            "importCount": 3,
+            "lineCount": 276,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": true,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent-extended",
+          "type": "agent-module",
+          "path": "src/lib/agent-extended.ts",
+          "name": "agent-extended",
+          "description": "Agent module: agent-extended",
+          "metadata": {
+            "exports": [
+              "findClosestIntent",
+              "parseMultiIntent",
+              "generateSmartUnknownResponse",
+              "handleEditProject",
+              "handleEditTask",
+              "handleEditMaterial",
+              "handleDeleteTask",
+              "handleDeleteMaterial",
+              "handleDeleteTransaction",
+              "handleTriggerWorkflow",
+              "handleSupplierCompare",
+              "handlePurchasePlan",
+              "handleExpenseTrend",
+              "handleExportData",
+              "handleListWorkflows",
+              "generateMultiIntentResponse",
+              "processExtendedMessage"
+            ],
+            "importCount": 8,
+            "lineCount": 1305,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "@/lib/logger",
+            "./workflow-engine",
+            "./workflow-from-text",
+            "./agent-rag",
+            "./agent-predictive",
+            "./agent-memory"
+          ]
+        },
+        {
+          "id": "agent:agent-intents",
+          "type": "agent-module",
+          "path": "src/lib/agent-intents.ts",
+          "name": "agent-intents",
+          "description": "Agent module: agent-intents",
+          "metadata": {
+            "exports": [
+              "INTENT_PATTERNS"
+            ],
+            "importCount": 0,
+            "lineCount": 632,
+            "intentCount": 49,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent-memory",
+          "type": "agent-module",
+          "path": "src/lib/agent-memory.ts",
+          "name": "agent-memory",
+          "description": "Agent module: agent-memory",
+          "metadata": {
+            "exports": [
+              "getConversationContext",
+              "resolveReferences",
+              "getPendingAction",
+              "savePendingAction",
+              "clearPendingAction",
+              "saveContextMetadata",
+              "CONFIRMATION_INTENTS",
+              "requiresConfirmation",
+              "isConfirmation",
+              "isCancellation",
+              "generateActionSummary",
+              "savePendingDelete",
+              "getPendingDelete",
+              "clearPendingDelete",
+              "saveUndoSnapshot",
+              "findUndoSnapshot",
+              "executeUndo"
+            ],
+            "importCount": 3,
+            "lineCount": 568,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent",
+          "type": "agent-module",
+          "path": "src/lib/agent.ts",
+          "name": "agent",
+          "description": "Agent module: agent",
+          "metadata": {
+            "exports": [
+              "parseIntent",
+              "processAgentMessage"
+            ],
+            "importCount": 10,
+            "lineCount": 186,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent-nlu",
+            "@/lib/agent-memory",
+            "@/lib/logger",
+            "@/lib/agent-intents",
+            "@/lib/agent-intents",
+            "@/lib/agent/normalize",
+            "@/lib/agent/dispatcher",
+            "@/lib/agent/automation-engine",
+            "@/lib/agent/sku"
+          ]
+        },
+        {
+          "id": "agent:agent/audit.test",
+          "type": "agent-module",
+          "path": "src/lib/agent/audit.test.ts",
+          "name": "agent/audit.test",
+          "description": "Agent module: agent/audit.test",
+          "metadata": {
+            "exports": [],
+            "importCount": 2,
+            "lineCount": 46,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "./audit"
+          ]
+        },
+        {
+          "id": "agent:agent/audit",
+          "type": "agent-module",
+          "path": "src/lib/agent/audit.ts",
+          "name": "agent/audit",
+          "description": "Agent module: agent/audit",
+          "metadata": {
+            "exports": [
+              "checkRateLimit",
+              "sanitizeForGroq",
+              "auditLog",
+              "auditToolExecution"
+            ],
+            "importCount": 5,
+            "lineCount": 222,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/tool-registry",
+            "@/lib/agent/types",
+            "@/lib/rate-limit",
+            "@/lib/tools/registry-definitions"
+          ]
+        },
+        {
+          "id": "agent:agent/automation-engine",
+          "type": "agent-module",
+          "path": "src/lib/agent/automation-engine.ts",
+          "name": "agent/automation-engine",
+          "description": "Agent module: agent/automation-engine",
+          "metadata": {
+            "exports": [
+              "runAutomations"
+            ],
+            "importCount": 4,
+            "lineCount": 152,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": true
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/format",
+            "@/lib/agent/queries",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/calendar",
+          "type": "agent-module",
+          "path": "src/lib/agent/capabilities/calendar.ts",
+          "name": "agent/capabilities/calendar",
+          "description": "Agent module: agent/capabilities/calendar",
+          "metadata": {
+            "exports": [
+              "scheduleEvent",
+              "listEvents",
+              "completeEvent",
+              "cancelEvent",
+              "calendarToolSchemas"
+            ],
+            "importCount": 4,
+            "lineCount": 290,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/documents",
+          "type": "agent-module",
+          "path": "src/lib/agent/capabilities/documents.ts",
+          "name": "agent/capabilities/documents",
+          "description": "Agent module: agent/capabilities/documents",
+          "metadata": {
+            "exports": [
+              "generateDocument",
+              "documentToolSchemas"
+            ],
+            "importCount": 4,
+            "lineCount": 304,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/groq",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/memory-tools",
+          "type": "agent-module",
+          "path": "src/lib/agent/capabilities/memory-tools.ts",
+          "name": "agent/capabilities/memory-tools",
+          "description": "Agent module: agent/capabilities/memory-tools",
+          "metadata": {
+            "exports": [
+              "rememberPreference",
+              "recallPreference",
+              "forgetPreference",
+              "listAllPreferences",
+              "memoryToolSchemas"
+            ],
+            "importCount": 3,
+            "lineCount": 167,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "../context",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/notifications",
+          "type": "agent-module",
+          "path": "src/lib/agent/capabilities/notifications.ts",
+          "name": "agent/capabilities/notifications",
+          "description": "Agent module: agent/capabilities/notifications",
+          "metadata": {
+            "exports": [
+              "sendNotification",
+              "listNotifications",
+              "resolveNotification",
+              "dismissAllNotifications",
+              "notificationToolSchemas"
+            ],
+            "importCount": 4,
+            "lineCount": 224,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "agent:agent/capabilities/search-tools",
+          "type": "agent-module",
+          "path": "src/lib/agent/capabilities/search-tools.ts",
+          "name": "agent/capabilities/search-tools",
+          "description": "Agent module: agent/capabilities/search-tools",
+          "metadata": {
+            "exports": [
+              "searchProjects",
+              "searchClients",
+              "searchBudgets",
+              "listBudgetRanges",
+              "searchToolSchemas"
+            ],
+            "importCount": 3,
+            "lineCount": 228,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/context",
+          "type": "agent-module",
+          "path": "src/lib/agent/context.ts",
+          "name": "agent/context",
+          "description": "Agent module: agent/context",
+          "metadata": {
+            "exports": [
+              "getPreference",
+              "setPreference",
+              "deletePreference",
+              "listPreferences",
+              "setScratchpad",
+              "getScratchpad",
+              "clearScratchpad",
+              "buildContext",
+              "recordTurn",
+              "invalidarSesion",
+              "noteResourceLoaded",
+              "clearContextCache"
+            ],
+            "importCount": 7,
+            "lineCount": 529,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "../db",
+            "../cache",
+            "../agent-memory",
+            "../tool-execution",
+            "../tool-registry",
+            "../groq-integration",
+            "./types"
+          ]
+        },
+        {
+          "id": "agent:agent/dispatcher",
+          "type": "agent-module",
+          "path": "src/lib/agent/dispatcher.ts",
+          "name": "agent/dispatcher",
+          "description": "Agent module: agent/dispatcher",
+          "metadata": {
+            "exports": [
+              "dispatchByIntent",
+              "tryGroqDispatch"
+            ],
+            "importCount": 2,
+            "lineCount": 244,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": true,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/agent/handlers",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "agent:agent/handlers",
+          "type": "agent-module",
+          "path": "src/lib/agent/handlers.ts",
+          "name": "agent/handlers",
+          "description": "Agent module: agent/handlers",
+          "metadata": {
+            "exports": [
+              "respondGreeting",
+              "respondQueryProfit",
+              "respondQueryExpenses",
+              "respondQueryIncome",
+              "respondQueryCashflow",
+              "respondQueryKpis",
+              "respondQueryTopExpense",
+              "respondQueryMarginByProject",
+              "respondQueryComparePeriod",
+              "respondQueryAnomalies",
+              "respondQueryLowStock",
+              "respondQueryStock",
+              "respondQueryStockValue",
+              "respondQueryDeadStock",
+              "respondQueryMaterialHistory",
+              "respondQueryProjectStatus",
+              "respondQueryProjectDetail",
+              "respondQueryProjectProfitability",
+              "respondPredictBudget",
+              "respondPredictProjectEta",
+              "respondQuerySupplier",
+              "respondQueryTopSupplier",
+              "respondQueryBestSupplier",
+              "respondQueryTasks",
+              "respondQueryOverdueTasks",
+              "respondAlertCheck",
+              "respondRecommend",
+              "respondSummarize",
+              "respondActionCreateExpense",
+              "respondActionCreateIncome",
+              "respondActionCreateProject",
+              "respondActionCreateTask",
+              "respondActionReorder",
+              "respondActionUpdateStock",
+              "respondActionAddMaterials",
+              "respondActionAddStockMovement",
+              "respondActionUpdateProjectProgress",
+              "respondActionUpdateProjectStatus",
+              "respondActionCreateProjectDirect",
+              "respondActionCreateSupplier",
+              "respondActionListProjectTasks",
+              "respondActionCompleteTask",
+              "respondActionCloseProject",
+              "respondConfigListAutomations",
+              "respondHelp"
+            ],
+            "importCount": 9,
+            "lineCount": 1600,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": true,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/format",
+            "@/lib/agent/normalize",
+            "@/lib/agent/queries",
+            "@/lib/agent/project-resolver",
+            "@/lib/agent",
+            "@/lib/agent/item-parser",
+            "@/lib/agent/item-parser",
+            "@/lib/agent/sku"
+          ]
+        },
+        {
+          "id": "agent:agent/item-parser",
+          "type": "agent-module",
+          "path": "src/lib/agent/item-parser.ts",
+          "name": "agent/item-parser",
+          "description": "Agent module: agent/item-parser",
+          "metadata": {
+            "exports": [
+              "parseItemList"
+            ],
+            "importCount": 0,
+            "lineCount": 29,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent/normalize",
+          "type": "agent-module",
+          "path": "src/lib/agent/normalize.ts",
+          "name": "agent/normalize",
+          "description": "Agent module: agent/normalize",
+          "metadata": {
+            "exports": [
+              "normalize"
+            ],
+            "importCount": 0,
+            "lineCount": 9,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent/project-resolver",
+          "type": "agent-module",
+          "path": "src/lib/agent/project-resolver.ts",
+          "name": "agent/project-resolver",
+          "description": "Agent module: agent/project-resolver",
+          "metadata": {
+            "exports": [
+              "resolveProject"
+            ],
+            "importCount": 3,
+            "lineCount": 36,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/agent/normalize"
+          ]
+        },
+        {
+          "id": "agent:agent/queries",
+          "type": "agent-module",
+          "path": "src/lib/agent/queries.ts",
+          "name": "agent/queries",
+          "description": "Agent module: agent/queries",
+          "metadata": {
+            "exports": [
+              "getFinancialSummary",
+              "getStockSummary",
+              "getDeadStockSummary",
+              "getProjectSummary"
+            ],
+            "importCount": 1,
+            "lineCount": 58,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db"
+          ]
+        },
+        {
+          "id": "agent:agent/router",
+          "type": "agent-module",
+          "path": "src/lib/agent/router.ts",
+          "name": "agent/router",
+          "description": "Agent module: agent/router",
+          "metadata": {
+            "exports": [
+              "route",
+              "executePlan",
+              "getPlanSummary"
+            ],
+            "importCount": 9,
+            "lineCount": 371,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "../agent-nlu",
+            "../groq-integration",
+            "../agent",
+            "../agent",
+            "../tool-registry",
+            "../agent-memory",
+            "./context",
+            "./types"
+          ]
+        },
+        {
+          "id": "agent:agent/sku",
+          "type": "agent-module",
+          "path": "src/lib/agent/sku.ts",
+          "name": "agent/sku",
+          "description": "Agent module: agent/sku",
+          "metadata": {
+            "exports": [
+              "generateSku"
+            ],
+            "importCount": 0,
+            "lineCount": 13,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": []
+        },
+        {
+          "id": "agent:agent/types",
+          "type": "agent-module",
+          "path": "src/lib/agent/types.ts",
+          "name": "agent/types",
+          "description": "Agent module: agent/types",
+          "metadata": {
+            "exports": [],
+            "importCount": 2,
+            "lineCount": 234,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "../agent",
+            "../agent"
+          ]
+        },
+        {
+          "id": "agent:tool-execution",
+          "type": "agent-module",
+          "path": "src/lib/tool-execution.ts",
+          "name": "tool-execution",
+          "description": "Agent module: tool-execution",
+          "metadata": {
+            "exports": [
+              "executeToolCall",
+              "executeToolFromIntent",
+              "listExecutableTools",
+              "listAllRegisteredTools"
+            ],
+            "importCount": 5,
+            "lineCount": 166,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "./tool-registry",
+            "./agent",
+            "./tools/registry-definitions",
+            "@/lib/agent/audit",
+            "@/lib/tool-registry"
+          ]
+        },
+        {
+          "id": "agent:tool-registry",
+          "type": "agent-module",
+          "path": "src/lib/tool-registry.ts",
+          "name": "tool-registry",
+          "description": "Agent module: tool-registry",
+          "metadata": {
+            "exports": [
+              "toolSchemas",
+              "toolToIntent",
+              "intentToTool",
+              "getRiskLevel",
+              "validateToolArgs"
+            ],
+            "importCount": 2,
+            "lineCount": 550,
+            "intentCount": 0,
+            "isTool": false,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "./agent"
+          ]
+        },
+        {
+          "id": "agent:tools/registry-definitions",
+          "type": "agent-module",
+          "path": "src/lib/tools/registry-definitions.ts",
+          "name": "tools/registry-definitions",
+          "description": "Agent module: tools/registry-definitions",
+          "metadata": {
+            "exports": [
+              "getToolDefinition",
+              "getAllToolDefinitions",
+              "listToolDefinitions"
+            ],
+            "importCount": 9,
+            "lineCount": 802,
+            "intentCount": 0,
+            "isTool": true,
+            "isHandler": false,
+            "isDispatcher": false,
+            "isAutomation": false
+          },
+          "dependencies": [
+            "@/lib/db",
+            "../agent",
+            "../tool-registry",
+            "../agent-extended",
+            "@/lib/agent/capabilities/memory-tools",
+            "@/lib/agent/capabilities/calendar",
+            "@/lib/agent/capabilities/notifications",
+            "@/lib/agent/capabilities/search-tools",
+            "@/lib/agent/capabilities/documents"
+          ]
+        }
+      ],
+      "relations": [
+        {
+          "source": "agent:agent",
+          "target": "agent:agent-memory",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent",
+          "target": "agent:agent-intents",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent",
+          "target": "agent:agent-intents",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent",
+          "target": "agent:agent/normalize",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent",
+          "target": "agent:agent/dispatcher",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent",
+          "target": "agent:agent/automation-engine",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent",
+          "target": "agent:agent/sku",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/audit",
+          "target": "agent:tool-registry",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/audit",
+          "target": "agent:agent/types",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/audit",
+          "target": "agent:tools/registry-definitions",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/automation-engine",
+          "target": "agent:agent/queries",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/automation-engine",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/capabilities/calendar",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/capabilities/documents",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/capabilities/memory-tools",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/capabilities/notifications",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/capabilities/search-tools",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/dispatcher",
+          "target": "agent:agent/handlers",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/dispatcher",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent/normalize",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent/queries",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent/project-resolver",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent/item-parser",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent/item-parser",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/handlers",
+          "target": "agent:agent/sku",
+          "type": "imports"
+        },
+        {
+          "source": "agent:agent/project-resolver",
+          "target": "agent:agent/normalize",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tool-execution",
+          "target": "agent:agent/audit",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tool-execution",
+          "target": "agent:tool-registry",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tools/registry-definitions",
+          "target": "agent:agent/capabilities/memory-tools",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tools/registry-definitions",
+          "target": "agent:agent/capabilities/calendar",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tools/registry-definitions",
+          "target": "agent:agent/capabilities/notifications",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tools/registry-definitions",
+          "target": "agent:agent/capabilities/search-tools",
+          "type": "imports"
+        },
+        {
+          "source": "agent:tools/registry-definitions",
+          "target": "agent:agent/capabilities/documents",
+          "type": "imports"
+        }
+      ]
+    },
+    "modules": {
+      "type": "modules",
+      "items": [
+        {
+          "id": "module:api-audit",
+          "type": "module",
+          "path": "src/lib/api-audit.ts",
+          "name": "api-audit",
+          "description": "Library module: api-audit",
+          "metadata": {
+            "exports": [
+              "logApiAudit"
+            ],
+            "importCount": 2,
+            "lineCount": 30
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "module:api-utils",
+          "type": "module",
+          "path": "src/lib/api-utils.ts",
+          "name": "api-utils",
+          "description": "Library module: api-utils",
+          "metadata": {
+            "exports": [
+              "withErrorHandler",
+              "getSession",
+              "requireSession",
+              "authRequiredResponse",
+              "rateLimitResponse",
+              "requireAgentApiKey",
+              "agentApiKeyRequiredResponse"
+            ],
+            "importCount": 8,
+            "lineCount": 119
+          },
+          "dependencies": [
+            "@/lib/auth",
+            "@/lib/api-audit",
+            "@/lib/logger",
+            "@/lib/rate-limit"
+          ]
+        },
+        {
+          "id": "module:auth",
+          "type": "module",
+          "path": "src/lib/auth.ts",
+          "name": "auth",
+          "description": "Library module: auth",
+          "metadata": {
+            "exports": [
+              "authOptions",
+              "isAuthEnabled"
+            ],
+            "importCount": 5,
+            "lineCount": 155
+          },
+          "dependencies": [
+            "@/lib/logger",
+            "@/lib/rate-limit"
+          ]
+        },
+        {
+          "id": "module:cache",
+          "type": "module",
+          "path": "src/lib/cache.ts",
+          "name": "cache",
+          "description": "Library module: cache",
+          "metadata": {
+            "exports": [
+              "getCached",
+              "invalidateCache",
+              "invalidateCachePrefix",
+              "clearAllCache",
+              "getCacheStats"
+            ],
+            "importCount": 0,
+            "lineCount": 85
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:crud-factory",
+          "type": "module",
+          "path": "src/lib/crud-factory.ts",
+          "name": "crud-factory",
+          "description": "Library module: crud-factory",
+          "metadata": {
+            "exports": [
+              "handleError",
+              "cachedGet",
+              "createPost",
+              "createGet",
+              "createPatch",
+              "createDelete",
+              "simpleDelete"
+            ],
+            "importCount": 5,
+            "lineCount": 95
+          },
+          "dependencies": [
+            "@/lib/api-utils",
+            "@/lib/validation",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "module:db",
+          "type": "module",
+          "path": "src/lib/db.ts",
+          "name": "db",
+          "description": "Library module: db",
+          "metadata": {
+            "exports": [
+              "db"
+            ],
+            "importCount": 1,
+            "lineCount": 17
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:env",
+          "type": "module",
+          "path": "src/lib/env.ts",
+          "name": "env",
+          "description": "Library module: env",
+          "metadata": {
+            "exports": [
+              "env",
+              "isProd",
+              "isAuthDisabledAllowed"
+            ],
+            "importCount": 1,
+            "lineCount": 51
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:file-processor",
+          "type": "module",
+          "path": "src/lib/file-processor.ts",
+          "name": "file-processor",
+          "description": "Library module: file-processor",
+          "metadata": {
+            "exports": [
+              "validateFile",
+              "analyzeImage",
+              "analyzePdf",
+              "analyzeTextFile",
+              "analyzeFile"
+            ],
+            "importCount": 1,
+            "lineCount": 158
+          },
+          "dependencies": [
+            "@/lib/agent/audit"
+          ]
+        },
+        {
+          "id": "module:format",
+          "type": "module",
+          "path": "src/lib/format.ts",
+          "name": "format",
+          "description": "Library module: format",
+          "metadata": {
+            "exports": [
+              "formatCurrency",
+              "formatNumber",
+              "formatPct",
+              "formatDate",
+              "formatDateTime",
+              "STATUS_LABELS",
+              "STATUS_BADGE",
+              "STATUS_DOT",
+              "PRIORITY_BADGE",
+              "PRIORITY_DOT",
+              "PRIORITY_LABELS",
+              "chartColor"
+            ],
+            "importCount": 0,
+            "lineCount": 126
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:groq-integration",
+          "type": "module",
+          "path": "src/lib/groq-integration.ts",
+          "name": "groq-integration",
+          "description": "Library module: groq-integration",
+          "metadata": {
+            "exports": [
+              "getProvider",
+              "listProviders",
+              "isGroqAvailable",
+              "tryGroqIntentRecognition",
+              "tryGroqCompoundIntent",
+              "tryGroqEnhancedResponse",
+              "analyzeDataWithGroq",
+              "getSystemContext"
+            ],
+            "importCount": 4,
+            "lineCount": 275
+          },
+          "dependencies": [
+            "./groq",
+            "./agent",
+            "./db",
+            "./llm-provider"
+          ]
+        },
+        {
+          "id": "module:groq",
+          "type": "module",
+          "path": "src/lib/groq.ts",
+          "name": "groq",
+          "description": "Library module: groq",
+          "metadata": {
+            "exports": [
+              "chatWithGroq",
+              "parseIntentWithGroq",
+              "generateAgentResponseWithGroq",
+              "checkGroqAvailability"
+            ],
+            "importCount": 1,
+            "lineCount": 326
+          },
+          "dependencies": [
+            "./llm-provider"
+          ]
+        },
+        {
+          "id": "module:llm-provider",
+          "type": "module",
+          "path": "src/lib/llm-provider.ts",
+          "name": "llm-provider",
+          "description": "Library module: llm-provider",
+          "metadata": {
+            "exports": [
+              "getActiveProvider",
+              "setActiveProvider",
+              "chat",
+              "chatStream",
+              "checkProvider",
+              "getAvailableProviders"
+            ],
+            "importCount": 2,
+            "lineCount": 391
+          },
+          "dependencies": [
+            "@/lib/agent/audit",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "module:logger",
+          "type": "module",
+          "path": "src/lib/logger.ts",
+          "name": "logger",
+          "description": "Library module: logger",
+          "metadata": {
+            "exports": [
+              "createLogger",
+              "apiLogger",
+              "agentLogger",
+              "authLogger",
+              "webhookLogger",
+              "dbLogger",
+              "auditLogger",
+              "llmLogger"
+            ],
+            "importCount": 1,
+            "lineCount": 21
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:rate-limit",
+          "type": "module",
+          "path": "src/lib/rate-limit.ts",
+          "name": "rate-limit",
+          "description": "Library module: rate-limit",
+          "metadata": {
+            "exports": [
+              "webhookRateLimiter",
+              "agentRateLimiter",
+              "loginRateLimiter",
+              "mutationRateLimiter"
+            ],
+            "importCount": 0,
+            "lineCount": 58
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:tool-execution",
+          "type": "module",
+          "path": "src/lib/tool-execution.ts",
+          "name": "tool-execution",
+          "description": "Library module: tool-execution",
+          "metadata": {
+            "exports": [
+              "executeToolCall",
+              "executeToolFromIntent",
+              "listExecutableTools",
+              "listAllRegisteredTools"
+            ],
+            "importCount": 5,
+            "lineCount": 166
+          },
+          "dependencies": [
+            "./tool-registry",
+            "./agent",
+            "./tools/registry-definitions",
+            "@/lib/agent/audit",
+            "@/lib/tool-registry"
+          ]
+        },
+        {
+          "id": "module:tool-registry",
+          "type": "module",
+          "path": "src/lib/tool-registry.ts",
+          "name": "tool-registry",
+          "description": "Library module: tool-registry",
+          "metadata": {
+            "exports": [
+              "toolSchemas",
+              "toolToIntent",
+              "intentToTool",
+              "getRiskLevel",
+              "validateToolArgs"
+            ],
+            "importCount": 2,
+            "lineCount": 550
+          },
+          "dependencies": [
+            "./agent"
+          ]
+        },
+        {
+          "id": "module:utils",
+          "type": "module",
+          "path": "src/lib/utils.ts",
+          "name": "utils",
+          "description": "Library module: utils",
+          "metadata": {
+            "exports": [
+              "cn"
+            ],
+            "importCount": 2,
+            "lineCount": 7
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:validation",
+          "type": "module",
+          "path": "src/lib/validation.ts",
+          "name": "validation",
+          "description": "Library module: validation",
+          "metadata": {
+            "exports": [
+              "ProjectCreateSchema",
+              "TaskCreateSchema",
+              "TransactionCreateSchema",
+              "MaterialCreateSchema",
+              "SupplierCreateSchema",
+              "SupplierUpdateSchema",
+              "ProjectUpdateSchema",
+              "TaskUpdateSchema",
+              "MaterialUpdateSchema",
+              "SchedulerCreateSchema",
+              "SchedulerPatchSchema",
+              "TransactionUpdateSchema",
+              "AutomationCreateSchema",
+              "StockMovementCreateSchema",
+              "WorkflowCreateSchema",
+              "WorkflowUpdateSchema",
+              "validateBody",
+              "parseBody"
+            ],
+            "importCount": 3,
+            "lineCount": 154
+          },
+          "dependencies": []
+        },
+        {
+          "id": "module:workflow-engine",
+          "type": "module",
+          "path": "src/lib/workflow-engine.ts",
+          "name": "workflow-engine",
+          "description": "Library module: workflow-engine",
+          "metadata": {
+            "exports": [
+              "executeWorkflow",
+              "triggerWorkflows",
+              "checkSchedules",
+              "runScheduler"
+            ],
+            "importCount": 5,
+            "lineCount": 747
+          },
+          "dependencies": [
+            "./db",
+            "./workflow-types",
+            "./workflow-types",
+            "./agent",
+            "./groq-integration"
+          ]
+        },
+        {
+          "id": "module:workflow-from-text",
+          "type": "module",
+          "path": "src/lib/workflow-from-text.ts",
+          "name": "workflow-from-text",
+          "description": "Library module: workflow-from-text",
+          "metadata": {
+            "exports": [
+              "createWorkflowFromText",
+              "generateWorkflowCreatedResponse"
+            ],
+            "importCount": 3,
+            "lineCount": 548
+          },
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "./workflow-types"
+          ]
+        },
+        {
+          "id": "module:workflow-types",
+          "type": "module",
+          "path": "src/lib/workflow-types.ts",
+          "name": "workflow-types",
+          "description": "Library module: workflow-types",
+          "metadata": {
+            "exports": [
+              "STEP_TYPE_META",
+              "WORKFLOW_TEMPLATES"
+            ],
+            "importCount": 1,
+            "lineCount": 895
+          },
+          "dependencies": []
+        }
+      ],
+      "relations": []
+    },
+    "config": {
+      "type": "config",
+      "items": [
+        {
+          "id": "config:package.json",
+          "type": "config",
+          "path": "package.json",
+          "name": "package.json",
+          "description": "Project package.json",
+          "metadata": {
+            "name": "nextjs_tailwind_shadcn_ts",
+            "version": "0.2.0",
+            "scripts": [
+              "dev",
+              "build",
+              "start",
+              "lint",
+              "test",
+              "test:watch",
+              "postinstall",
+              "db:push",
+              "db:generate",
+              "db:migrate",
+              "db:reset",
+              "docs",
+              "docs:watch",
+              "docs:impact",
+              "brain",
+              "brain:mcp",
+              "brain:health"
+            ],
+            "dependencies": [
+              "@dnd-kit/core",
+              "@dnd-kit/sortable",
+              "@dnd-kit/utilities",
+              "@hookform/resolvers",
+              "@mdxeditor/editor",
+              "@prisma/client",
+              "@radix-ui/react-accordion",
+              "@radix-ui/react-alert-dialog",
+              "@radix-ui/react-avatar",
+              "@radix-ui/react-checkbox",
+              "@radix-ui/react-dialog",
+              "@radix-ui/react-dropdown-menu",
+              "@radix-ui/react-label",
+              "@radix-ui/react-popover",
+              "@radix-ui/react-progress",
+              "@radix-ui/react-scroll-area",
+              "@radix-ui/react-select",
+              "@radix-ui/react-separator",
+              "@radix-ui/react-slot",
+              "@radix-ui/react-switch",
+              "@radix-ui/react-tabs",
+              "@radix-ui/react-toast",
+              "@radix-ui/react-toggle",
+              "@radix-ui/react-toggle-group",
+              "@radix-ui/react-tooltip",
+              "@tanstack/react-query",
+              "@tanstack/react-table",
+              "class-variance-authority",
+              "clsx",
+              "cmdk",
+              "date-fns",
+              "framer-motion",
+              "lucide-react",
+              "next",
+              "next-auth",
+              "next-intl",
+              "next-themes",
+              "pino",
+              "react",
+              "react-day-picker",
+              "react-dom",
+              "react-hook-form",
+              "react-markdown",
+              "react-syntax-highlighter",
+              "recharts",
+              "sharp",
+              "sonner",
+              "tailwind-merge",
+              "tailwindcss-animate",
+              "uuid",
+              "vaul",
+              "zod"
+            ],
+            "devDependencies": [
+              "@tailwindcss/postcss",
+              "@types/react",
+              "@types/react-dom",
+              "@types/react-syntax-highlighter",
+              "eslint",
+              "eslint-config-next",
+              "prisma",
+              "tailwindcss",
+              "tw-animate-css",
+              "typescript",
+              "vitest"
+            ]
+          },
+          "dependencies": []
+        },
+        {
+          "id": "config:tsconfig.json",
+          "type": "config",
+          "path": "tsconfig.json",
+          "name": "tsconfig.json",
+          "description": "Configuration file: tsconfig.json",
+          "metadata": {
+            "lineCount": 45
+          },
+          "dependencies": []
+        },
+        {
+          "id": "config:next.config.ts",
+          "type": "config",
+          "path": "next.config.ts",
+          "name": "next.config.ts",
+          "description": "Configuration file: next.config.ts",
+          "metadata": {
+            "lineCount": 47
+          },
+          "dependencies": []
+        },
+        {
+          "id": "config:vercel.json",
+          "type": "config",
+          "path": "vercel.json",
+          "name": "vercel.json",
+          "description": "Configuration file: vercel.json",
+          "metadata": {
+            "lineCount": 4
+          },
+          "dependencies": []
+        },
+        {
+          "id": "config:Caddyfile",
+          "type": "config",
+          "path": "Caddyfile",
+          "name": "Caddyfile",
+          "description": "Configuration file: Caddyfile",
+          "metadata": {
+            "lineCount": 24
+          },
+          "dependencies": []
+        },
+        {
+          "id": "config:.env.example",
+          "type": "config",
+          "path": ".env.example",
+          "name": ".env.example",
+          "description": "Configuration file: .env.example",
+          "metadata": {
+            "lineCount": 69
+          },
+          "dependencies": []
+        },
+        {
+          "id": "config:components.json",
+          "type": "config",
+          "path": "components.json",
+          "name": "components.json",
+          "description": "Configuration file: components.json",
+          "metadata": {
+            "lineCount": 21
+          },
+          "dependencies": []
+        }
+      ],
+      "relations": []
+    },
+    "mcp": {
+      "type": "mcp",
+      "items": [
+        {
+          "id": "mcp:package.json",
+          "type": "mcp",
+          "path": "mcp-bridge/package.json",
+          "name": "mcp-bridge/package.json",
+          "description": "MCP integration: mcp-bridge/package.json",
+          "metadata": {
+            "lineCount": 21,
+            "imports": []
+          },
+          "dependencies": []
+        },
+        {
+          "id": "mcp:src/index.ts",
+          "type": "mcp",
+          "path": "mcp-bridge/src/index.ts",
+          "name": "mcp-bridge/src/index.ts",
+          "description": "MCP integration: mcp-bridge/src/index.ts",
+          "metadata": {
+            "lineCount": 541,
+            "imports": [
+              "@modelcontextprotocol/sdk/server/mcp.js",
+              "@modelcontextprotocol/sdk/server/stdio.js",
+              "zod"
+            ]
+          },
+          "dependencies": [
+            "@modelcontextprotocol/sdk/server/mcp.js",
+            "@modelcontextprotocol/sdk/server/stdio.js",
+            "zod"
+          ]
+        },
+        {
+          "id": "mcp:tsconfig.json",
+          "type": "mcp",
+          "path": "mcp-bridge/tsconfig.json",
+          "name": "mcp-bridge/tsconfig.json",
+          "description": "MCP integration: mcp-bridge/tsconfig.json",
+          "metadata": {
+            "lineCount": 18,
+            "imports": []
+          },
+          "dependencies": []
+        }
+      ],
+      "relations": []
+    },
+    "automations": {
+      "type": "automations",
+      "items": [
+        {
+          "id": "automation:src/app/api/automations/route",
+          "type": "automation",
+          "path": "src/app/api/automations/route.ts",
+          "name": "src/app/api/automations/route",
+          "description": "Automation module: src/app/api/automations/route",
+          "metadata": {
+            "exports": [
+              "GET",
+              "POST"
+            ],
+            "lineCount": 43
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/validation",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/automations/run/route",
+          "type": "automation",
+          "path": "src/app/api/automations/run/route.ts",
+          "name": "src/app/api/automations/run/route",
+          "description": "Automation module: src/app/api/automations/run/route",
+          "metadata": {
+            "exports": [
+              "POST"
+            ],
+            "lineCount": 15
+          },
+          "dependencies": [
+            "@/lib/agent",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/scheduler/route",
+          "type": "automation",
+          "path": "src/app/api/scheduler/route.ts",
+          "name": "src/app/api/scheduler/route",
+          "description": "Automation module: src/app/api/scheduler/route",
+          "metadata": {
+            "exports": [
+              "GET",
+              "POST",
+              "PATCH",
+              "DELETE"
+            ],
+            "lineCount": 92
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger",
+            "@/lib/cache",
+            "@/lib/validation"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/scheduler/run/route",
+          "type": "automation",
+          "path": "src/app/api/scheduler/run/route.ts",
+          "name": "src/app/api/scheduler/run/route",
+          "description": "Automation module: src/app/api/scheduler/run/route",
+          "metadata": {
+            "exports": [
+              "POST"
+            ],
+            "lineCount": 15
+          },
+          "dependencies": [
+            "@/lib/workflow-engine",
+            "@/lib/api-utils"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/workflows/execute/route",
+          "type": "automation",
+          "path": "src/app/api/workflows/execute/route.ts",
+          "name": "src/app/api/workflows/execute/route",
+          "description": "Automation module: src/app/api/workflows/execute/route",
+          "metadata": {
+            "exports": [
+              "POST"
+            ],
+            "lineCount": 23
+          },
+          "dependencies": [
+            "@/lib/workflow-engine",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/workflows/executions/route",
+          "type": "automation",
+          "path": "src/app/api/workflows/executions/route.ts",
+          "name": "src/app/api/workflows/executions/route",
+          "description": "Automation module: src/app/api/workflows/executions/route",
+          "metadata": {
+            "exports": [
+              "GET"
+            ],
+            "lineCount": 30
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/workflows/route",
+          "type": "automation",
+          "path": "src/app/api/workflows/route.ts",
+          "name": "src/app/api/workflows/route",
+          "description": "Automation module: src/app/api/workflows/route",
+          "metadata": {
+            "exports": [
+              "GET",
+              "POST",
+              "PATCH",
+              "DELETE"
+            ],
+            "lineCount": 149
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/api-utils",
+            "@/lib/validation",
+            "@/lib/logger",
+            "@/lib/cache"
+          ]
+        },
+        {
+          "id": "automation:src/app/api/workflows/webhook/route",
+          "type": "automation",
+          "path": "src/app/api/workflows/webhook/route.ts",
+          "name": "src/app/api/workflows/webhook/route",
+          "description": "Automation module: src/app/api/workflows/webhook/route",
+          "metadata": {
+            "exports": [
+              "POST"
+            ],
+            "lineCount": 205
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/workflow-engine",
+            "@/lib/rate-limit",
+            "@/lib/api-utils",
+            "@/lib/logger"
+          ]
+        },
+        {
+          "id": "automation:src/components/views/automationsx",
+          "type": "automation",
+          "path": "src/components/views/automations.tsx",
+          "name": "src/components/views/automationsx",
+          "description": "Automation module: src/components/views/automationsx",
+          "metadata": {
+            "exports": [
+              "AutomationsView"
+            ],
+            "lineCount": 657
+          },
+          "dependencies": [
+            "@/components/ui/card",
+            "@/components/ui/button",
+            "@/components/ui/badge",
+            "@/components/ui/input",
+            "@/components/ui/label",
+            "@/components/ui/textarea",
+            "@/components/ui/select",
+            "@/components/ui/switch",
+            "@/components/ui/tabs",
+            "@/components/ui/dialog",
+            "@/components/ui/dropdown-menu",
+            "@/components/workflow-builder",
+            "@/lib/workflow-types",
+            "@/lib/format"
+          ]
+        },
+        {
+          "id": "automation:src/components/workflow-builderx",
+          "type": "automation",
+          "path": "src/components/workflow-builder.tsx",
+          "name": "src/components/workflow-builderx",
+          "description": "Automation module: src/components/workflow-builderx",
+          "metadata": {
+            "exports": [
+              "WorkflowBuilder"
+            ],
+            "lineCount": 370
+          },
+          "dependencies": [
+            "@/components/ui/card",
+            "@/components/ui/button",
+            "@/components/ui/badge",
+            "@/components/ui/dialog",
+            "@/components/ui/input",
+            "@/components/ui/label",
+            "@/components/ui/textarea",
+            "@/components/ui/select",
+            "@/lib/workflow-types"
+          ]
+        },
+        {
+          "id": "automation:agent/automation-engine",
+          "type": "automation",
+          "path": "src/lib/agent/automation-engine.ts",
+          "name": "agent/automation-engine",
+          "description": "Automation module: agent/automation-engine",
+          "metadata": {
+            "exports": [
+              "runAutomations"
+            ],
+            "lineCount": 152
+          },
+          "dependencies": [
+            "@/lib/db",
+            "@/lib/format",
+            "@/lib/agent/queries",
+            "@/lib/agent"
+          ]
+        },
+        {
+          "id": "automation:workflow-engine",
+          "type": "automation",
+          "path": "src/lib/workflow-engine.ts",
+          "name": "workflow-engine",
+          "description": "Automation module: workflow-engine",
+          "metadata": {
+            "exports": [
+              "executeWorkflow",
+              "triggerWorkflows",
+              "checkSchedules",
+              "runScheduler"
+            ],
+            "lineCount": 747
+          },
+          "dependencies": [
+            "./db",
+            "./workflow-types",
+            "./workflow-types",
+            "./agent",
+            "./groq-integration"
+          ]
+        },
+        {
+          "id": "automation:workflow-from-text",
+          "type": "automation",
+          "path": "src/lib/workflow-from-text.ts",
+          "name": "workflow-from-text",
+          "description": "Automation module: workflow-from-text",
+          "metadata": {
+            "exports": [
+              "createWorkflowFromText",
+              "generateWorkflowCreatedResponse"
+            ],
+            "lineCount": 548
+          },
+          "dependencies": [
+            "@/lib/db",
+            "./agent",
+            "./workflow-types"
+          ]
+        },
+        {
+          "id": "automation:workflow-types",
+          "type": "automation",
+          "path": "src/lib/workflow-types.ts",
+          "name": "workflow-types",
+          "description": "Automation module: workflow-types",
+          "metadata": {
+            "exports": [
+              "STEP_TYPE_META",
+              "WORKFLOW_TEMPLATES"
+            ],
+            "lineCount": 895
+          },
+          "dependencies": []
+        }
+      ],
+      "relations": []
+    }
+  },
+  "global": {
+    "relations": [
+      {
+        "source": "model:Project",
+        "target": "model:Transaction",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "transactions"
+        }
+      },
+      {
+        "source": "model:Project",
+        "target": "model:Task",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "tasks"
+        }
+      },
+      {
+        "source": "model:Transaction",
+        "target": "model:Project",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "project"
+        }
+      },
+      {
+        "source": "model:Transaction",
+        "target": "model:Supplier",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "supplier"
+        }
+      },
+      {
+        "source": "model:Task",
+        "target": "model:Project",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "project"
+        }
+      },
+      {
+        "source": "model:Supplier",
+        "target": "model:Transaction",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "transactions"
+        }
+      },
+      {
+        "source": "model:Supplier",
+        "target": "model:Material",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "materials"
+        }
+      },
+      {
+        "source": "model:Supplier",
+        "target": "model:StockMovement",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "stockMovements"
+        }
+      },
+      {
+        "source": "model:Material",
+        "target": "model:Supplier",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "supplier"
+        }
+      },
+      {
+        "source": "model:Material",
+        "target": "model:StockMovement",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "stockMovements"
+        }
+      },
+      {
+        "source": "model:StockMovement",
+        "target": "model:Material",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "material"
+        }
+      },
+      {
+        "source": "model:StockMovement",
+        "target": "model:Supplier",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "supplier"
+        }
+      },
+      {
+        "source": "model:Workflow",
+        "target": "model:WorkflowStep",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "steps"
+        }
+      },
+      {
+        "source": "model:Workflow",
+        "target": "model:WorkflowExecution",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "executions"
+        }
+      },
+      {
+        "source": "model:WorkflowStep",
+        "target": "model:Workflow",
+        "type": "belongs_to",
+        "metadata": {
+          "through": "workflow"
+        }
+      },
+      {
+        "source": "page:/login",
+        "target": "layout:/",
+        "type": "rendered_by"
+      },
+      {
+        "source": "page:/",
+        "target": "layout:/",
+        "type": "rendered_by"
+      },
+      {
+        "source": "route:/api/agent/actions",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/analyze-file",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/conversation",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/message",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/stream",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/tools/execute",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/tools",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/upload",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/agent/vision",
+        "target": "model:Agent",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/auth/[...nextauth]",
+        "target": "model:Auth",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/automations",
+        "target": "model:Automation",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/automations/run",
+        "target": "model:Automation",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/dashboard/insights",
+        "target": "model:Dashboard",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/dashboard",
+        "target": "model:Dashboard",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/events",
+        "target": "model:Event",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/health",
+        "target": "model:Health",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/materials/:id/movements",
+        "target": "model:Material",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/materials/:id",
+        "target": "model:Material",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/materials",
+        "target": "model:Material",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/projects/:id",
+        "target": "model:Project",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/projects",
+        "target": "model:Project",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/scheduler",
+        "target": "model:Scheduler",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/scheduler/run",
+        "target": "model:Scheduler",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/seed",
+        "target": "model:Seed",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/suppliers/:id",
+        "target": "model:Supplier",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/suppliers",
+        "target": "model:Supplier",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/tasks/:id",
+        "target": "model:Task",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/tasks",
+        "target": "model:Task",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/transactions/:id",
+        "target": "model:Transaction",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/transactions",
+        "target": "model:Transaction",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/workflows/execute",
+        "target": "model:Workflow",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/workflows/executions",
+        "target": "model:Workflow",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/workflows",
+        "target": "model:Workflow",
+        "type": "operates_on"
+      },
+      {
+        "source": "route:/api/workflows/webhook",
+        "target": "model:Workflow",
+        "type": "operates_on"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent-memory",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent-intents",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent-intents",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent/normalize",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent/dispatcher",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent/automation-engine",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent",
+        "target": "agent:agent/sku",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/audit",
+        "target": "agent:tool-registry",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/audit",
+        "target": "agent:agent/types",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/audit",
+        "target": "agent:tools/registry-definitions",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/automation-engine",
+        "target": "agent:agent/queries",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/automation-engine",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/capabilities/calendar",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/capabilities/documents",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/capabilities/memory-tools",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/capabilities/notifications",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/capabilities/search-tools",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/dispatcher",
+        "target": "agent:agent/handlers",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/dispatcher",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent/normalize",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent/queries",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent/project-resolver",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent/item-parser",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent/item-parser",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/handlers",
+        "target": "agent:agent/sku",
+        "type": "imports"
+      },
+      {
+        "source": "agent:agent/project-resolver",
+        "target": "agent:agent/normalize",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tool-execution",
+        "target": "agent:agent/audit",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tool-execution",
+        "target": "agent:tool-registry",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tools/registry-definitions",
+        "target": "agent:agent/capabilities/memory-tools",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tools/registry-definitions",
+        "target": "agent:agent/capabilities/calendar",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tools/registry-definitions",
+        "target": "agent:agent/capabilities/notifications",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tools/registry-definitions",
+        "target": "agent:agent/capabilities/search-tools",
+        "type": "imports"
+      },
+      {
+        "source": "agent:tools/registry-definitions",
+        "target": "agent:agent/capabilities/documents",
+        "type": "imports"
+      }
+    ],
+    "statistics": {
+      "model": 13,
+      "layout": 1,
+      "loading": 1,
+      "page": 2,
+      "route": 36,
+      "agent-module": 26,
+      "module": 21,
+      "config": 7,
+      "mcp": 3,
+      "automation": 14,
+      "total": 124
+    }
+  }
+}

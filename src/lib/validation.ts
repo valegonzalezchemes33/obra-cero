@@ -66,6 +66,33 @@ export const SupplierCreateSchema = z.object({
 
 export const SupplierUpdateSchema = SupplierCreateSchema.partial();
 
+export const ProjectUpdateSchema = ProjectCreateSchema.partial();
+
+export const TaskUpdateSchema = TaskCreateSchema.partial();
+
+export const MaterialUpdateSchema = MaterialCreateSchema.partial();
+
+export const SchedulerCreateSchema = z.object({
+  name: z.string().min(1).max(200),
+  type: z.string().min(1),
+  config: z.any().optional(),
+  cron: z.string().min(1),
+  enabled: z.boolean().optional(),
+  nextRun: z.string().optional(),
+});
+
+export const SchedulerPatchSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1).max(200).optional(),
+  type: z.string().min(1).optional(),
+  config: z.any().optional(),
+  cron: z.string().min(1).optional(),
+  enabled: z.boolean().optional(),
+  nextRun: z.string().optional(),
+});
+
+export const TransactionUpdateSchema = TransactionCreateSchema.partial();
+
 export const AutomationCreateSchema = z.object({
   name: z.string().min(1).max(200),
   description: z.string().optional(),
@@ -94,6 +121,8 @@ export const WorkflowCreateSchema = z.object({
   enabled: z.boolean().optional(),
   steps: z.array(z.any()).optional(),
 });
+
+export const WorkflowUpdateSchema = WorkflowCreateSchema.partial();
 
 export function validateBody<T>(schema: z.ZodSchema<T>, body: unknown):
   { ok: true; data: T } | { ok: false; response: NextResponse } {

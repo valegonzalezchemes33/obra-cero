@@ -1,0 +1,451 @@
+graph LR
+  %% Module dependencies
+  model:Project["model:Project"]
+  model:Transaction["model:Transaction"]
+  model:Task["model:Task"]
+  model:Supplier["model:Supplier"]
+  model:Material["model:Material"]
+  model:StockMovement["model:StockMovement"]
+  model:AutomationRule["model:AutomationRule"]
+  model:Workflow["model:Workflow"]
+  model:WorkflowStep["model:WorkflowStep"]
+  model:WorkflowExecution["model:WorkflowExecution"]
+  model:AgentSchedule["model:AgentSchedule"]
+  model:AgentAction["model:AgentAction"]
+  model:AgentMessage["model:AgentMessage"]
+  layout:_["layout:/"]
+  dep___components_ui_toaster["@/components/ui/toaster"]
+  layout:_ --> dep___components_ui_toaster
+  dep___components_ui_sonner["@/components/ui/sonner"]
+  layout:_ --> dep___components_ui_sonner
+  dep___components_providers["@/components/providers"]
+  layout:_ --> dep___components_providers
+  loading:_["loading:/"]
+  page:_login["page:/login"]
+  page:_["page:/"]
+  dep___components_sidebar_nav["@/components/sidebar-nav"]
+  page:_ --> dep___components_sidebar_nav
+  dep___components_command_palette["@/components/command-palette"]
+  page:_ --> dep___components_command_palette
+  dep___components_ui_button["@/components/ui/button"]
+  page:_ --> dep___components_ui_button
+  dep___components_notification_panel["@/components/notification-panel"]
+  page:_ --> dep___components_notification_panel
+  dep___components_user_menu["@/components/user-menu"]
+  page:_ --> dep___components_user_menu
+  route:_api_agent_actions["route:/api/agent/actions"]
+  dep___lib_db["@/lib/db"]
+  route:_api_agent_actions --> dep___lib_db
+  dep___lib_api_utils["@/lib/api-utils"]
+  route:_api_agent_actions --> dep___lib_api_utils
+  dep___lib_logger["@/lib/logger"]
+  route:_api_agent_actions --> dep___lib_logger
+  route:_api_agent_analyze_file["route:/api/agent/analyze-file"]
+  route:_api_agent_conversation["route:/api/agent/conversation"]
+  route:_api_agent_conversation --> dep___lib_db
+  route:_api_agent_conversation --> dep___lib_api_utils
+  route:_api_agent_message["route:/api/agent/message"]
+  dep___lib_agent_router["@/lib/agent/router"]
+  route:_api_agent_message --> dep___lib_agent_router
+  route:_api_agent_message --> dep___lib_agent_router
+  dep___lib_tool_execution["@/lib/tool-execution"]
+  route:_api_agent_message --> dep___lib_tool_execution
+  dep___lib_agent_context["@/lib/agent/context"]
+  route:_api_agent_message --> dep___lib_agent_context
+  dep___lib_agent_dispatcher["@/lib/agent-dispatcher"]
+  route:_api_agent_message --> dep___lib_agent_dispatcher
+  route:_api_agent["route:/api/agent"]
+  dep___lib_agent["@/lib/agent"]
+  route:_api_agent --> dep___lib_agent
+  route:_api_agent --> dep___lib_agent
+  dep___lib_agent_extended["@/lib/agent-extended"]
+  route:_api_agent --> dep___lib_agent_extended
+  dep___lib_agent_memory["@/lib/agent-memory"]
+  route:_api_agent --> dep___lib_agent_memory
+  dep___lib_agent_nlu["@/lib/agent-nlu"]
+  route:_api_agent --> dep___lib_agent_nlu
+  route:_api_agent_stream["route:/api/agent/stream"]
+  dep___lib_groq_integration["@/lib/groq-integration"]
+  route:_api_agent_stream --> dep___lib_groq_integration
+  dep___lib_llm_provider["@/lib/llm-provider"]
+  route:_api_agent_stream --> dep___lib_llm_provider
+  route:_api_agent_stream --> dep___lib_agent_memory
+  route:_api_agent_stream --> dep___lib_api_utils
+  route:_api_agent_tools_execute["route:/api/agent/tools/execute"]
+  route:_api_agent_tools_execute --> dep___lib_tool_execution
+  dep___lib_tool_registry["@/lib/tool-registry"]
+  route:_api_agent_tools_execute --> dep___lib_tool_registry
+  route:_api_agent_tools_execute --> dep___lib_api_utils
+  route:_api_agent_tools["route:/api/agent/tools"]
+  route:_api_agent_tools --> dep___lib_tool_registry
+  route:_api_agent_tools --> dep___lib_tool_execution
+  route:_api_agent_upload["route:/api/agent/upload"]
+  route:_api_agent_upload --> dep___lib_api_utils
+  dep___lib_file_processor["@/lib/file-processor"]
+  route:_api_agent_upload --> dep___lib_file_processor
+  route:_api_agent_upload --> dep___lib_agent_context
+  dep___lib_agent_audit["@/lib/agent/audit"]
+  route:_api_agent_upload --> dep___lib_agent_audit
+  route:_api_agent_vision["route:/api/agent/vision"]
+  route:_api_auth_____nextauth_["route:/api/auth/[...nextauth]"]
+  dep___lib_auth["@/lib/auth"]
+  route:_api_auth_____nextauth_ --> dep___lib_auth
+  route:_api_automations["route:/api/automations"]
+  route:_api_automations --> dep___lib_db
+  route:_api_automations --> dep___lib_api_utils
+  route:_api_automations --> dep___lib_logger
+  dep___lib_cache["@/lib/cache"]
+  route:_api_automations --> dep___lib_cache
+  route:_api_automations_run["route:/api/automations/run"]
+  route:_api_automations_run --> dep___lib_agent
+  route:_api_automations_run --> dep___lib_api_utils
+  route:_api_dashboard_insights["route:/api/dashboard/insights"]
+  route:_api_dashboard_insights --> dep___lib_agent
+  route:_api_dashboard["route:/api/dashboard"]
+  route:_api_dashboard --> dep___lib_db
+  route:_api_dashboard --> dep___lib_cache
+  route:_api_dashboard --> dep___lib_logger
+  route:_api_events["route:/api/events"]
+  route:_api_events --> dep___lib_db
+  route:_api_events --> dep___lib_logger
+  route:_api_events --> dep___lib_cache
+  route:_api_health["route:/api/health"]
+  route:_api_health --> dep___lib_db
+  route:_api_materials_:id_movements["route:/api/materials/:id/movements"]
+  route:_api_materials_:id_movements --> dep___lib_db
+  route:_api_materials_:id_movements --> dep___lib_api_utils
+  route:_api_materials_:id_movements --> dep___lib_logger
+  route:_api_materials_:id["route:/api/materials/:id"]
+  route:_api_materials_:id --> dep___lib_db
+  dep___lib_crud_factory["@/lib/crud-factory"]
+  route:_api_materials_:id --> dep___lib_crud_factory
+  route:_api_materials["route:/api/materials"]
+  route:_api_materials --> dep___lib_db
+  route:_api_materials --> dep___lib_crud_factory
+  route:_api_projects_:id["route:/api/projects/:id"]
+  route:_api_projects_:id --> dep___lib_db
+  route:_api_projects_:id --> dep___lib_crud_factory
+  route:_api_projects["route:/api/projects"]
+  route:_api_projects --> dep___lib_db
+  route:_api_projects --> dep___lib_crud_factory
+  route:_api["route:/api"]
+  route:_api_scheduler["route:/api/scheduler"]
+  route:_api_scheduler --> dep___lib_db
+  route:_api_scheduler --> dep___lib_api_utils
+  route:_api_scheduler --> dep___lib_logger
+  route:_api_scheduler --> dep___lib_cache
+  route:_api_scheduler_run["route:/api/scheduler/run"]
+  dep___lib_workflow_engine["@/lib/workflow-engine"]
+  route:_api_scheduler_run --> dep___lib_workflow_engine
+  route:_api_scheduler_run --> dep___lib_api_utils
+  route:_api_seed["route:/api/seed"]
+  route:_api_suppliers_:id["route:/api/suppliers/:id"]
+  route:_api_suppliers_:id --> dep___lib_db
+  route:_api_suppliers_:id --> dep___lib_crud_factory
+  route:_api_suppliers["route:/api/suppliers"]
+  route:_api_suppliers --> dep___lib_db
+  route:_api_suppliers --> dep___lib_crud_factory
+  route:_api_tasks_:id["route:/api/tasks/:id"]
+  route:_api_tasks_:id --> dep___lib_db
+  route:_api_tasks_:id --> dep___lib_crud_factory
+  route:_api_tasks["route:/api/tasks"]
+  route:_api_tasks --> dep___lib_db
+  route:_api_tasks --> dep___lib_crud_factory
+  route:_api_transactions_:id["route:/api/transactions/:id"]
+  route:_api_transactions_:id --> dep___lib_db
+  route:_api_transactions_:id --> dep___lib_crud_factory
+  route:_api_transactions["route:/api/transactions"]
+  route:_api_transactions --> dep___lib_db
+  route:_api_transactions --> dep___lib_crud_factory
+  route:_api_workflows_execute["route:/api/workflows/execute"]
+  route:_api_workflows_execute --> dep___lib_workflow_engine
+  route:_api_workflows_execute --> dep___lib_api_utils
+  route:_api_workflows_execute --> dep___lib_logger
+  route:_api_workflows_executions["route:/api/workflows/executions"]
+  route:_api_workflows_executions --> dep___lib_db
+  route:_api_workflows_executions --> dep___lib_api_utils
+  route:_api_workflows_executions --> dep___lib_logger
+  route:_api_workflows["route:/api/workflows"]
+  route:_api_workflows --> dep___lib_db
+  route:_api_workflows --> dep___lib_api_utils
+  route:_api_workflows --> dep___lib_logger
+  route:_api_workflows --> dep___lib_cache
+  route:_api_workflows_webhook["route:/api/workflows/webhook"]
+  route:_api_workflows_webhook --> dep___lib_db
+  route:_api_workflows_webhook --> dep___lib_workflow_engine
+  dep___lib_rate_limit["@/lib/rate-limit"]
+  route:_api_workflows_webhook --> dep___lib_rate_limit
+  route:_api_workflows_webhook --> dep___lib_api_utils
+  route:_api_workflows_webhook --> dep___lib_logger
+  agent:agent_dispatcher["agent:agent-dispatcher"]
+  agent:agent_dispatcher --> dep___lib_db
+  dep___agent["./agent"]
+  agent:agent_dispatcher --> dep___agent
+  agent:agent_dispatcher --> dep___lib_logger
+  agent:agent_extended["agent:agent-extended"]
+  agent:agent_extended --> dep___lib_db
+  agent:agent_extended --> dep___agent
+  agent:agent_extended --> dep___lib_logger
+  dep___workflow_engine["./workflow-engine"]
+  agent:agent_extended --> dep___workflow_engine
+  dep___workflow_from_text["./workflow-from-text"]
+  agent:agent_extended --> dep___workflow_from_text
+  agent:agent_intents["agent:agent-intents"]
+  agent:agent_memory["agent:agent-memory"]
+  agent:agent_memory --> dep___lib_db
+  agent:agent_memory --> dep___agent
+  agent:agent_memory --> dep___lib_logger
+  agent:agent["agent:agent"]
+  agent:agent --> dep___lib_db
+  agent:agent --> dep___lib_agent_nlu
+  agent:agent --> dep___lib_agent_memory
+  agent:agent --> dep___lib_logger
+  dep___lib_agent_intents["@/lib/agent-intents"]
+  agent:agent --> dep___lib_agent_intents
+  agent:agent_audit_test["agent:agent/audit.test"]
+  dep___audit["./audit"]
+  agent:agent_audit_test --> dep___audit
+  agent:agent_audit["agent:agent/audit"]
+  agent:agent_audit --> dep___lib_db
+  agent:agent_audit --> dep___lib_tool_registry
+  dep___lib_agent_types["@/lib/agent/types"]
+  agent:agent_audit --> dep___lib_agent_types
+  agent:agent_audit --> dep___lib_rate_limit
+  dep___lib_tools_registry_definitions["@/lib/tools/registry-definitions"]
+  agent:agent_audit --> dep___lib_tools_registry_definitions
+  agent:agent_automation_engine["agent:agent/automation-engine"]
+  agent:agent_automation_engine --> dep___lib_db
+  dep___lib_format["@/lib/format"]
+  agent:agent_automation_engine --> dep___lib_format
+  dep___lib_agent_queries["@/lib/agent/queries"]
+  agent:agent_automation_engine --> dep___lib_agent_queries
+  agent:agent_automation_engine --> dep___lib_agent
+  agent:agent_capabilities_calendar["agent:agent/capabilities/calendar"]
+  agent:agent_capabilities_calendar --> dep___lib_db
+  agent:agent_capabilities_calendar --> dep___lib_agent
+  agent:agent_capabilities_calendar --> dep___lib_logger
+  agent:agent_capabilities_documents["agent:agent/capabilities/documents"]
+  agent:agent_capabilities_documents --> dep___lib_db
+  dep___lib_groq["@/lib/groq"]
+  agent:agent_capabilities_documents --> dep___lib_groq
+  agent:agent_capabilities_documents --> dep___lib_agent
+  agent:agent_capabilities_memory_tools["agent:agent/capabilities/memory-tools"]
+  dep____context["../context"]
+  agent:agent_capabilities_memory_tools --> dep____context
+  agent:agent_capabilities_memory_tools --> dep___lib_agent
+  agent:agent_capabilities_notifications["agent:agent/capabilities/notifications"]
+  agent:agent_capabilities_notifications --> dep___lib_db
+  agent:agent_capabilities_notifications --> dep___lib_agent
+  agent:agent_capabilities_notifications --> dep___lib_logger
+  agent:agent_capabilities_search_tools["agent:agent/capabilities/search-tools"]
+  agent:agent_capabilities_search_tools --> dep___lib_db
+  agent:agent_capabilities_search_tools --> dep___lib_agent
+  agent:agent_context["agent:agent/context"]
+  dep____db["../db"]
+  agent:agent_context --> dep____db
+  dep____cache["../cache"]
+  agent:agent_context --> dep____cache
+  dep____agent_memory["../agent-memory"]
+  agent:agent_context --> dep____agent_memory
+  dep____tool_execution["../tool-execution"]
+  agent:agent_context --> dep____tool_execution
+  dep____tool_registry["../tool-registry"]
+  agent:agent_context --> dep____tool_registry
+  dep___lib_agent_handlers["@/lib/agent/handlers"]
+  agent:agent_dispatcher --> dep___lib_agent_handlers
+  agent:agent_dispatcher --> dep___lib_agent
+  agent:agent_handlers["agent:agent/handlers"]
+  agent:agent_handlers --> dep___lib_db
+  agent:agent_handlers --> dep___lib_format
+  dep___lib_agent_normalize["@/lib/agent/normalize"]
+  agent:agent_handlers --> dep___lib_agent_normalize
+  agent:agent_handlers --> dep___lib_agent_queries
+  dep___lib_agent_project_resolver["@/lib/agent/project-resolver"]
+  agent:agent_handlers --> dep___lib_agent_project_resolver
+  agent:agent_item_parser["agent:agent/item-parser"]
+  agent:agent_normalize["agent:agent/normalize"]
+  agent:agent_project_resolver["agent:agent/project-resolver"]
+  agent:agent_project_resolver --> dep___lib_db
+  agent:agent_project_resolver --> dep___lib_agent_normalize
+  agent:agent_queries["agent:agent/queries"]
+  agent:agent_queries --> dep___lib_db
+  agent:agent_router["agent:agent/router"]
+  dep____agent_nlu["../agent-nlu"]
+  agent:agent_router --> dep____agent_nlu
+  dep____groq_integration["../groq-integration"]
+  agent:agent_router --> dep____groq_integration
+  dep____agent["../agent"]
+  agent:agent_router --> dep____agent
+  agent:agent_router --> dep____agent
+  agent:agent_router --> dep____tool_registry
+  agent:agent_sku["agent:agent/sku"]
+  agent:agent_types["agent:agent/types"]
+  agent:agent_types --> dep____agent
+  agent:agent_types --> dep____agent
+  agent:tool_execution["agent:tool-execution"]
+  dep___tool_registry["./tool-registry"]
+  agent:tool_execution --> dep___tool_registry
+  agent:tool_execution --> dep___agent
+  dep___tools_registry_definitions["./tools/registry-definitions"]
+  agent:tool_execution --> dep___tools_registry_definitions
+  agent:tool_execution --> dep___lib_agent_audit
+  agent:tool_execution --> dep___lib_tool_registry
+  agent:tool_registry["agent:tool-registry"]
+  agent:tool_registry --> dep___agent
+  agent:tools_registry_definitions["agent:tools/registry-definitions"]
+  agent:tools_registry_definitions --> dep___lib_db
+  agent:tools_registry_definitions --> dep____agent
+  agent:tools_registry_definitions --> dep____tool_registry
+  dep____agent_extended["../agent-extended"]
+  agent:tools_registry_definitions --> dep____agent_extended
+  dep___lib_agent_capabilities_memory_tools["@/lib/agent/capabilities/memory-tools"]
+  agent:tools_registry_definitions --> dep___lib_agent_capabilities_memory_tools
+  module:api_audit["module:api-audit"]
+  module:api_audit --> dep___lib_db
+  module:api_audit --> dep___lib_logger
+  module:api_utils["module:api-utils"]
+  module:api_utils --> dep___lib_auth
+  dep___lib_api_audit["@/lib/api-audit"]
+  module:api_utils --> dep___lib_api_audit
+  module:api_utils --> dep___lib_logger
+  module:api_utils --> dep___lib_rate_limit
+  module:auth["module:auth"]
+  module:auth --> dep___lib_logger
+  module:auth --> dep___lib_rate_limit
+  module:cache["module:cache"]
+  module:crud_factory["module:crud-factory"]
+  module:crud_factory --> dep___lib_api_utils
+  dep___lib_validation["@/lib/validation"]
+  module:crud_factory --> dep___lib_validation
+  module:crud_factory --> dep___lib_logger
+  module:crud_factory --> dep___lib_cache
+  module:db["module:db"]
+  module:env["module:env"]
+  module:file_processor["module:file-processor"]
+  module:file_processor --> dep___lib_agent_audit
+  module:format["module:format"]
+  module:groq_integration["module:groq-integration"]
+  dep___groq["./groq"]
+  module:groq_integration --> dep___groq
+  module:groq_integration --> dep___agent
+  dep___db["./db"]
+  module:groq_integration --> dep___db
+  dep___llm_provider["./llm-provider"]
+  module:groq_integration --> dep___llm_provider
+  module:groq["module:groq"]
+  module:groq --> dep___llm_provider
+  module:llm_provider["module:llm-provider"]
+  module:llm_provider --> dep___lib_agent_audit
+  module:llm_provider --> dep___lib_logger
+  module:logger["module:logger"]
+  module:rate_limit["module:rate-limit"]
+  module:tool_execution["module:tool-execution"]
+  module:tool_execution --> dep___tool_registry
+  module:tool_execution --> dep___agent
+  module:tool_execution --> dep___tools_registry_definitions
+  module:tool_execution --> dep___lib_agent_audit
+  module:tool_execution --> dep___lib_tool_registry
+  module:tool_registry["module:tool-registry"]
+  module:tool_registry --> dep___agent
+  module:utils["module:utils"]
+  module:validation["module:validation"]
+  module:workflow_engine["module:workflow-engine"]
+  module:workflow_engine --> dep___db
+  dep___workflow_types["./workflow-types"]
+  module:workflow_engine --> dep___workflow_types
+  module:workflow_engine --> dep___workflow_types
+  module:workflow_engine --> dep___agent
+  dep___groq_integration["./groq-integration"]
+  module:workflow_engine --> dep___groq_integration
+  module:workflow_from_text["module:workflow-from-text"]
+  module:workflow_from_text --> dep___lib_db
+  module:workflow_from_text --> dep___agent
+  module:workflow_from_text --> dep___workflow_types
+  module:workflow_types["module:workflow-types"]
+  config:package_json["config:package.json"]
+  config:tsconfig_json["config:tsconfig.json"]
+  config:next_config_ts["config:next.config.ts"]
+  config:vercel_json["config:vercel.json"]
+  config:Caddyfile["config:Caddyfile"]
+  config:_env_example["config:.env.example"]
+  config:components_json["config:components.json"]
+  mcp:package_json["mcp:package.json"]
+  mcp:src_index_ts["mcp:src/index.ts"]
+  dep__modelcontextprotocol_sdk_server_mcp_js["@modelcontextprotocol/sdk/server/mcp.js"]
+  mcp:src_index_ts --> dep__modelcontextprotocol_sdk_server_mcp_js
+  dep__modelcontextprotocol_sdk_server_stdio_js["@modelcontextprotocol/sdk/server/stdio.js"]
+  mcp:src_index_ts --> dep__modelcontextprotocol_sdk_server_stdio_js
+  dep_zod["zod"]
+  mcp:src_index_ts --> dep_zod
+  mcp:tsconfig_json["mcp:tsconfig.json"]
+  automation:src_app_api_automations_route["automation:src/app/api/automations/route"]
+  automation:src_app_api_automations_route --> dep___lib_db
+  automation:src_app_api_automations_route --> dep___lib_api_utils
+  automation:src_app_api_automations_route --> dep___lib_validation
+  automation:src_app_api_automations_route --> dep___lib_logger
+  automation:src_app_api_automations_route --> dep___lib_cache
+  automation:src_app_api_automations_run_route["automation:src/app/api/automations/run/route"]
+  automation:src_app_api_automations_run_route --> dep___lib_agent
+  automation:src_app_api_automations_run_route --> dep___lib_api_utils
+  automation:src_app_api_scheduler_route["automation:src/app/api/scheduler/route"]
+  automation:src_app_api_scheduler_route --> dep___lib_db
+  automation:src_app_api_scheduler_route --> dep___lib_api_utils
+  automation:src_app_api_scheduler_route --> dep___lib_logger
+  automation:src_app_api_scheduler_route --> dep___lib_cache
+  automation:src_app_api_scheduler_route --> dep___lib_validation
+  automation:src_app_api_scheduler_run_route["automation:src/app/api/scheduler/run/route"]
+  automation:src_app_api_scheduler_run_route --> dep___lib_workflow_engine
+  automation:src_app_api_scheduler_run_route --> dep___lib_api_utils
+  automation:src_app_api_workflows_execute_route["automation:src/app/api/workflows/execute/route"]
+  automation:src_app_api_workflows_execute_route --> dep___lib_workflow_engine
+  automation:src_app_api_workflows_execute_route --> dep___lib_api_utils
+  automation:src_app_api_workflows_execute_route --> dep___lib_logger
+  automation:src_app_api_workflows_executions_route["automation:src/app/api/workflows/executions/route"]
+  automation:src_app_api_workflows_executions_route --> dep___lib_db
+  automation:src_app_api_workflows_executions_route --> dep___lib_api_utils
+  automation:src_app_api_workflows_executions_route --> dep___lib_logger
+  automation:src_app_api_workflows_route["automation:src/app/api/workflows/route"]
+  automation:src_app_api_workflows_route --> dep___lib_db
+  automation:src_app_api_workflows_route --> dep___lib_api_utils
+  automation:src_app_api_workflows_route --> dep___lib_validation
+  automation:src_app_api_workflows_route --> dep___lib_logger
+  automation:src_app_api_workflows_route --> dep___lib_cache
+  automation:src_app_api_workflows_webhook_route["automation:src/app/api/workflows/webhook/route"]
+  automation:src_app_api_workflows_webhook_route --> dep___lib_db
+  automation:src_app_api_workflows_webhook_route --> dep___lib_workflow_engine
+  automation:src_app_api_workflows_webhook_route --> dep___lib_rate_limit
+  automation:src_app_api_workflows_webhook_route --> dep___lib_api_utils
+  automation:src_app_api_workflows_webhook_route --> dep___lib_logger
+  automation:src_components_views_automationsx["automation:src/components/views/automationsx"]
+  dep___components_ui_card["@/components/ui/card"]
+  automation:src_components_views_automationsx --> dep___components_ui_card
+  automation:src_components_views_automationsx --> dep___components_ui_button
+  dep___components_ui_badge["@/components/ui/badge"]
+  automation:src_components_views_automationsx --> dep___components_ui_badge
+  dep___components_ui_input["@/components/ui/input"]
+  automation:src_components_views_automationsx --> dep___components_ui_input
+  dep___components_ui_label["@/components/ui/label"]
+  automation:src_components_views_automationsx --> dep___components_ui_label
+  automation:src_components_workflow_builderx["automation:src/components/workflow-builderx"]
+  automation:src_components_workflow_builderx --> dep___components_ui_card
+  automation:src_components_workflow_builderx --> dep___components_ui_button
+  automation:src_components_workflow_builderx --> dep___components_ui_badge
+  dep___components_ui_dialog["@/components/ui/dialog"]
+  automation:src_components_workflow_builderx --> dep___components_ui_dialog
+  automation:src_components_workflow_builderx --> dep___components_ui_input
+  automation:agent_automation_engine["automation:agent/automation-engine"]
+  automation:agent_automation_engine --> dep___lib_db
+  automation:agent_automation_engine --> dep___lib_format
+  automation:agent_automation_engine --> dep___lib_agent_queries
+  automation:agent_automation_engine --> dep___lib_agent
+  automation:workflow_engine["automation:workflow-engine"]
+  automation:workflow_engine --> dep___db
+  automation:workflow_engine --> dep___workflow_types
+  automation:workflow_engine --> dep___workflow_types
+  automation:workflow_engine --> dep___agent
+  automation:workflow_engine --> dep___groq_integration
+  automation:workflow_from_text["automation:workflow-from-text"]
+  automation:workflow_from_text --> dep___lib_db
+  automation:workflow_from_text --> dep___agent
+  automation:workflow_from_text --> dep___workflow_types
+  automation:workflow_types["automation:workflow-types"]

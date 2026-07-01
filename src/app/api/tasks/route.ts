@@ -1,42 +1,27 @@
-import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getSession } from "@/lib/api-utils";
-import { parseBody, TaskCreateSchema } from "@/lib/validation";
+import { TaskCreateSchema } from "@/lib/validation";
+import { cachedGet, createPost } from "@/lib/crud-factory";
 
-export async function GET() {
-  try {
-    const tasks = await db.task.findMany({
-      include: { project: true },
-      orderBy: [{ status: "asc" }, { dueDate: "asc" }],
-    });
-    return NextResponse.json(tasks);
-  } catch (error: any) {
-    console.error("[API] GET /api/tasks:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
-  }
-}
+export const GET = cachedGet("tasks:list", () =>
+  db.task.findMany({
+    include: { project: { select: { id: true, name: true, code: true } } },
+    orderBy: [{ status: "asc" }, { dueDate: "asc" }],
+    take: 200,
+  })
+);
 
-export async function POST(req: NextRequest) {
-  try {
-    const session = await getSession();
-    const parsed = await parseBody(req, TaskCreateSchema);
-    if (!parsed.ok) return parsed.response;
-    const body = parsed.data;
-    const task = await db.task.create({
-      data: {
-        title: body.title,
-        description: body.description,
-        status: body.status || "pending",
-        priority: body.priority || "medium",
-        assignee: body.assignee,
-        dueDate: body.dueDate ? new Date(body.dueDate) : null,
-        projectId: body.projectId || null,
-        createdBy: session?.user?.id || "user",
-      },
-    });
-    return NextResponse.json(task, { status: 201 });
-  } catch (error: any) {
-    console.error("[API] POST /api/tasks:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
-  }
-}
+export const POST = createPost(TaskCreateSchema, (body) =>
+  db.task.create({
+    data: {
+      title: body.title,
+      description: body.description,
+      status: body.status || "pending",
+      priority: body.priority || "medium",
+      assignee: body.assignee,
+      dueDate: body.dueDate ? new Date(body.dueDate) : null,
+      projectId: body.projectId || null,
+      createdBy: "user",
+    },
+  }),
+  "/api/tasks"
+);

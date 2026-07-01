@@ -113,7 +113,8 @@ export async function auditLog(entry: AuditEntry): Promise<void> {
     });
   } catch {
     // Nunca fallar la request principal por un error de auditoría
-    console.warn("[Audit] Failed to write audit log");
+    const { auditLogger } = await import("@/lib/logger");
+    auditLogger.warn({ module: "audit" }, "Failed to write audit log");
   }
 }
 

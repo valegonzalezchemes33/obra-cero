@@ -12,6 +12,7 @@
 
 import { db } from "@/lib/db";
 import { parseIntent, normalize, generateSku, type Intent, type ParsedCommand, type AgentResponse, type AgentActionItem } from "./agent";
+import { agentLogger } from "@/lib/logger";
 import { executeWorkflow } from "./workflow-engine";
 import { createWorkflowFromText, generateWorkflowCreatedResponse } from "./workflow-from-text";
 import { queryRAG } from "./agent-rag";
@@ -123,6 +124,14 @@ const INTENT_KEYWORDS: Record<string, string[]> = {
   query_purchase_plan: ["plan compra", "que comprar este mes", "necesito comprar", "compras mensual"],
   query_expense_trend: ["tendencia gasto", "evolucion gasto", "serie gasto", "historial categoria"],
   action_export_data: ["exportar", "descargar", "generar reporte", "crear informe", "csv", "pdf"],
+  // Obsidian vault
+  obsidian_read_note: ["leer nota", "abrir nota", "leer archivo", "mostrar nota"],
+  obsidian_write_note: ["crear nota", "escribir nota", "guardar nota"],
+  obsidian_search_notes: ["buscar en vault", "encontrar nota", "buscar documento"],
+  obsidian_list_vault: ["listar vault", "listar archivos", "ver vault", "listar notas"],
+  obsidian_append_note: ["agregar a nota", "append nota"],
+  obsidian_list_tags: ["listar tags", "ver tags"],
+  obsidian_execute_command: ["ejecutar comando", "comando obsidian"],
 };
 
 // ─── Intent labels para smart unknown ───
@@ -184,6 +193,13 @@ const INTENT_LABELS: Record<string, string> = {
         query_purchase_plan: "Plan de compras",
         query_expense_trend: "Tendencias de gastos",
         action_export_data: "Exportar datos",
+        obsidian_read_note: "Leer nota del vault",
+        obsidian_write_note: "Crear nota en vault",
+        obsidian_search_notes: "Buscar en vault",
+        obsidian_list_vault: "Listar vault",
+        obsidian_append_note: "Append a nota",
+        obsidian_list_tags: "Ver tags del vault",
+        obsidian_execute_command: "Ejecutar comando Obsidian",
       } as Record<string, string>)
     )
   ),
@@ -945,7 +961,7 @@ async function savePredictiveSuggestions(suggestions: any[]): Promise<void> {
         data: { meta: JSON.stringify(meta).slice(0, 4000) },
       });
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: guardar sugerencias predictivas") }
 }
 
 async function getPredictiveSuggestions(): Promise<{ suggestions: any[] } | null> {
@@ -963,9 +979,9 @@ async function getPredictiveSuggestions(): Promise<{ suggestions: any[] } | null
         if (meta._predictiveSuggestions && Date.now() - meta._predictiveSuggestions.timestamp < 300000) {
           return meta._predictiveSuggestions;
         }
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: parsear sugerencias predictivas") }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: obtener sugerencias predictivas") }
   return null;
 }
 
@@ -989,9 +1005,9 @@ async function clearPredictiveSuggestions(): Promise<void> {
           });
           break;
         }
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: parsear meta para limpiar sugerencias") }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: limpiar sugerencias predictivas") }
 }
 
 // ─── Multi-intent response ───
@@ -1038,17 +1054,23 @@ export async function processExtendedMessage(
           await db.material.delete({ where: { id: targetId } });
         } else if (pd.type === "transaction") {
           await db.transaction.delete({ where: { id: targetId } });
+        } else if (pd.type === "supplier") {
+          await db.transaction.updateMany({ where: { supplierId: targetId }, data: { supplierId: null } });
+          await db.material.updateMany({ where: { supplierId: targetId }, data: { supplierId: null } });
+          await db.stockMovement.updateMany({ where: { supplierId: targetId }, data: { supplierId: null } });
+          await db.supplier.delete({ where: { id: targetId } });
+        } else if (pd.type === "bulk_tasks" && Array.isArray(pd.snapshot)) {
+          const ids = pd.snapshot.map((s: any) => s.id);
+          await db.task.deleteMany({ where: { id: { in: ids } } });
         }
 
         // Guardar snapshot para undo
-        if (pd.snapshot && Object.keys(pd.snapshot).length > 0) {
-          const actionMap: Record<string, string> = { task: "delete_task", material: "delete_material", transaction: "delete_transaction" };
-          await saveUndoSnapshot(
-            pd.type,
-            targetId,
-            pd.snapshot,
-            actionMap[pd.type] || "delete"
-          );
+        if (pd.snapshot && pd.type !== "bulk_tasks") {
+          const snapData = typeof pd.snapshot === "object" && !Array.isArray(pd.snapshot) ? pd.snapshot : {};
+          if (Object.keys(snapData).length > 0 && (pd.type === "task" || pd.type === "material" || pd.type === "transaction" || pd.type === "supplier")) {
+            const actionMap: Record<string, string> = { task: "delete_task", material: "delete_material", transaction: "delete_transaction", supplier: "delete_supplier" };
+            await saveUndoSnapshot(pd.type, targetId, snapData, actionMap[pd.type]);
+          }
         }
 
         return {
@@ -1057,7 +1079,7 @@ export async function processExtendedMessage(
             intent: "unknown",
             suggestions: ["Undo: deshacer", "Ver tareas", "Ver inventario", "Ver finanzas"],
             data: { _canUndo: true },
-            route: pd.type === "task" ? "/tareas" : pd.type === "material" ? "/inventario" : "/finanzas",
+            route: pd.type === "task" ? "/tareas" : pd.type === "material" ? "/inventario" : pd.type === "supplier" ? "/proveedores" : pd.type === "bulk_tasks" ? "/tareas" : "/finanzas",
           } as AgentResponse & { route?: string },
           wasExtended: true,
         };
@@ -1096,7 +1118,7 @@ export async function processExtendedMessage(
         responses.push(resp);
       }
       return { response: generateMultiIntentResponse(multiResult.intents, responses), wasExtended: true };
-    } catch {}
+    } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: procesar multi-intent extendido") }
   }
 
   // 2. Detectar nuevos intents por palabras clave
@@ -1217,7 +1239,7 @@ export async function processExtendedMessage(
               wasExtended: true,
             };
           }
-        } catch {}
+        } catch (e) { agentLogger.warn({ module: "agent-extended" }, "catch swallowed: crear workflow desde sugerencia") }
       }
     }
   }
@@ -1299,5 +1321,538 @@ export async function processExtendedMessage(
     }
   }
 
+  // ─── NUEVOS HANDLERS: Editar/Eliminar Proveedor ───
+  if (/(editar|modificar|cambiar|actualizar)\s+(el\s+)?(proveedor|contacto)/i.test(norm)) {
+    return { response: await handleEditSupplier(parseIntent(rawText), rawText), wasExtended: true };
+  }
+  if (/(eliminar|borrar|remover|quitar)\s+(el\s+)?proveedor/i.test(norm)) {
+    return { response: await handleDeleteSupplier(parseIntent(rawText), rawText), wasExtended: true };
+  }
+
+  // ─── NUEVOS HANDLERS: Detail views ───
+  if (/(detalle|info|informacion|ver|mostrar)\s+(del\s+|de\s+)?(proveedor|contacto)/i.test(norm) ||
+      /ver\s+proveedor/i.test(norm)) {
+    return { response: await handleGetSupplier(parseIntent(rawText), rawText), wasExtended: true };
+  }
+  if (/(detalle|info|informacion|ver|mostrar)\s+(de\s+|del\s+|la\s+)?(obra|proyecto)/i.test(norm) ||
+      /ver\s+(obra|proyecto)/i.test(norm)) {
+    return { response: await handleGetProject(parseIntent(rawText), rawText), wasExtended: true };
+  }
+  if (/(detalle|info|informacion|ver|mostrar)\s+(de\s+|del\s+|el\s+)?(material|insumo|producto)/i.test(norm) ||
+      /ver\s+(material|insumo|producto)/i.test(norm)) {
+    return { response: await handleGetMaterial(parseIntent(rawText), rawText), wasExtended: true };
+  }
+  if (/(detalle|info|informacion|ver|mostrar)\s+(de\s+|la\s+)?tarea/i.test(norm) ||
+      /ver\s+tarea/i.test(norm)) {
+    return { response: await handleGetTask(parseIntent(rawText), rawText), wasExtended: true };
+  }
+
+  // ─── OBSIDIAN VAULT ───
+  if (/obsidian|vault|docs.vault|documentacion\s+del\s+proyecto|leer\s+nota|nota\s+en\s+el\s+vault|buscar\s+en\s+vault/i.test(norm) ||
+      /abrir\s+(nota|vault|obsidian)|crear\s+nota\s+en\s+obsidian|listar\s+(vault|archivos|notas)|tags\s+del\s+vault/i.test(norm)) {
+    return { response: await handleObsidianCommand(norm, rawText), wasExtended: true };
+  }
+
   return { response: null, wasExtended: false };
 }
+
+// ═══════════════════════════════════════════════════════════════
+// NUEVOS HANDLERS
+// ═══════════════════════════════════════════════════════════════
+
+// ─── EDITAR PROVEEDOR ───
+export async function handleEditSupplier(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const suppliers = await db.supplier.findMany();
+  if (suppliers.length === 0) return { text: "No hay proveedores cargados.", intent: "action_edit_supplier" as Intent };
+
+  const norm = normalize(rawText);
+  const match = suppliers.find(s => norm.includes(normalize(s.name)));
+  if (!match) {
+    const names = suppliers.slice(0, 5).map(s => s.name).join(", ");
+    return {
+      text: `No encontré el proveedor. Tenés: ${names}${suppliers.length > 5 ? "..." : ""}\n\nEj: *editar proveedor Acme, teléfono: 555-1234*`,
+      intent: "action_edit_supplier" as Intent,
+    };
+  }
+
+  const updates: Record<string, any> = {};
+  const nameMatch = rawText.match(/(?:nombre|name)\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i);
+  if (nameMatch) updates.name = nameMatch[1].trim();
+  const phoneMatch = rawText.match(/(?:tel|telefono|teléfono|phone)\s*:?\s*([\d\s+()-]+)/i);
+  if (phoneMatch) updates.phone = phoneMatch[1].trim();
+  const emailMatch = rawText.match(/(?:email|e-mail|correo)\s*:?\s*([\w.@]+)/i);
+  if (emailMatch) updates.email = emailMatch[1].trim();
+  const catMatch = rawText.match(/(?:rubro|categoria|categoría|category)\s*:?\s*([\w\sÀ-ÿ]+?)(?:,|$)/i);
+  if (catMatch) updates.category = catMatch[1].trim();
+  const taxMatch = rawText.match(/(?:cuit|rut|tax|tipo)\s*:?\s*([\w-]+)/i);
+  if (taxMatch) updates.taxId = taxMatch[1].trim();
+  const ratingMatch = rawText.match(/(?:rating|puntuacion|puntos)\s*:?\s*(\d+(?:\.\d+)?)/i);
+  if (ratingMatch) updates.rating = Math.min(5, Math.max(1, parseFloat(ratingMatch[1])));
+  const notesMatch = rawText.match(/(?:notas|obs|observaciones|nota)\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i);
+  if (notesMatch) updates.notes = notesMatch[1].trim();
+
+  if (Object.keys(updates).length === 0) {
+    return {
+      text: `No entendí qué editar de **${match.name}**. Podés cambiar: nombre, teléfono, email, rubro, CUIT, rating, notas\n\nEj: *editar proveedor ${match.name}, teléfono: 555-1234*`,
+      intent: "action_edit_supplier" as Intent,
+    };
+  }
+
+  const updated = await db.supplier.update({ where: { id: match.id }, data: updates });
+  const changed = Object.entries(updates).map(([k, v]) => `• ${k}: ${v}`).join("\n");
+
+  return {
+    text: `✅ Proveedor **${match.name}** actualizado.\n${changed}`,
+    intent: "action_edit_supplier" as Intent,
+    data: { supplier: updated },
+    suggestions: ["Ver proveedores", `Detalle de ${updated.name}`],
+  };
+}
+
+// ─── ELIMINAR PROVEEDOR ───
+export async function handleDeleteSupplier(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const suppliers = await db.supplier.findMany();
+  if (suppliers.length === 0) return { text: "No hay proveedores cargados.", intent: "action_delete_supplier" as Intent };
+
+  const norm = normalize(rawText);
+  const match = suppliers.find(s => norm.includes(normalize(s.name)));
+  if (!match) {
+    const names = suppliers.slice(0, 5).map(s => s.name).join(", ");
+    return {
+      text: `No encontré el proveedor. Tenés: ${names}${suppliers.length > 5 ? "..." : ""}\n\nEj: *eliminar proveedor Acme*`,
+      intent: "action_delete_supplier" as Intent,
+    };
+  }
+
+  // Verificar si tiene transacciones o materiales asociados
+  const [txCount, matCount] = await Promise.all([
+    db.transaction.count({ where: { supplierId: match.id } }),
+    db.material.count({ where: { supplierId: match.id } }),
+  ]);
+
+  const warnings: string[] = [];
+  if (txCount > 0) warnings.push(`${txCount} transacciones`);
+  if (matCount > 0) warnings.push(`${matCount} materiales`);
+
+  const warningText = warnings.length > 0
+    ? `\n\n⚠️ **Atención:** este proveedor tiene asociados: ${warnings.join(", ")}. Se desvincularán automáticamente.`
+    : "";
+
+  // Guardar snapshot
+  const snapshot = JSON.parse(JSON.stringify(match));
+  await savePendingDelete({
+    type: "supplier",
+    id: match.id,
+    label: `Proveedor "${match.name}"`,
+    details: `Tel: ${match.phone || "-"} | Rubro: ${match.category || "-"}${warningText}`,
+    timestamp: Date.now(),
+    snapshot,
+  });
+
+  return {
+    text: `⚠️ **¿Confirmás que querés eliminar este proveedor?**\n\n**${match.name}**${warningText}\n\n---\n\nRespondé **"sí"** para eliminar o **"no"** para cancelar.`,
+    intent: "action_delete_supplier" as Intent,
+    _requiresConfirmation: true,
+    suggestions: ["Sí, eliminar", "No, cancelar"],
+  } as AgentResponse & { _requiresConfirmation: boolean };
+}
+
+// ─── OBTENER DETALLE DE PROVEEDOR ───
+export async function handleGetSupplier(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const suppliers = await db.supplier.findMany({
+    include: { materials: true, transactions: { take: 10, orderBy: { date: "desc" } }, stockMovements: { take: 5, orderBy: { date: "desc" } } },
+  });
+  if (suppliers.length === 0) return { text: "No hay proveedores cargados.", intent: "action_get_supplier" as Intent };
+
+  const norm = normalize(rawText);
+  const match = suppliers.find(s => norm.includes(normalize(s.name)));
+  if (!match) {
+    const names = suppliers.slice(0, 5).map(s => s.name).join(", ");
+    return {
+      text: `No encontré el proveedor. Tenés: ${names}${suppliers.length > 5 ? "..." : ""}\n\nDecime cuál querés ver.`,
+      intent: "action_get_supplier" as Intent,
+    };
+  }
+
+  const totalTx = await db.transaction.count({ where: { supplierId: match.id } });
+  const totalSpent = match.transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const totalPurchases = match.transactions.filter(t => t.type === "expense").length;
+
+  let text = `**${match.name}**\n\n`;
+  text += `**Contacto:** ${match.phone || "-"} / ${match.email || "-"}\n`;
+  text += `**CUIT:** ${match.taxId || "-"}\n`;
+  text += `**Rubro:** ${match.category || "-"}\n`;
+  text += `**Rating:** ${match.rating}/5\n`;
+  text += `**Notas:** ${match.notes || "-"}\n\n`;
+  text += `**📊 Estadísticas**\n`;
+  text += `• Compras totales: ${totalPurchases} operaciones\n`;
+  text += `• Gasto total: ${formatCurrency(totalSpent)}\n`;
+  text += `• Materiales que provee: ${match.materials.length}\n`;
+  text += `• Transacciones registradas: ${totalTx}\n\n`;
+
+  if (match.materials.length > 0) {
+    text += `**📦 Materiales:**\n`;
+    for (const m of match.materials.slice(0, 10)) {
+      text += `• ${m.name} — ${formatCurrency(m.unitCost)}/${m.unit} (stock: ${formatNumber(m.stock)})\n`;
+    }
+    if (match.materials.length > 10) text += `... y ${match.materials.length - 10} más\n`;
+  }
+
+  if (match.transactions.length > 0) {
+    text += `\n**Últimas transacciones:**\n`;
+    for (const t of match.transactions.slice(0, 5)) {
+      text += `• ${formatDate(t.date)} — ${t.type === "expense" ? "⬆️" : "⬇️"} ${formatCurrency(t.amount)} — ${t.description}\n`;
+    }
+  }
+
+  return {
+    text,
+    intent: "action_get_supplier" as Intent,
+    data: { supplier: match },
+    suggestions: ["Ver proveedores", "Comparar proveedores", "Editar proveedor"],
+  };
+}
+
+// ─── GET PROJECT DETAIL ───
+export async function handleGetProject(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const projMatch = rawText.match(/OB[-\s]?(\d+)/i) || rawText.match(/(?:obra|proyecto)\s+["']?([\w\sÀ-ÿ]+?)["']?(?:\s*,|$)/i);
+  if (!projMatch) {
+    return {
+      text: `Decime qué obra querés ver. Ej: *detalle de OB-001* o *info de obra Casa García*`,
+      intent: "action_get_project" as Intent,
+      suggestions: ["Estado de obras"],
+    };
+  }
+
+  const project = await resolveProject(projMatch[1]);
+  if (!project) {
+    return { text: `No encontré la obra "${projMatch[1]}".`, intent: "action_get_project" as Intent };
+  }
+
+  // Obtener datos completos
+  const [transactions, tasks] = await Promise.all([
+    db.transaction.findMany({ where: { projectId: project.id }, orderBy: { date: "desc" }, take: 20 }),
+    db.task.findMany({ where: { projectId: project.id }, orderBy: { createdAt: "desc" } }),
+  ]);
+
+  const income = transactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const spent = transactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const pendingTasks = tasks.filter(t => t.status !== "completed").length;
+  const budgetPct = project.budget > 0 ? ((spent / project.budget) * 100).toFixed(1) : "0";
+
+  let text = `**${project.code} — ${project.name}**\n\n`;
+  text += `**Estado:** ${project.status.replace("_", " ")}\n`;
+  text += `**Tipo:** ${project.type}\n`;
+  text += `**Cliente:** ${project.clientName || "-"}\n`;
+  text += `**Dirección:** ${project.address || "-"}\n`;
+  text += `**Presupuesto:** ${formatCurrency(project.budget)}\n`;
+  text += `**Avance:** ${project.progress}%\n`;
+  text += `**Período:** ${project.startDate ? formatDate(project.startDate) : "-"} → ${project.endDate ? formatDate(project.endDate) : "presente"}\n\n`;
+
+  text += `**💰 Financiero**\n`;
+  text += `• Ingresos: ${formatCurrency(income)}\n`;
+  text += `• Gastos: ${formatCurrency(spent)}\n`;
+  text += `• Saldo: ${formatCurrency(income - spent)}\n`;
+  text += `• Presupuesto consumido: ${budgetPct}%\n\n`;
+
+  if (tasks.length > 0) {
+    text += `**📋 Tareas (${pendingTasks} pendientes de ${tasks.length})**\n`;
+    for (const t of tasks.slice(0, 8)) {
+      const icon = t.status === "completed" ? "✅" : t.dueDate && new Date(t.dueDate) < new Date() ? "🔴" : "⬜";
+      text += `• ${icon} ${t.title}${t.assignee ? ` (${t.assignee})` : ""}\n`;
+    }
+    if (tasks.length > 8) text += `... y ${tasks.length - 8} más\n`;
+  }
+
+  if (transactions.length > 0) {
+    text += `\n**Últimos movimientos:**\n`;
+    for (const t of transactions.slice(0, 5)) {
+      text += `• ${formatDate(t.date)} ${t.type === "expense" ? "⬆️" : "⬇️"} ${formatCurrency(t.amount)} — ${t.description}\n`;
+    }
+  }
+
+  const statusColor = project.status === "completed" ? "✅" : project.status === "in_progress" ? "🏗️" : project.status === "paused" ? "⏸️" : "📋";
+
+  return {
+    text,
+    intent: "action_get_project" as Intent,
+    data: { project: { ...project, transactions, tasks } },
+    suggestions: [
+      `Editar ${project.code}`,
+      `Actualizar avance de ${project.code}`,
+      pendingTasks > 0 ? `Ver tareas de ${project.code}` : "Estado de obras",
+    ].filter(Boolean),
+  };
+}
+
+// ─── GET MATERIAL DETAIL ───
+export async function handleGetMaterial(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const materials = await db.material.findMany({
+    include: { supplier: true, stockMovements: { orderBy: { date: "desc" }, take: 20 } },
+  });
+  if (materials.length === 0) return { text: "No hay materiales cargados.", intent: "action_get_material" as Intent };
+
+  const norm = normalize(rawText);
+  const match = materials.find(m => norm.includes(normalize(m.name)) || norm.includes(normalize(m.sku)));
+  if (!match) {
+    const names = materials.slice(0, 5).map(m => m.name).join(", ");
+    return {
+      text: `No encontré el material. Tenés: ${names}${materials.length > 5 ? "..." : ""}\n\nEj: *detalle de cemento*`,
+      intent: "action_get_material" as Intent,
+    };
+  }
+
+  const stockValue = match.stock * match.unitCost;
+  const totalIncoming = match.stockMovements.filter(m => m.type === "incoming").reduce((s, m) => s + m.quantity, 0);
+  const totalOutgoing = match.stockMovements.filter(m => m.type === "outgoing").reduce((s, m) => s + m.quantity, 0);
+
+  let text = `**${match.name}** (${match.sku})\n\n`;
+  text += `**Categoría:** ${match.category}\n`;
+  text += `**Unidad:** ${match.unit}\n`;
+  text += `**Stock actual:** ${formatNumber(match.stock)} ${match.unit}\n`;
+  text += `**Stock mínimo:** ${formatNumber(match.minStock)} ${match.unit}\n`;
+  text += `**Costo unitario:** ${formatCurrency(match.unitCost)}\n`;
+  text += `**Valor en stock:** ${formatCurrency(stockValue)}\n`;
+  text += `**Proveedor:** ${match.supplier?.name || "-"}\n`;
+  text += `**Ubicación:** ${match.location || "-"}\n\n`;
+
+  text += `**📊 Movimientos**\n`;
+  text += `• Total ingresos: ${formatNumber(totalIncoming)} ${match.unit}\n`;
+  text += `• Total egresos: ${formatNumber(totalOutgoing)} ${match.unit}\n`;
+  text += `• Stock actual: ${formatNumber(match.stock)} ${match.unit}\n\n`;
+
+  if (match.stock <= match.minStock && match.minStock > 0) {
+    text += `⚠️ **Stock bajo** (mínimo: ${formatNumber(match.minStock)} ${match.unit})\n\n`;
+  }
+
+  if (match.stockMovements.length > 0) {
+    text += `**Últimos movimientos:**\n`;
+    for (const m of match.stockMovements.slice(0, 8)) {
+      const icon = m.type === "incoming" ? "📥" : m.type === "outgoing" ? "📤" : "🔧";
+      text += `• ${icon} ${formatDate(m.date)} — ${m.type === "incoming" ? "Entrada" : m.type === "outgoing" ? "Salida" : "Ajuste"} de ${formatNumber(m.quantity)} ${match.unit}${m.reason ? ` (${m.reason})` : ""}\n`;
+    }
+  }
+
+  return {
+    text,
+    intent: "action_get_material" as Intent,
+    data: { material: match },
+    suggestions: ["Ver inventario", `Editar ${match.name}`, "¿Qué stock bajo hay?"],
+  };
+}
+
+// ─── GET TASK DETAIL ───
+export async function handleGetTask(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const tasks = await db.task.findMany({
+    include: { project: true },
+    orderBy: { createdAt: "desc" },
+  });
+  if (tasks.length === 0) return { text: "No hay tareas cargadas.", intent: "action_get_task" as Intent };
+
+  const norm = normalize(rawText);
+  const match = tasks.find(t => norm.includes(normalize(t.title)));
+  if (!match) {
+    const recent = tasks.slice(0, 5).map(t => `• ${t.title}`).join("\n");
+    return {
+      text: `No encontré la tarea. Últimas:\n\n${recent}\n\nEj: *detalle de tarea "llamar proveedor"*`,
+      intent: "action_get_task" as Intent,
+    };
+  }
+
+  const statusEmoji: Record<string, string> = { pending: "⏳", in_progress: "🔄", completed: "✅", cancelled: "❌" };
+  const priorityLabel: Record<string, string> = { low: "Baja", medium: "Media", high: "Alta", critical: "Crítica" };
+
+  let text = `**${match.title}**\n\n`;
+  text += `**Estado:** ${statusEmoji[match.status] || "⏳"} ${match.status.replace("_", " ")}\n`;
+  text += `**Prioridad:** ${priorityLabel[match.priority] || match.priority}\n`;
+  text += `**Asignado a:** ${match.assignee || "-"}\n`;
+  text += `**Obra:** ${match.project?.code || "-"} ${match.project?.name || ""}\n`;
+  text += `**Vence:** ${match.dueDate ? formatDate(match.dueDate) : "Sin fecha"}\n`;
+  text += `**Descripción:** ${match.description || "-"}\n`;
+  text += `**Creada:** ${formatDate(match.createdAt)}\n`;
+
+  if (match.dueDate && new Date(match.dueDate) < new Date() && match.status !== "completed") {
+    text += `\n⚠️ **Tarea vencida** (${formatDate(match.dueDate)})\n`;
+  }
+
+  return {
+    text,
+    intent: "action_get_task" as Intent,
+    data: { task: match },
+    suggestions: [
+      match.status !== "completed" ? `Completar tarea: ${match.title}` : "",
+      `Editar tarea: ${match.title}`,
+      "Ver tareas",
+    ].filter(Boolean),
+  };
+}
+
+// ─── BULK COMPLETE TASKS ───
+export async function handleBulkCompleteTasks(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const projMatch = rawText.match(/OB[-\s]?(\d+)/i) || rawText.match(/obra\s+([\w\sÀ-ÿ]+?)(?:,|$)/i);
+  const project = projMatch ? await resolveProject(projMatch[1]) : null;
+
+  const where: any = { status: { in: ["pending", "in_progress"] } };
+  if (project) where.projectId = project.id;
+
+  const tasks = await db.task.findMany({ where, include: { project: true } });
+  if (tasks.length === 0) {
+    return {
+      text: project
+        ? `La obra **${project.code}** no tiene tareas pendientes.`
+        : "No hay tareas pendientes para completar.",
+      intent: "action_bulk_complete_tasks" as Intent,
+    };
+  }
+
+  const updated = await db.task.updateMany({
+    where: { id: { in: tasks.map(t => t.id) } },
+    data: { status: "completed" },
+  });
+
+  return {
+    text: `✅ **${updated.count} tareas completadas**${project ? ` en ${project.code}` : ""}.\n\n${tasks.slice(0, 5).map(t => `✅ ${t.title}`).join("\n")}${tasks.length > 5 ? `\n... y ${tasks.length - 5} más` : ""}`,
+    intent: "action_bulk_complete_tasks" as Intent,
+    data: { count: updated.count, tasks: tasks.map(t => ({ id: t.id, title: t.title })) },
+    suggestions: ["Ver tareas", project ? `Detalle de ${project.code}` : "Estado de obras"],
+  };
+}
+
+// ─── BULK DELETE TASKS ───
+export async function handleBulkDeleteTasks(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const projMatch = rawText.match(/OB[-\s]?(\d+)/i) || rawText.match(/obra\s+([\w\sÀ-ÿ]+?)(?:,|$)/i);
+  const project = projMatch ? await resolveProject(projMatch[1]) : null;
+
+  const where: any = {};
+  if (project) where.projectId = project.id;
+  else where.status = { in: ["pending", "in_progress"] };
+
+  const tasks = await db.task.findMany({ where, include: { project: true } });
+  if (tasks.length === 0) {
+    return {
+      text: project
+        ? `La obra **${project.code}** no tiene tareas.`
+        : "No hay tareas pendientes para eliminar.",
+      intent: "action_bulk_delete_tasks" as Intent,
+      _requiresConfirmation: false,
+    };
+  }
+
+  // Guardar snapshots para undo
+  const taskSnapshots = tasks.map(t => ({ id: t.id, data: JSON.parse(JSON.stringify(t)) }));
+
+  // Confirmación requerida
+  await savePendingDelete({
+    type: "bulk_tasks",
+    id: "bulk",
+    label: `${tasks.length} tareas${project ? ` de ${project.code}` : ""}`,
+    details: `Se eliminarán:${tasks.slice(0, 5).map(t => `\n• ${t.title}`).join("")}${tasks.length > 5 ? `\n... y ${tasks.length - 5} más` : ""}`,
+    timestamp: Date.now(),
+    snapshot: taskSnapshots,
+  });
+
+  return {
+    text: `⚠️ **¿Confirmás que querés eliminar ${tasks.length} tareas?**${project ? ` (${project.code})` : ""}\n\n${tasks.slice(0, 5).map(t => `• ❌ ${t.title}`).join("\n")}${tasks.length > 5 ? `\n... y ${tasks.length - 5} más` : ""}\n\n---\n\nRespondé **"sí"** para eliminar o **"no"** para cancelar.`,
+    intent: "action_bulk_delete_tasks" as Intent,
+    _requiresConfirmation: true,
+    suggestions: ["Sí, eliminar", "No, cancelar"],
+  } as AgentResponse & { _requiresConfirmation: boolean };
+}
+
+// ─── HANDLE OBSIDIAN COMMAND ───
+export async function handleObsidianCommand(norm: string, rawText: string): Promise<AgentResponse> {
+  // Leer nota
+  const readMatch = rawText.match(/(?:leer|abrir|mostrar)\s+(?:la\s+)?nota\s+["']?([\w\s/.-]+?)["']?(?:,|$)/i) ||
+    rawText.match(/(?:leer|abrir|mostrar)\s+(?:el\s+)?archivo\s+["']?([\w\s/.-]+?)["']?(?:,|$)/i);
+  if (readMatch) {
+    const { readNote } = await import("./agent/capabilities/obsidian");
+    return readNote({ path: readMatch[1].trim() });
+  }
+
+  // Buscar
+  const searchMatch = rawText.match(/(?:buscar|encontrar|search)\s+(?:en\s+(?:el\s+)?vault\s+)?["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i);
+  if (searchMatch) {
+    const { searchNotes } = await import("./agent/capabilities/obsidian");
+    return searchNotes({ query: searchMatch[1].trim(), limit: 20 });
+  }
+
+  // Listar tags
+  if (/tags/i.test(norm) && /(listar|ver|mostrar|todos)/i.test(norm)) {
+    const { listTags } = await import("./agent/capabilities/obsidian");
+    return listTags();
+  }
+
+  // Crear nota
+  const writeMatch = rawText.match(/(?:crear|escribir|guardar)\s+(?:una\s+)?nota\s+["']?([\w\s/.-]+?)["']?\s*(?:,|$|con\s+contenido)/i);
+  if (writeMatch) {
+    const contentMatch = rawText.match(/(?:contenido|content|texto)\s*:?\s*["']?([\w\sÀ-ÿ.,;:!?()\-]+?)["']?(?:,|$)/i);
+    const { writeNote } = await import("./agent/capabilities/obsidian");
+    return writeNote({
+      path: writeMatch[1].trim(),
+      content: contentMatch ? contentMatch[1].trim() : "Nota creada desde el agente de ObraCero",
+      append: false,
+    });
+  }
+
+  // Listar vault (si menciona listar y no hay nota específica)
+  if (/(listar|ver|mostrar)\s+(vault|archivos|directorio|docs)/i.test(norm)) {
+    const pathMatch = rawText.match(/(?:en\s+|path\s*:?\s*)["']?([\w\s/.-]+?)["']?(?:,|$)/i);
+    const { listVault } = await import("./agent/capabilities/obsidian");
+    return listVault({ path: pathMatch ? pathMatch[1].trim() : "/" });
+  }
+
+  // Si no se pudo determinar qué hacer con Obsidian, mostrar ayuda
+  return {
+    text: `📓 **Vault de Obsidian**\n\nPodés:\n\n` +
+      `📖 *leer nota "INDEX.md"* — Leer una nota\n` +
+      `📝 *crear nota "mi-nota" con contenido: ...* — Crear una nota\n` +
+      `🔍 *buscar en vault "cemento"* — Buscar texto\n` +
+      `📂 *listar vault* — Listar archivos\n` +
+      `🏷️ *listar tags* — Ver tags del vault\n` +
+      `\n⚠️ Requiere el plugin **Local REST API** instalado en Obsidian.`,
+    intent: "unknown",
+    suggestions: ["Leer nota INDEX.md", "Listar vault", "Ayuda con Obsidian"],
+  };
+}
+
+// ─── CREATE SCHEDULE ───
+export async function handleCreateSchedule(parsed: ParsedCommand, rawText: string): Promise<AgentResponse> {
+  const nameMatch = rawText.match(/(?:nombre|name|llamada?)\s*:?\s*["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i) ||
+    rawText.match(/crear\s+(un\s+)?(schedule|agendamient|tarea\s+programada)\s+["']?([\w\sÀ-ÿ]+?)["']?(?:,|$)/i);
+  const cronMatch = rawText.match(/(?:cron|cada|every)\s*:?\s*["']?([\w\s*/,\-]+?)["']?(?:,|$)/i) ||
+    rawText.match(/\*\/\d+\s+\*\s+\*\s+\*\s+\*/);
+  const typeMatch = rawText.match(/(check_alerts|run_workflow|send_report|analyze|alertas|workflow|reporte|analisis)/i);
+
+  const typeMap: Record<string, string> = { alertas: "check_alerts", workflow: "run_workflow", reporte: "send_report", analisis: "analyze" };
+  const type = typeMatch ? (typeMap[typeMatch[1].toLowerCase()] || typeMatch[1]) : "check_alerts";
+
+  if (!nameMatch || !cronMatch) {
+    return {
+      text: `Necesito el nombre y la frecuencia para crear un schedule.\n\nEj: *crear schedule "Revisión semanal de stock", cron: 0 9 * * 1, tipo: check_alerts*\n\nTipos disponibles: check_alerts, run_workflow, send_report, analyze`,
+      intent: "action_create_schedule" as Intent,
+      suggestions: ["Ver schedules", "Ayuda"],
+    };
+  }
+
+  const name = nameMatch[1]?.trim() || nameMatch[3]?.trim() || "Schedule";
+  const cron = cronMatch[1]?.trim() || cronMatch[0]?.trim() || "*/5 * * * *";
+
+  const schedule = await db.agentSchedule.create({
+    data: {
+      name,
+      type,
+      cron,
+      config: JSON.stringify({}),
+      enabled: true,
+      nextRun: new Date(),
+    },
+  });
+
+  return {
+    text: `✅ **Schedule creado**\n\n**Nombre:** ${schedule.name}\n**Tipo:** ${schedule.type}\n**Cron:** ${schedule.cron}\n**Estado:** Activo\n\nPodés verlo y editarlo desde **Agendamiento** en el menú.`,
+    intent: "action_create_schedule" as Intent,
+    data: { schedule },
+    suggestions: ["Ver schedules", "Ejecutar scheduler ahora"],
+  };
+}
+

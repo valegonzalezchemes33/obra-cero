@@ -1,0 +1,113 @@
+---
+tags: [config]
+aliases: [package.json]
+---
+
+# package.json
+
+Project package.json
+
+## Información
+
+- **Tipo:** `config`
+- **Ruta:** `package.json`
+- **ID:** `config:package.json`
+
+## Metadatos
+
+```json
+{
+  "name": "nextjs_tailwind_shadcn_ts",
+  "version": "0.2.0",
+  "scripts": [
+    "dev",
+    "build",
+    "start",
+    "lint",
+    "test",
+    "test:watch",
+    "postinstall",
+    "db:push",
+    "db:generate",
+    "db:migrate",
+    "db:reset",
+    "docs",
+    "docs:watch",
+    "docs:impact",
+    "brain",
+    "brain:mcp",
+    "brain:health"
+  ],
+  "dependencies": [
+    "@dnd-kit/core",
+    "@dnd-kit/sortable",
+    "@dnd-kit/utilities",
+    "@hookform/resolvers",
+    "@mdxeditor/editor",
+    "@prisma/client",
+    "@radix-ui/react-accordion",
+    "@radix-ui/react-alert-dialog",
+    "@radix-ui/react-avatar",
+    "@radix-ui/react-checkbox",
+    "@radix-ui/react-dialog",
+    "@radix-ui/react-dropdown-menu",
+    "@radix-ui/react-label",
+    "@radix-ui/react-popover",
+    "@radix-ui/react-progress",
+    "@radix-ui/react-scroll-area",
+    "@radix-ui/react-select",
+    "@radix-ui/react-separator",
+    "@radix-ui/react-slot",
+    "@radix-ui/react-switch",
+    "@radix-ui/react-tabs",
+    "@radix-ui/react-toast",
+    "@radix-ui/react-toggle",
+    "@radix-ui/react-toggle-group",
+    "@radix-ui/react-tooltip",
+    "@tanstack/react-query",
+    "@tanstack/react-table",
+    "class-variance-authority",
+    "clsx",
+    "cmdk",
+    "date-fns",
+    "framer-motion",
+    "lucide-react",
+    "next",
+    "next-auth",
+    "next-intl",
+    "next-themes",
+    "pino",
+    "react",
+    "react-day-picker",
+    "react-dom",
+    "react-hook-form",
+    "react-markdown",
+    "react-syntax-highlighter",
+    "recharts",
+    "sharp",
+    "sonner",
+    "tailwind-merge",
+    "tailwindcss-animate",
+    "uuid",
+    "vaul",
+    "zod"
+  ],
+  "devDependencies": [
+    "@tailwindcss/postcss",
+    "@types/react",
+    "@types/react-dom",
+    "@types/react-syntax-highlighter",
+    "eslint",
+    "eslint-config-next",
+    "prisma",
+    "tailwindcss",
+    "tw-animate-css",
+    "typescript",
+    "vitest"
+  ]
+}
+```
+
+## Relacionado
+
+- [[architecture/overview|config]] — Arquitectura de configs

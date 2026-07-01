@@ -1,0 +1,1002 @@
+{
+  "total": 13,
+  "models": [
+    {
+      "name": "Project",
+      "description": "Prisma model: Project",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "code",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "address",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "budget",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "progress",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "clientName",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "clientEmail",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "endDate",
+          "type": "DateTime",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "transactions",
+          "type": "Transaction",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "tasks",
+          "type": "Task",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "Transaction",
+      "description": "Prisma model: Transaction",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "category",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "date",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "method",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "recurring",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "projectId",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "project",
+          "type": "Project",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "supplier",
+          "type": "Supplier",
+          "required": "false",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "Task",
+      "description": "Prisma model: Task",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "priority",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "assignee",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "projectId",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "project",
+          "type": "Project",
+          "required": "false",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "Supplier",
+      "description": "Prisma model: Supplier",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "phone",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "taxId",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "category",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "rating",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "notes",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "transactions",
+          "type": "Transaction",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "materials",
+          "type": "Material",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "stockMovements",
+          "type": "StockMovement",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "Material",
+      "description": "Prisma model: Material",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "sku",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "unit",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "unitCost",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "unitPrice",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "stock",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "minStock",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "maxStock",
+          "type": "Float",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "supplierId",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "supplier",
+          "type": "Supplier",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "stockMovements",
+          "type": "StockMovement",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "StockMovement",
+      "description": "Prisma model: StockMovement",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "quantity",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "reason",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "note",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "materialId",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "material",
+          "type": "Material",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "supplier",
+          "type": "Supplier",
+          "required": "false",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "AutomationRule",
+      "description": "Prisma model: AutomationRule",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "trigger",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "condition",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "action",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "enabled",
+          "type": "Boolean",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "Workflow",
+      "description": "Prisma model: Workflow",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "trigger",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "triggerConfig",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "enabled",
+          "type": "Boolean",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "steps",
+          "type": "WorkflowStep",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "executions",
+          "type": "WorkflowExecution",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "WorkflowStep",
+      "description": "Prisma model: WorkflowStep",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "workflowId",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "label",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "order",
+          "type": "Float",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "parentId",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "workflow",
+          "type": "Workflow",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "WorkflowExecution",
+      "description": "Prisma model: WorkflowExecution",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "workflowId",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "startedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "completedAt",
+          "type": "DateTime",
+          "required": "false",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": []
+    },
+    {
+      "name": "AgentSchedule",
+      "description": "Prisma model: AgentSchedule",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "config",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "cron",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "lastRun",
+          "type": "DateTime",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "enabled",
+          "type": "Boolean",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "updatedAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "AgentAction",
+      "description": "Prisma model: AgentAction",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "type",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "severity",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "payload",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        },
+        {
+          "unique": false
+        }
+      ]
+    },
+    {
+      "name": "AgentMessage",
+      "description": "Prisma model: AgentMessage",
+      "fields": [
+        {
+          "name": "id",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "role",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "content",
+          "type": "String",
+          "required": "true",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "intent",
+          "type": "String",
+          "required": "false",
+          "unique": false,
+          "default": null
+        },
+        {
+          "name": "createdAt",
+          "type": "DateTime",
+          "required": "true",
+          "unique": false,
+          "default": null
+        }
+      ],
+      "relations": [],
+      "indexes": [
+        {
+          "unique": false
+        }
+      ]
+    }
+  ]
+}

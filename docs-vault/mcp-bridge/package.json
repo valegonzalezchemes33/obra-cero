@@ -1,0 +1,27 @@
+---
+tags: [mcp]
+aliases: [mcp-bridge/package.json]
+---
+
+# mcp-bridge/package.json
+
+MCP integration: mcp-bridge/package.json
+
+## Información
+
+- **Tipo:** `mcp`
+- **Ruta:** `mcp-bridge/package.json`
+- **ID:** `mcp:package.json`
+
+## Metadatos
+
+```json
+{
+  "lineCount": 21,
+  "imports": []
+}
+```
+
+## Relacionado
+
+- [[architecture/agents|mcp]] — Arquitectura de mcps

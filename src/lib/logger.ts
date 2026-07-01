@@ -16,3 +16,5 @@ export const agentLogger = createLogger("agent");
 export const authLogger = createLogger("auth");
 export const webhookLogger = createLogger("webhook");
 export const dbLogger = createLogger("db");
+export const auditLogger = createLogger("audit");
+export const llmLogger = createLogger("llm");

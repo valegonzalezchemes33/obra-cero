@@ -23,6 +23,7 @@ import type { AgentPlan, PlanStep } from "@/lib/agent/types";
 import { v4 as uuid } from "uuid";
 import { checkRateLimit, auditLog, sanitizeForGroq } from "@/lib/agent/audit";
 import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
+import { apiLogger } from "@/lib/logger";
 import { db } from "@/lib/db";
 
 const SESSION_HEADER = "x-session-id";
@@ -170,9 +171,9 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     await auditLog({ type: "plan_failed", sessionId, errorMessage: error.message }).catch(() => {});
-    console.error("[API] POST /api/agent/message:", error);
+    apiLogger.error({ err: error, module: "agent-message", path: "/api/agent/message" }, error.message);
     return NextResponse.json(
-      { error: error.message || "Error interno del agente", planId },
+      { error: "Error interno del agente", planId },
       { status: 500 }
     );
   }

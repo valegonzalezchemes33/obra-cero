@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getCached, invalidateCache, invalidateCachePrefix, clearAllCache, getCacheStats } from "./cache";
+import { getCached, invalidateCache, invalidateCachePrefix, clearAllCache, getCacheStats, getCacheMetrics } from "./cache";
 
 describe("cache", () => {
   beforeEach(() => {
@@ -25,7 +25,7 @@ describe("cache", () => {
     expect(calls).toBe(1);
   });
 
-  it("re-fetches after TTL expires", async () => {
+  it("re-fetches after TTL expires (beyond stale window)", async () => {
     let calls = 0;
     const fn = async () => {
       calls++;
@@ -35,10 +35,37 @@ describe("cache", () => {
     const r1 = await getCached("key3", fn, 10);
     expect(r1).toBe("call-1");
 
-    await new Promise((r) => setTimeout(r, 20));
+    // Esperar más allá de la ventana stale (2x TTL = 20ms + margen)
+    await new Promise((r) => setTimeout(r, 60));
 
     const r2 = await getCached("key3", fn, 10);
     expect(r2).toBe("call-2");
+    expect(calls).toBe(2);
+  });
+
+  it("re-fetches after TTL expires but within stale window", async () => {
+    let calls = 0;
+    const fn = async () => {
+      calls++;
+      return `call-${calls}`;
+    };
+
+    const r1 = await getCached("key-stale", fn, 500);
+    expect(r1).toBe("call-1");
+
+    // Esperar a que TTL expire pero dentro de stale window
+    await new Promise((r) => setTimeout(r, 600));
+
+    // Debería devolver stale mientras refresca en background
+    const r2 = await getCached("key-stale", fn, 500);
+    expect(r2).toBe("call-1"); // Stale hit
+
+    // Esperar a que termine el refresh en background (tarda ~0ms, solo incrementa contador)
+    await new Promise((r) => setTimeout(r, 100));
+
+    // Ahora debería tener el dato fresco, y el TTL nuevo arrancó desde r2+500
+    const r3 = await getCached("key-stale", fn, 500);
+    expect(r3).toBe("call-2");
     expect(calls).toBe(2);
   });
 
@@ -77,5 +104,18 @@ describe("cache", () => {
     await getCached("b", () => Promise.resolve(2), 1000);
     clearAllCache();
     expect(getCacheStats().size).toBe(0);
+  });
+
+  it("getCacheMetrics returns usage metrics", async () => {
+    await getCached("m1", () => Promise.resolve(1), 1000);
+    await getCached("m1", () => Promise.resolve(2), 1000); // hit
+
+    const m = getCacheMetrics();
+    expect(m.hits).toBeGreaterThan(0);
+    expect(m.misses).toBeGreaterThan(0);
+    expect(m.hitRate).toBeGreaterThan(0);
+    expect(m.hitRate).toBeLessThanOrEqual(1);
+    expect(m.maxSize).toBe(500);
+    expect(typeof m.totalRequests).toBe("number");
   });
 });

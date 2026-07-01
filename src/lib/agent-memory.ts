@@ -10,6 +10,7 @@
 
 import { db } from "@/lib/db";
 import type { Intent, AgentResponse, AgentActionItem } from "./agent";
+import { agentLogger } from "@/lib/logger";
 
 // ─── Tipos de Memoria ───
 
@@ -53,13 +54,13 @@ export async function getConversationContext(): Promise<ConversationContext> {
   try {
     const lastMessages = await db.agentMessage.findMany({
       orderBy: { createdAt: "desc" },
-      take: 10,
+      take: 30,
     });
 
     const ctx: ConversationContext = {
       recentMessages: lastMessages
         .reverse()
-        .map((m) => ({ role: m.role, content: m.content.slice(0, 200), intent: m.intent || undefined })),
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 1000), intent: m.intent || undefined })),
     };
 
     // Extraer contexto de los mensajes (de más reciente a más antiguo)
@@ -71,7 +72,7 @@ export async function getConversationContext(): Promise<ConversationContext> {
           if (!ctx.lastProjectRef && meta.lastProjectRef) ctx.lastProjectRef = meta.lastProjectRef;
           if (!ctx.lastProjectName && meta.lastProjectName) ctx.lastProjectName = meta.lastProjectName;
           if (!ctx.lastMaterialRef && meta.lastMaterialRef) ctx.lastMaterialRef = meta.lastMaterialRef;
-        } catch {}
+        } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: extraer metadatos de contexto de mensajes del agente") }
       }
 
       // Si es del usuario, extraer referencias del texto
@@ -160,10 +161,10 @@ export async function getPendingAction(): Promise<PendingAction | null> {
               return meta.pendingAction as PendingAction;
             }
           }
-        } catch {}
+        } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: parsear meta en getPendingAction") }
       }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: buscar acción pendiente") }
   return null;
 }
 
@@ -193,8 +194,8 @@ export async function savePendingAction(action: PendingAction): Promise<void> {
         intent: action.intent,
         meta: JSON.stringify(metaData).slice(0, 4000),
       },
-    });
-  } catch {}
+      });
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: guardar acción pendiente") }
 }
 
 // ─── Limpiar action pendiente ───
@@ -213,7 +214,7 @@ export async function clearPendingAction(): Promise<void> {
         data: { meta: JSON.stringify(meta).slice(0, 4000) || null },
       });
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: limpiar acción pendiente") }
 }
 
 // ─── Guardar metadatos de contexto en la respuesta ───
@@ -272,7 +273,7 @@ export async function saveContextMetadata(response: AgentResponse, entities: Rec
         });
       }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: guardar metadatos de contexto") }
 }
 
 // ─── Verificar si un intent requiere confirmación ───
@@ -296,6 +297,12 @@ export const CONFIRMATION_INTENTS: string[] = [
   "action_delete_material",
   "action_delete_transaction",
   "action_trigger_workflow",
+  // Nuevos intents
+  "action_edit_supplier",
+  "action_delete_supplier",
+  "action_bulk_complete_tasks",
+  "action_bulk_delete_tasks",
+  "action_create_schedule",
 ];
 
 export function requiresConfirmation(intent: Intent): boolean {
@@ -379,12 +386,12 @@ export function generateActionSummary(intent: string, entities: Record<string, a
 // ============================================================
 
 export interface PendingDelete {
-  type: "task" | "material" | "transaction";
+  type: "task" | "material" | "transaction" | "supplier" | "bulk_tasks";
   id: string;
   label: string;
   details: string;
   timestamp: number;
-  snapshot: Record<string, any>;
+  snapshot: any;
 }
 
 const PENDING_DELETE_TTL_MS = 120_000; // 2 minutos
@@ -404,7 +411,7 @@ export async function savePendingDelete(pd: Omit<PendingDelete, "timestamp"> & {
         data: { meta: JSON.stringify(meta).slice(0, 4000) },
       });
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: guardar eliminación pendiente") }
 }
 
 export async function getPendingDelete(): Promise<PendingDelete | null> {
@@ -424,9 +431,9 @@ export async function getPendingDelete(): Promise<PendingDelete | null> {
             return meta._pendingDelete as PendingDelete;
           }
         }
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: parsear meta en getPendingDelete") }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: obtener eliminación pendiente") }
   return null;
 }
 
@@ -450,13 +457,13 @@ export async function clearPendingDelete(): Promise<void> {
           });
           break;
         }
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: parsear meta en clearPendingDelete") }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: limpiar eliminación pendiente") }
 }
 
 export interface UndoSnapshot {
-  model: "task" | "material" | "transaction";
+  model: "task" | "material" | "transaction" | "supplier";
   recordId: string;
   data: Record<string, any>;
   action: string;
@@ -502,7 +509,7 @@ export async function saveUndoSnapshot(
         data: { meta: JSON.stringify(meta).slice(0, 4000) },
       });
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: guardar snapshot para deshacer") }
 }
 
 export async function findUndoSnapshot(): Promise<UndoSnapshot | null> {
@@ -520,7 +527,7 @@ export async function findUndoSnapshot(): Promise<UndoSnapshot | null> {
           if (payload.type === "undo" && Date.now() - payload.timestamp < PENDING_UNDO_TTL_MS) {
             return payload as UndoSnapshot;
           }
-        } catch {}
+        } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: parsear payload de acción en findUndoSnapshot") }
       }
     }
 
@@ -537,9 +544,9 @@ export async function findUndoSnapshot(): Promise<UndoSnapshot | null> {
         if (meta._lastUndo && Date.now() - meta._lastUndo.timestamp < PENDING_UNDO_TTL_MS) {
           return meta._lastUndo as UndoSnapshot;
         }
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: parsear meta de mensaje en findUndoSnapshot") }
     }
-  } catch {}
+  } catch (e) { agentLogger.warn({ module: "agent-memory" }, "catch swallowed: buscar snapshot para deshacer") }
   return null;
 }
 
@@ -556,6 +563,9 @@ export async function executeUndo(snapshot: UndoSnapshot): Promise<boolean> {
         return true;
       case "transaction":
         await db.transaction.create({ data: cleanData as any });
+        return true;
+      case "supplier":
+        await db.supplier.create({ data: cleanData as any });
         return true;
       default:
         return false;

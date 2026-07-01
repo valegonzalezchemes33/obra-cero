@@ -10,6 +10,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import type { AgentResponse } from "@/lib/agent";
+import { agentLogger } from "@/lib/logger";
 
 // ─── Schemas ──────────────────────────────────────────────────
 
@@ -194,7 +195,7 @@ export async function listEvents(
       let meta: any = {};
       try {
         meta = a.payload ? JSON.parse(a.payload) : {};
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-capabilities-calendar" }, "catch swallowed: parsear payload de evento") }
 
       const dateStr = meta.date
         ? formatDateLong(new Date(meta.date))

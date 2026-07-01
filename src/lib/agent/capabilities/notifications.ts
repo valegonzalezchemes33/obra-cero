@@ -9,6 +9,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import type { AgentResponse } from "@/lib/agent";
+import { agentLogger } from "@/lib/logger";
 
 // ─── Schemas ──────────────────────────────────────────────────
 
@@ -50,7 +51,7 @@ export async function sendNotification(
           : { name: { contains: refStr } };
       const project = await db.project.findFirst({ where });
       projectId = project?.id || null;
-    } catch {}
+    } catch (e) { agentLogger.warn({ module: "agent-capabilities-notifications" }, "catch swallowed: resolver proyecto por referencia") }
   }
 
   const payload = JSON.stringify({
@@ -123,7 +124,7 @@ export async function listNotifications(
       let meta: any = {};
       try {
         meta = a.payload ? JSON.parse(a.payload) : {};
-      } catch {}
+      } catch (e) { agentLogger.warn({ module: "agent-capabilities-notifications" }, "catch swallowed: parsear payload de notificación") }
       const linkLine = meta.link ? ` → ${meta.link}` : "";
       return `${sevIcon} **${a.title}**${linkLine}\n   ${a.description?.slice(0, 80) || ""} (${a.type})`.trim();
     });

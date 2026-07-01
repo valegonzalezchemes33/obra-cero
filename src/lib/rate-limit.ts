@@ -51,3 +51,7 @@ function makeLimiter(opts: { windowMs: number; maxHits: number }) {
 export const webhookRateLimiter = makeLimiter({ windowMs: 60_000, maxHits: 60 });
 
 export const agentRateLimiter = makeLimiter({ windowMs: 60_000, maxHits: 30 });
+
+export const loginRateLimiter = makeLimiter({ windowMs: 60_000, maxHits: 5 });
+
+export const mutationRateLimiter = makeLimiter({ windowMs: 60_000, maxHits: 100 });

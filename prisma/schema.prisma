@@ -1,4 +1,5 @@
-// Schema para sistema interno de constructora/inmobiliaria
+// Schema para ObraCero — CRM multi-tenant con agente IA
+// Cada organización ve solo sus propios datos (organizationId) en todas las tablas.
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x", "linux-arm64-openssl-3.0.x"]
@@ -10,11 +11,72 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+// ═══════════════════════════════════════════════════════════════
+// MULTI-TENANT — ORGANIZACIONES Y USUARIOS
+// ═══════════════════════════════════════════════════════════════
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique // Identificador URL-friendly
+  plan      String   @default("free") // free | pro | enterprise
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members   OrganizationMember[]
+  projects  Project[]
+  transactions Transaction[]
+  tasks     Task[]
+  suppliers Supplier[]
+  materials Material[]
+  stockMovements StockMovement[]
+  automationRules AutomationRule[]
+  workflows Workflow[]
+  agentSchedules AgentSchedule[]
+  agentActions AgentAction[]
+  agentMessages AgentMessage[]
+
+  @@index([slug])
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships OrganizationMember[]
+
+  @@index([email])
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String   @default("admin") // admin | editor | viewer
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════════════════════
+// DOMINIO — Todas las entidades con organizationId
+// ═══════════════════════════════════════════════════════════════
+
 // ─── PROYECTOS / OBRAS ───────────────────────────────────────
 
 model Project {
   id          String    @id @default(cuid())
-  code        String    @unique // OB-001, OB-002, ...
+  organizationId String
+  code        String    // OB-001, OB-002, ... (unique por org)
   name        String
   description String?
   address     String?
@@ -30,18 +92,21 @@ model Project {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   transactions Transaction[]
   tasks        Task[]
 
-  @@index([status])
-  @@index([clientName])
-  @@index([createdAt])
+  @@unique([organizationId, code])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+  @@index([organizationId, name])
 }
 
 // ─── TRANSACCIONES FINANCIERAS ───────────────────────────────
 
 model Transaction {
   id          String    @id @default(cuid())
+  organizationId String
   type        String    // income | expense
   category    String    // materiales | mano_de_obra | servicios | venta | anticipo | otros
   description String
@@ -53,19 +118,22 @@ model Transaction {
   supplierId  String?
   createdAt   DateTime  @default(now())
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project  Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
-  @@index([type, date])
-  @@index([projectId, date])
-  @@index([supplierId])
-  @@index([category])
+  @@index([organizationId, type, date])
+  @@index([organizationId, projectId, date])
+  @@index([organizationId, supplierId])
+  @@index([organizationId, category])
+  @@index([organizationId, date])
 }
 
 // ─── TAREAS ───────────────────────────────────────────────────
 
 model Task {
   id          String    @id @default(cuid())
+  organizationId String
   title       String
   description String?
   status      String    @default("pending") // pending | in_progress | completed | cancelled
@@ -77,18 +145,20 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  @@index([status, dueDate])
-  @@index([projectId])
-  @@index([assignee])
-  @@index([createdBy])
+  @@index([organizationId, status, dueDate])
+  @@index([organizationId, projectId])
+  @@index([organizationId, assignee])
+  @@index([organizationId, dueDate])
 }
 
 // ─── PROVEEDORES ─────────────────────────────────────────────
 
 model Supplier {
-  id       String  @id @default(cuid())
+  id          String   @id @default(cuid())
+  organizationId String
   name     String
   contact  String?
   phone    String?
@@ -100,19 +170,21 @@ model Supplier {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   transactions  Transaction[]
   materials     Material[]
   stockMovements StockMovement[]
 
-  @@index([name])
-  @@index([category])
+  @@index([organizationId, name])
+  @@index([organizationId, category])
 }
 
 // ─── MATERIALES / INVENTARIO ─────────────────────────────────
 
 model Material {
   id         String  @id @default(cuid())
-  sku        String  @unique
+  organizationId String
+  sku        String
   name       String
   category   String  @default("general")
   unit       String  @default("unidad") // kg | m2 | m3 | litro | unidad | etc.
@@ -126,18 +198,22 @@ model Material {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   supplier       Supplier?       @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   stockMovements StockMovement[]
 
-  @@index([supplierId])
-  @@index([category])
-  @@index([stock])
+  @@unique([organizationId, sku])
+  @@index([organizationId, supplierId])
+  @@index([organizationId, category])
+  @@index([organizationId, stock])
+  @@index([organizationId, name])
 }
 
 // ─── MOVIMIENTOS DE STOCK ─────────────────────────────────────
 
 model StockMovement {
   id         String   @id @default(cuid())
+  organizationId String
   type       String   // incoming | outgoing | adjustment
   quantity   Float
   unitCost   Float    @default(0)
@@ -147,17 +223,19 @@ model StockMovement {
   materialId String
   supplierId String?
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   material Material  @relation(fields: [materialId], references: [id], onDelete: Cascade)
   supplier Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
 
-  @@index([materialId, date])
-  @@index([type])
+  @@index([organizationId, materialId, date])
+  @@index([organizationId, type])
 }
 
-// ─── REGLAS DE AUTOMATIZACIÓN (legacy) ─────────────────────────
+// ─── REGLAS DE AUTOMATIZACIÓN ─────────────────────────────────
 
 model AutomationRule {
   id          String   @id @default(cuid())
+  organizationId String
   name        String
   description String?
   trigger     String   // stock_low | budget_exceeded | overdue_task | monthly_expense | etc.
@@ -167,13 +245,16 @@ model AutomationRule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([trigger, enabled])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, trigger, enabled])
 }
 
 // ─── WORKFLOWS / FLUJOS DE AUTOMATIZACIÓN ────────────────────
 
 model Workflow {
   id          String   @id @default(cuid())
+  organizationId String
   name        String
   description String?
   trigger     String   @default("manual") // manual | schedule | event | webhook
@@ -182,10 +263,11 @@ model Workflow {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   steps      WorkflowStep[]
   executions WorkflowExecution[]
 
-  @@index([trigger, enabled])
+  @@index([organizationId, trigger, enabled])
 }
 
 model WorkflowStep {
@@ -199,8 +281,6 @@ model WorkflowStep {
   createdAt  DateTime @default(now())
 
   workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-
-  @@index([workflowId, order])
 }
 
 model WorkflowExecution {
@@ -223,6 +303,7 @@ model WorkflowExecution {
 
 model AgentSchedule {
   id          String   @id @default(cuid())
+  organizationId String
   name        String
   type        String   // check_alerts | run_workflow | send_report | analyze
   config      String   @db.Text // JSON: parámetros específicos
@@ -233,14 +314,17 @@ model AgentSchedule {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  @@index([nextRun])
-  @@index([enabled, nextRun])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, nextRun])
+  @@index([organizationId, enabled, nextRun])
 }
 
 // ─── ACCIONES DEL AGENTE IA ───────────────────────────────────
 
 model AgentAction {
   id          String   @id @default(cuid())
+  organizationId String
   type        String   // alert | task | reorder | highlight | audit
   severity    String   @default("info") // info | warning | critical
   title       String
@@ -249,19 +333,24 @@ model AgentAction {
   status      String   @default("active") // active | resolved | dismissed
   createdAt   DateTime @default(now())
 
-  @@index([type, status])
-  @@index([createdAt])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type, status])
+  @@index([organizationId, createdAt])
 }
 
 // ─── HISTORIAL DE CONVERSACIÓN DEL AGENTE ────────────────────
 
 model AgentMessage {
   id        String   @id @default(cuid())
+  organizationId String
   role      String   // user | agent
   content   String   @db.Text
   intent    String?
   meta      String?  @db.Text // JSON con datos adicionales
   createdAt DateTime @default(now())
 
-  @@index([createdAt])
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
 }

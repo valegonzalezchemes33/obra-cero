@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireSession, authRequiredResponse, AuthRequiredError } from "@/lib/api-utils";
+import { requireSession, authRequiredResponse, AuthRequiredError, RateLimitError, rateLimitResponse } from "@/lib/api-utils";
+import { apiLogger } from "@/lib/logger";
+import { validateBody } from "@/lib/validation";
+import { z } from "zod";
 
 export async function GET() {
   try {
@@ -10,22 +13,26 @@ export async function GET() {
     });
     return NextResponse.json(actions);
   } catch (error: any) {
-    console.error("[API] GET /api/agent/actions:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/agent/actions" }, error.message);
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
     await requireSession();
-    const body = await req.json();
-    const { id, ids, status } = body;
+    const parsed = validateBody(
+      z.object({
+        id: z.string().optional(),
+        ids: z.array(z.string()).optional(),
+        status: z.enum(["active", "resolved", "dismissed"]).optional(),
+      }).refine((d) => d.id || d.ids, { message: "Se requiere id o ids" }),
+      await req.json()
+    );
+    if (!parsed.ok) return parsed.response;
+    const { id, ids, status } = parsed.data;
 
     const targetIds = ids || (id ? [id] : []);
-    if (targetIds.length === 0) {
-      return NextResponse.json({ error: "Se requiere id o ids" }, { status: 400 });
-    }
-
     const result = await db.agentAction.updateMany({
       where: { id: { in: targetIds } },
       data: { status: status || "resolved" },
@@ -33,8 +40,9 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({ updated: result.count });
   } catch (error: any) {
+    if (error instanceof RateLimitError) return rateLimitResponse();
     if (error instanceof AuthRequiredError) return authRequiredResponse();
-    console.error("[API] PATCH /api/agent/actions:", error.message);
-    return NextResponse.json({ error: error.message || "Error interno" }, { status: 500 });
+    apiLogger.error({ module: "API", path: "/api/agent/actions" }, error.message)
+    return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
   }
 }

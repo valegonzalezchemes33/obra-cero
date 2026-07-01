@@ -11,6 +11,7 @@ import { tryGroqIntentRecognition, getSystemContext } from "@/lib/groq-integrati
 import { chatStream, getAvailableProviders } from "@/lib/llm-provider";
 import { getConversationContext, getPendingAction, isConfirmation, isCancellation, clearPendingAction } from "@/lib/agent-memory";
 import { requireAgentApiKey, agentApiKeyRequiredResponse } from "@/lib/api-utils";
+import { apiLogger } from "@/lib/logger";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -165,9 +166,9 @@ IMPORTANTE:
       headers: { "Content-Type": "application/json" },
     });
   } catch (error: any) {
-    console.error("[STREAM] Error:", error.message);
+    apiLogger.error({ module: "stream", path: "/api/agent/stream" }, error.message);
     return new Response(JSON.stringify({
-      error: error.message || "Error interno",
+      error: "Error interno",
       text: "Ocurrió un error al procesar el mensaje. Intentalo de nuevo.",
     }), {
       status: 500,
